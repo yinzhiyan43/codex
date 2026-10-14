@@ -27,5 +27,5 @@ export function assertOfficialModelConfiguration(config: Record<string, unknown>
 export function assertOfficialChatConfiguration(config: Record<string, unknown>): void {
   assertOfficialModelConfiguration(config);
   const features = config.features as Record<string, unknown> | undefined;
-  if (["shell_tool", "unified_exec", "view_image", "apps", "plugins", "code_mode", "multi_agent", "multi_agent_v2", "image_generation", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "computer_use"].some(name => features?.[name] !== false) || config.web_search !== "disabled" || (config.agents as { enabled?: boolean } | undefined)?.enabled !== false) throw new Error("chat-tools-not-disabled");
+  if (["background_paginated_rollout_migration", "goals", "daemon_auto_start", "shell_tool", "unified_exec", "view_image", "apps", "plugins", "code_mode", "multi_agent", "multi_agent_v2", "image_generation", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "computer_use"].some(name => features?.[name] !== false) || config.web_search !== "disabled" || (config.agents as { enabled?: boolean } | undefined)?.enabled !== false) throw new Error("chat-tools-not-disabled");
 }

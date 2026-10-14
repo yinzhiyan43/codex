@@ -55,6 +55,12 @@ export class Projection {
     thread.bytes = bytes;
     if (this.#totalBytes > this.#limit) throw new Error("Projection byte limit exceeded");
   }
+  replaceMetadata(thread: Thread): void {
+    const old = this.#threads.get(thread.id);
+    if (old && !old.stale && [...old.turns.values()].some(turn=>turn.status==="inProgress")) throw new Error("Cannot replace active projection");
+    if (old) { this.#threads.delete(thread.id); this.#totalBytes -= old.bytes; }
+    const value = this.#thread(thread.id); value.metadata = structuredClone({...thread,turns:[]}); this.#changed(value);
+  }
   hydrate(thread: Thread, includeTurns: boolean, expectedRevision: number): boolean {
     const view = this.#thread(thread.id);
     if (view.revision !== expectedRevision) return false;

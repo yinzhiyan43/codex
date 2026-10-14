@@ -70,7 +70,7 @@ export async function prepareOfficialAccountCore(runsDirectory: string, executab
     if (!(checked.stdout + checked.stderr).includes("Logged in using ChatGPT")) throw new Error("core-chatgpt-login-required");
   } catch { await rm(prepared.directory, { recursive: true, force: true }); throw new Error("core-chatgpt-login-required"); }
   await mkdir(join(prepared.directory, "state")); await mkdir(join(prepared.directory, "log"));
-  const overrides: Record<string, string | number | boolean | string[]> = { model_provider: "openai", forced_login_method: "chatgpt", chatgpt_base_url: "https://chatgpt.com/backend-api/", "analytics.enabled": false, "otel.exporter": "none", "otel.trace_exporter": "none", check_for_update_on_startup: false, sqlite_home: join(prepared.directory, "state"), log_dir: join(prepared.directory, "log"), project_doc_max_bytes: 0, "skills.include_instructions": false, "skills.bundled.enabled": false, "features.memories": false, "features.apps": false, "features.plugins": false };
+  const overrides: Record<string, string | number | boolean | string[]> = { model_provider: "openai", forced_login_method: "chatgpt", chatgpt_base_url: "https://chatgpt.com/backend-api/", "analytics.enabled": false, "otel.exporter": "none", "otel.trace_exporter": "none", check_for_update_on_startup: false, sqlite_home: join(prepared.directory, "state"), log_dir: join(prepared.directory, "log"), project_doc_max_bytes: 0, "skills.include_instructions": false, "skills.bundled.enabled": false, "features.background_paginated_rollout_migration": false, "features.goals": false, "features.daemon_auto_start": false, "features.memories": false, "features.apps": false, "features.plugins": false };
   Object.assign(overrides, officialRouteOverrides());
   const args = ["app-server", "--listen", "stdio://"];
   for (const [key, value] of Object.entries(overrides)) args.push("-c", key + "=" + JSON.stringify(value));
@@ -79,14 +79,18 @@ export async function prepareOfficialAccountCore(runsDirectory: string, executab
 }
 
 /** Bootstrap config only; disable all configured MCP before any chat thread can start. */
-export async function prepareOfficialChatCore(runsDirectory: string) {
+export async function prepareOfficialChatCore(runsDirectory: string, persistentRoot: string) {
+  if (!isAbsolute(persistentRoot) || persistentRoot.includes("\0")) throw new Error("invalid-workbench-state-path");
+  await mkdir(persistentRoot, {recursive:true,mode:0o700});
+  const durable = await realpath(persistentRoot);
+  for (const name of ["state","log","chat-cwd"]) await mkdir(join(durable,name),{recursive:true,mode:0o700});
   const prepared = await prepareOfficialAccountCore(runsDirectory);
   const { StdioWorkbenchHost } = await import("./stdio-host.ts");
   const bootstrap = new StdioWorkbenchHost(prepared.launcher, { requestTimeoutMs: 10000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
   const { discoverChatMcp } = await import("./chat-bootstrap.ts");
   const disabled = await discoverChatMcp(bootstrap, () => rm(prepared.directory, { recursive: true, force: true }));
-  const restrictions = { "features.shell_tool": false, "features.unified_exec": false, "features.view_image": false, "features.code_mode": false, "features.multi_agent": false, "features.multi_agent_v2": false, "features.image_generation": false, "features.browser_use": false, "features.browser_use_external": false, "features.browser_use_full_cdp_access": false, "features.computer_use": false, "agents.enabled": false, "memories.generate_memories": false, "memories.use_memories": false, web_search: "disabled" };
-  const args = [...prepared.launchArgs, ...disabled.flatMap(value => ["-c", value]), ...Object.entries(restrictions).flatMap(([key,value]) => ["-c", key+"="+JSON.stringify(value)])];
+  const restrictions = { "features.background_paginated_rollout_migration": false, "features.goals": false, "features.daemon_auto_start": false, "features.shell_tool": false, "features.unified_exec": false, "features.view_image": false, "features.code_mode": false, "features.multi_agent": false, "features.multi_agent_v2": false, "features.image_generation": false, "features.browser_use": false, "features.browser_use_external": false, "features.browser_use_full_cdp_access": false, "features.computer_use": false, "agents.enabled": false, "memories.generate_memories": false, "memories.use_memories": false, web_search: "disabled" };
+  const args = [...prepared.launchArgs, "-c", "sqlite_home="+JSON.stringify(join(durable,"state")), "-c", "log_dir="+JSON.stringify(join(durable,"log")), "-c", "cwd="+JSON.stringify(join(durable,"chat-cwd")), ...disabled.flatMap(value => ["-c", value]), ...Object.entries(restrictions).flatMap(([key,value]) => ["-c", key+"="+JSON.stringify(value)])];
   const launcher: ProcessLauncher = () => spawn(DEFAULT_CORE_BINARY, args, { cwd: prepared.cwd, env: { ...prepared.accountEnvironment }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
-  return { ...prepared, launcher };
+  return { ...prepared, launcher, cwd:join(durable,"chat-cwd") };
 }

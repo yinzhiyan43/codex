@@ -14,7 +14,7 @@ function render(next: DesktopView): void {
   const changedRoute = key !== routeKey; routeKey = key;
   const project = next.projects.find(p => p.id === next.route.projectId)!;
   el("project-context").textContent = project.name;
-  el("execution-context").textContent = next.chatStatus?.historyMode ? "只读历史" : next.mode === "official-chat" ? "\u4e34\u65f6\u7eaf\u6587\u672c\u4f1a\u8bdd" : "\u6b64\u8ba1\u7b97\u673a";
+  el("execution-context").textContent = next.chatStatus?.historyMode ? "只读历史" : next.mode === "official-chat" ? next.chatStatus?.persistent ? "持久纯文本会话" : "临时观察缓存" : "\u6b64\u8ba1\u7b97\u673a";
   el("empty-title").textContent = `我们应该在${project.name}中做些什么？`;
   const official = next.mode !== "synthetic";
   const chat = next.mode === "official-chat";
@@ -25,11 +25,14 @@ function render(next: DesktopView): void {
   document.title = chat ? "Codex Workbench — " + (next.chatStatus?.offline ? "\u5b98\u65b9\u804a\u5929\u534f\u8bae\u79bb\u7ebf\u9a8c\u8bc1" : "\u5b98\u65b9ChatGPT\u804a\u5929") : official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示";
   el("core-status").hidden = savedHistory || !official || (chat && next.messages.length > 0);
   el("chat-summary").hidden = !chat;
-  const phases: Record<string,string> = { connecting: "正在核验连接", idle: "就绪", starting: "正在发送", running: "正在回应", cancelling: "等待官方中断确认", reading: "刷新当前会话", unknown: "结果未知，不会自动重发" };
-  el("chat-summary").textContent = savedHistory ? `只读历史记录 · 不恢复执行、不调用模型${next.chatStatus?.offline ? " · 离线合成验证" : ""}` : chat ? `ChatGPT · ${next.chatStatus?.model ?? "目录未确认"} · ${phases[next.chatStatus?.phase ?? "idle"]} · 临时会话（正文只保留已观察缓存）${next.chatStatus?.offline ? " · 仅离线合成数据" : ""}` : "";
+  const phases: Record<string,string> = { disconnecting: "正在断开连接", connecting: "正在核验连接", idle: "就绪", starting: "正在发送", running: "正在回应", cancelling: "等待官方中断确认", reading: "读取当前记录", restoring: "恢复记录", managing: "更新会话", unknown: "结果未知，不会自动重发" };
+  el("chat-summary").title = next.persistenceNotice ?? "";
+  el("chat-summary").textContent = savedHistory ? `只读历史记录 · 不恢复执行、不调用模型${next.chatStatus?.offline ? " · 离线合成验证" : ""}` : chat ? `ChatGPT · ${next.chatStatus?.model ?? "目录未确认"} · ${phases[next.chatStatus?.phase ?? "idle"]} · ${next.chatStatus?.persistent ? "持久会话" : "临时观察缓存"}${next.chatStatus?.offline ? " · 仅离线合成数据" : ""}` : "";
   for (const id of ["new", "back", "home", "workspace"]) el<HTMLButtonElement>(id).disabled = official && !(chat && id === "new" && ["idle","unknown"].includes(next.chatStatus?.phase ?? "idle"));
-  if (chat) { el<HTMLButtonElement>("workspace").disabled = next.running || !!next.pending || next.chatStatus?.phase === "connecting" || next.connection !== "ready"; el("workspace").textContent = "浏览历史会话"; }
+  if (chat) { el<HTMLButtonElement>("workspace").disabled = next.running || !!next.pending || !(["idle","unknown"].includes(next.chatStatus?.phase ?? "idle")) || next.connection !== "ready"; el("workspace").textContent = "浏览历史会话"; }
   el("saved-history-toolbar").hidden = !savedHistory;
+  el("toggle-archived").textContent = next.historyBrowser?.archived ? "查看未归档" : "查看归档";
+  el<HTMLButtonElement>("continue-session").disabled = !next.historyBrowser?.selectedId || !!next.historyBrowser?.archived || next.loading || next.connection !== "ready";
   el("saved-history-notice").textContent = savedHistory ? next.historyBrowser?.notice ?? "" : "";
   el<HTMLButtonElement>("refresh-threads").disabled = !!next.historyBrowser?.loading || next.connection !== "ready";
   el<HTMLButtonElement>("more-threads").disabled = !next.historyBrowser?.moreThreads || !!next.historyBrowser?.loading || next.connection !== "ready";
@@ -42,7 +45,7 @@ function render(next: DesktopView): void {
   draft.disabled = savedHistory || (official && !chat) || (chat && (next.running || next.loading));
   draft.placeholder = savedHistory ? "历史只读；返回当前聊天后可发送" : chat ? "发送到所选官方GPT模型" : official ? (accountMode ? "原生账户连接：此页仅检查状态" : "尚未登录，本阶段不发送消息") : "随心输入";
   el("connection-title").textContent = chat ? "官方聊天连接" : official ? "官方核心隔离连接" : "演示连接";
-  el("connection-description").textContent = chat ? "复用官方CLI现有ChatGPT登录，重连创建新临时会话；不会自动重复消息。发送使用当前套餐额度。" : official ? (accountMode ? "使用官方CLI现有ChatGPT登录；此页只检查状态与模型目录，不读取既有聊天或发送消息。" : "使用空配置验证官方 0.162.1 进程；不读取既有聊天、不登录、不发送模型请求。") : "只连接本地合成 peer，不使用真实账户或模型。";
+  el("connection-description").textContent = chat ? "复用官方CLI现有ChatGPT登录；新会话默认保存。重启/重连先读取记录，下一次确认发送才恢复线程，不会自动重复消息。" : official ? (accountMode ? "使用官方CLI现有ChatGPT登录；此页只检查状态与模型目录，不读取既有聊天或发送消息。" : "使用空配置验证官方 0.162.1 进程；不读取既有聊天、不登录、不发送模型请求。") : "只连接本地合成 peer，不使用真实账户或模型。";
   const choice = el<HTMLSelectElement>("model-choice"); choice.hidden = !chat; el("model-label").hidden = chat;
   if (chat) {
     const models = next.coreStatus?.models ?? [];
@@ -55,8 +58,8 @@ function render(next: DesktopView): void {
   modelLabel.textContent = official ? next.coreStatus?.defaultModel ?? "模型尚未验证" : "合成模型";
   if (next.coreStatus) {
     const core = next.coreStatus;
-    el("core-description").textContent = chat ? "使用官方CLI当前ChatGPT账号；在下方选择GPT模型，输入并确认发送。会话临时保留，退出或重连后不自动恢复。" : accountMode ? "使用官方 CLI 现有登录；不复制凭证，不加载既有聊天。此页仅检查连接与模型目录。" : "只验证本机进程和只读协议。此环境为空，尚未登录；不发送消息。";
-    el("core-next-step").textContent = chat ? "支持纯文本聊天与未归档历史只读浏览；临时会话正文不能重新读取，仅核对元数据并保留已观察缓存。" : accountMode ? "没有加载既有聊天；真实模型可用性由独立冒烟测试验证。" : "没有加载既有聊天。模型和账户能力将在获准登录后验证。";
+    el("core-description").textContent = chat ? "使用官方CLI当前ChatGPT账号；新会话由官方保存，重启可读并继续聊。工作台另保留列表与草稿。" : accountMode ? "使用官方 CLI 现有登录；不复制凭证，不加载既有聊天。此页仅检查连接与模型目录。" : "只验证本机进程和只读协议。此环境为空，尚未登录；不发送消息。";
+    el("core-next-step").textContent = chat ? next.persistenceNotice ?? "持久会话保留记录；已有临时会话只能保留实际观察缓存。" : accountMode ? "没有加载既有聊天；真实模型可用性由独立冒烟测试验证。" : "没有加载既有聊天。模型和账户能力将在获准登录后验证。";
     el("core-account").textContent = core.authentication ? `已登录 ChatGPT · 官方套餐标识：${core.authentication.planType ?? "未知"} · ${core.models.length}个GPT模型` : accountMode ? "官方账户状态尚未确认" : "";
     el("core-connection").textContent = `${core.handshake ? "Codex" : "目标核心"} ${core.version} · ${next.connection} · 第${core.generation}次连接 · ${core.handshake ? "握手已确认" : "握手未确认"}`;
     if (chat && next.chatStatus?.offline) {
@@ -85,7 +88,7 @@ function render(next: DesktopView): void {
   for (const message of next.messages) {
     const node = existing.get(message.id) ?? document.createElement("article");
     node.className = `message ${message.role}`; node.dataset.messageId = message.id;
-    const signature = JSON.stringify([message.text, message.stale, message.status]);
+    const signature = JSON.stringify([message.text, message.stale, message.status, savedHistory]);
     if (signature !== node.dataset.signature) {
       node.replaceChildren(document.createTextNode(message.text)); node.dataset.signature = signature;
       if (chat && message.status && message.status !== "running") { const state = document.createElement("span"); state.className = "cache-label"; state.textContent = savedHistory ? ({ completed: "历史完成记录", cancelled: "历史中断记录", failed: "历史失败记录", unknown: "历史未完成状态" })[message.status] : ({ completed: "已完成", cancelled: "官方已确认中断", failed: "失败", unknown: "结果未知" })[message.status]; node.append(state); }
@@ -103,14 +106,14 @@ function render(next: DesktopView): void {
   else scroller.scrollTop = oldTop;
   const remoteThread = !!next.route.threadId && !next.route.threadId.startsWith("local-");
   el("history-toolbar").hidden = !remoteThread;
-  el("load-history").textContent = savedHistory ? "加载更早轮次" : chat ? "核对当前会话元数据" : "加载更早历史";
-  el("conversation").setAttribute("aria-label", savedHistory ? "只读历史记录" : chat ? "官方临时会话" : "演示会话");
+  el("load-history").textContent = savedHistory || (chat && next.chatStatus?.persistent) ? "加载更早轮次" : chat ? "核对当前会话元数据" : "加载更早历史";
+  el("conversation").setAttribute("aria-label", savedHistory ? "只读历史记录" : chat ? "官方持久会话" : "演示会话");
   el("stop").setAttribute("aria-label", chat ? "停止官方回应" : "停止演示");
   el<HTMLButtonElement>("stop").disabled = chat && next.chatStatus?.phase === "cancelling";
   el("history-count").textContent = `${next.history.turnCount} 个轮次 · ${next.history.itemCount} 项历史`;
   el("history-status").textContent = next.history.notice ?? (next.history.loading ? "读取中…" : next.history.busy ? "正在结束读取…" : next.history.stale ? "部分缓存待核对" : "");
-  el<HTMLButtonElement>("load-history").disabled = (savedHistory ? !next.history.hasMore : chat ? !next.chatStatus?.canRefresh : !next.history.hasMore) || next.history.busy || next.connection !== "ready";
-  el("refresh-saved-history").hidden = !savedHistory;
+  el<HTMLButtonElement>("load-history").disabled = (savedHistory || (chat && next.chatStatus?.persistent) ? !next.history.hasMore : chat ? !next.chatStatus?.canRefresh : !next.history.hasMore) || next.history.busy || next.connection !== "ready";
+  el("refresh-saved-history").hidden = !savedHistory && !(chat && next.chatStatus?.persistent && remoteThread);
   el<HTMLButtonElement>("refresh-saved-history").disabled = !next.chatStatus?.canRefresh;
   el("cancel-history").hidden = (!savedHistory && chat) || !next.history.loading;
   el("approval-list").hidden = next.approvals.length === 0;
@@ -149,7 +152,7 @@ function render(next: DesktopView): void {
   const notice = next.error ?? (next.stale ? (official ? "官方核心连接未就绪，可显式重连。" : "演示连接已断开，显示的是缓存内容。草稿会保留。") : next.history.stale ? "较早历史仍是缓存，可以继续加载核对。" : null);
   el("notice").hidden = !notice;
   el("notice-text").textContent = notice ?? "";
-  el("retry").hidden = chat ? next.chatStatus?.phase === "connecting" || (online && !!next.chatStatus?.ready) : online;
+  el("retry").hidden = chat ? ["connecting","disconnecting"].includes(next.chatStatus?.phase ?? "") || (online && !!next.chatStatus?.ready) : online;
   el<HTMLButtonElement>("send").disabled = savedHistory || (official && !chat) || (chat && (!next.chatStatus?.ready || next.running || !!next.pending)) || !draft.value.trim() || !online || next.loading;
   el("send").hidden = next.running;
   el("stop").hidden = !next.running;
@@ -231,3 +234,26 @@ el("return-chat").addEventListener("click", () => void send({ type: "returnToCha
 el("refresh-threads").addEventListener("click", () => void send({ type: "refreshThreads" }));
 el("more-threads").addEventListener("click", () => void send({ type: "moreThreads" }));
 el("refresh-saved-history").addEventListener("click", () => void send({ type: "refreshHistory" }));
+
+let menuId: string | null = null; let sessionAction: "renameSession" | "archiveSession" | "unarchiveSession" | null = null;
+const sessionMenu=el("session-menu"), sessionDialog=el<HTMLDialogElement>("session-dialog");
+el("project-list").addEventListener("contextmenu",event=>{
+  const button=(event.target as HTMLElement).closest<HTMLButtonElement>("[data-thread]");if(!button?.dataset.thread || view?.mode!=="official-chat")return;event.preventDefault();menuId=button.dataset.thread;
+  const record=view.managedSessions?.find(row=>row.id===menuId);el("session-pin").textContent=record?.pinned?"取消置顶":"置顶";el("session-unread").textContent=record?.unread?"标记为已读":"标记为未读";el("session-archive").textContent=record?.archived||view.historyBrowser?.archived?"恢复归档":"归档";
+  for(const id of ["session-rename","session-archive"])el<HTMLButtonElement>(id).disabled=view.connection!=="ready"||view.loading||view.running||!!record?.ephemeral;
+  el<HTMLButtonElement>("session-rename").disabled ||= !!record?.archived || !!view.historyBrowser?.archived;
+  sessionMenu.hidden=false;sessionMenu.style.left=Math.min(event.clientX,innerWidth-230)+"px";sessionMenu.style.top=Math.min(event.clientY,Math.max(10,innerHeight-440))+"px";
+});
+const showAction=(type:typeof sessionAction,title:string,description:string)=>{sessionAction=type;sessionMenu.hidden=true;el("session-dialog-title").textContent=title;el("session-dialog-description").textContent=description;el("session-name-label").hidden=type!=="renameSession";el("session-apply").hidden=type===null;el<HTMLInputElement>("session-name").value=view?.managedSessions?.find(row=>row.id===menuId)?.title??view?.projects.flatMap(p=>p.threads).find(row=>row.id===menuId)?.title??"";sessionDialog.showModal();};
+el("session-rename").addEventListener("click",()=>showAction("renameSession","重命名会话","通过官方接口更新会话名称。"));
+el("session-pin").addEventListener("click",()=>{sessionMenu.hidden=true;if(menuId)void send({type:"pinSession",id:menuId});});
+el("session-unread").addEventListener("click",()=>{sessionMenu.hidden=true;if(menuId)void send({type:"unreadSession",id:menuId});});
+el("session-archive").addEventListener("click",()=>{const archived=view?.managedSessions?.find(row=>row.id===menuId)?.archived||view?.historyBrowser?.archived;showAction(archived?"unarchiveSession":"archiveSession",archived?"恢复归档":"归档会话",archived?"官方接口将恢复这条归档记录。":"官方归档会关闭该会话，可能同时归档其派生会话；正文不会永久删除。确认后才发送请求。");});
+el("session-share").addEventListener("click",()=>showAction(null,"分享尚未接入","尚未核实此会话的官方分享接口。此处不会创建链接或对外分享内容。"));
+el("session-delete").addEventListener("click",()=>showAction(null,"永久删除当前未开放","官方删除接口已登记；本轮未授权删除真实会话。这里不会发送删除请求或移除正文。"));
+el("session-dismiss").addEventListener("click",()=>sessionDialog.close());
+el("session-form").addEventListener("submit",event=>{event.preventDefault();if(!menuId||!sessionAction)return;const command=sessionAction==="renameSession"?{type:sessionAction,id:menuId,name:el<HTMLInputElement>("session-name").value}: {type:sessionAction,id:menuId};sessionDialog.close();void send(command);});
+document.addEventListener("click",event=>{if(!sessionMenu.contains(event.target as Node))sessionMenu.hidden=true;});
+document.addEventListener("keydown",event=>{if(event.key==="Escape")sessionMenu.hidden=true;});
+el("continue-session").addEventListener("click",()=>{if(view?.historyBrowser?.selectedId)void send({type:"continueSession",id:view.historyBrowser.selectedId});});
+el("toggle-archived").addEventListener("click",()=>void send({type:"toggleArchived"}));

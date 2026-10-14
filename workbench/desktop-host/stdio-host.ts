@@ -1,3 +1,4 @@
+import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import { assertOfficialRouteConfiguration, assertOfficialChatConfiguration, disableConfiguredMcp } from "./official-config.ts";
@@ -54,6 +55,11 @@ export class StdioWorkbenchHost implements WorkbenchClient {
     return Object.freeze({ start: () => this.start(), reconnect: () => this.reconnect(), stop: () => this.stop(), dispose: () => this.dispose(),
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
       listThreads: (params: ThreadListParams) => this.listThreads(params),
+      resumeThread: (params: ThreadResumeParams) => this.resumeThread(params),
+      forkThread: (params: ThreadForkParams) => this.forkThread(params),
+      renameThread: (params: ThreadSetNameParams) => this.renameThread(params),
+      archiveThread: (params: ThreadArchiveParams) => this.archiveThread(params),
+      unarchiveThread: (params: ThreadUnarchiveParams) => this.unarchiveThread(params),
       startThread: (params: ThreadStartParams) => this.startThread(params), startTurn: (params: TurnStartParams) => this.startTurn(params), interruptTurn: (params: TurnInterruptParams) => this.interruptTurn(params), checkModelConfiguration: () => this.checkModelConfiguration(),
       checkOfficialRoute: () => this.checkOfficialRoute(),
       getAccount: (params: GetAccountParams) => this.getAccount(params), listModels: (params: ModelListParams) => this.listModels(params),
@@ -290,6 +296,26 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   async listThreads(params: ThreadListParams): Promise<ThreadListResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     try { const response = this.#session.listThreads(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
+  }
+  async resumeThread(params: ThreadResumeParams): Promise<ThreadResumeResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.resumeThread(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async forkThread(params: ThreadForkParams): Promise<ThreadForkResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.forkThread(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async renameThread(params: ThreadSetNameParams): Promise<ThreadSetNameResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.renameThread(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async archiveThread(params: ThreadArchiveParams): Promise<ThreadArchiveResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.archiveThread(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async unarchiveThread(params: ThreadUnarchiveParams): Promise<ThreadUnarchiveResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.unarchiveThread(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
   }
   async startThread(params: ThreadStartParams): Promise<ThreadStartResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

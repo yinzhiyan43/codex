@@ -1,3 +1,4 @@
+import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
@@ -28,6 +29,11 @@ export interface WorkbenchClient {
   takeDiagnostics(): HostDiagnostic[];
   subscribe(listener: () => void): () => void;
   listThreads(params: ThreadListParams): Promise<ThreadListResponse>;
+  resumeThread(params: ThreadResumeParams): Promise<ThreadResumeResponse>;
+  forkThread(params: ThreadForkParams): Promise<ThreadForkResponse>;
+  renameThread(params: ThreadSetNameParams): Promise<ThreadSetNameResponse>;
+  archiveThread(params: ThreadArchiveParams): Promise<ThreadArchiveResponse>;
+  unarchiveThread(params: ThreadUnarchiveParams): Promise<ThreadUnarchiveResponse>;
   startThread(params: ThreadStartParams): Promise<ThreadStartResponse>;
   startTurn(params: TurnStartParams): Promise<TurnStartResponse>;
   interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse>;

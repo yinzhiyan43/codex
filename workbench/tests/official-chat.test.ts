@@ -53,7 +53,7 @@ test("disconnect during streaming preserves unknown cache and reconnect never re
   const {controller:c,frames}=create(t);await c.dispatch({type:"connect"});await send(c,"[disconnect]");await wait(()=>c.snapshot().chatStatus!.phase==="unknown");assert.equal(c.snapshot().chatStatus!.ready,false);
   await c.dispatch({type:"reconnect"});assert.equal(c.snapshot().route.threadId,null);assert.equal(c.snapshot().messages.some(m=>m.stale),true);assert.equal(frames.filter(f=>f.method==="turn/start").length,1);
 });
-for(const mode of ["unsafe-config","unsafe-tools","unsafe-agents","unsafe-computer","no-account"]) test(`invalid ${mode} fails closed before model turn`,async t=>{
+for(const mode of ["unsafe-config","unsafe-tools","unsafe-agents","unsafe-computer","unsafe-goals","no-account"]) test(`invalid ${mode} fails closed before model turn`,async t=>{
   const {controller:c,frames}=create(t,mode);await c.dispatch({type:"connect"});assert.equal(c.snapshot().chatStatus!.ready,false);await draft(c,"never sent");await c.dispatch({type:"submit"});await c.dispatch({type:"confirm"});assert.equal(frames.filter(f=>["thread/start","turn/start"].includes(f.method)).length,0);
 });
 test("uncertain start reply stops connection and preserves draft without automatic retry",async t=>{

@@ -1,3 +1,4 @@
+import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "./contracts.ts";
 import type { ThreadListParams, ThreadListResponse } from "./contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "./contracts.ts";
 import type { ConfigReadParams, ConfigReadResponse, GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "./contracts.ts";
@@ -165,6 +166,11 @@ export class ProtocolSession {
   }
   listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse> { return this.request("thread/turns/list", params) as Promise<ThreadTurnsListResponse>; }
   listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse> { return this.request("thread/items/list", params) as Promise<ThreadItemsListResponse>; }
+  resumeThread(params: ThreadResumeParams): Promise<ThreadResumeResponse> { return this.request("thread/resume", params) as Promise<ThreadResumeResponse>; }
+  forkThread(params: ThreadForkParams): Promise<ThreadForkResponse> { return this.request("thread/fork", params) as Promise<ThreadForkResponse>; }
+  renameThread(params: ThreadSetNameParams): Promise<ThreadSetNameResponse> { return this.request("thread/name/set", params) as Promise<ThreadSetNameResponse>; }
+  archiveThread(params: ThreadArchiveParams): Promise<ThreadArchiveResponse> { return this.request("thread/archive", params) as Promise<ThreadArchiveResponse>; }
+  unarchiveThread(params: ThreadUnarchiveParams): Promise<ThreadUnarchiveResponse> { return this.request("thread/unarchive", params) as Promise<ThreadUnarchiveResponse>; }
   startThread(params: ThreadStartParams): Promise<ThreadStartResponse> { return this.request("thread/start", params) as Promise<ThreadStartResponse>; }
   startTurn(params: TurnStartParams): Promise<TurnStartResponse> { return this.request("turn/start", params) as Promise<TurnStartResponse>; }
   interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse> { return this.request("turn/interrupt", params) as Promise<TurnInterruptResponse>; }
@@ -184,10 +190,13 @@ export class ProtocolSession {
     validate(spec.params, params);
     const values = params as Record<string, unknown>;
     // The narrow M1 allowlist also rejects fields not yet reviewed, including experimental ones.
-    const fields: Record<string, string[]> = { "thread/list": ["cursor", "limit", "sortKey", "sortDirection", "modelProviders", "archived"], "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
+    const fields: Record<string, string[]> = { "thread/resume": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","excludeTurns"], "thread/fork": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","ephemeral","excludeTurns"], "thread/name/set": ["threadId","name"], "thread/archive": ["threadId"], "thread/unarchive": ["threadId"], "thread/list": ["cursor", "limit", "sortKey", "sortDirection", "modelProviders", "sourceKinds", "archived"], "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
     if (Object.keys(values).some(field => !fields[method]!.includes(field))) throw new ProtocolSessionError("unsupported-field");
     if (["turn/start", "turn/interrupt"].includes(method) && (typeof values.threadId !== "string" || !values.threadId.length || values.threadId.length > 64)) throw new ProtocolSessionError("invalid-turn-scope");
-    if (method === "thread/start" && (values.modelProvider !== "openai" || values.ephemeral !== true || values.sandbox !== "read-only" || values.approvalPolicy !== "never" || typeof values.cwd !== "string" || !values.cwd.startsWith("/") || values.cwd.length > 4096 || typeof values.model !== "string" || !/^gpt-[a-z0-9.-]{1,100}$/.test(values.model))) throw new ProtocolSessionError("invalid-chat-thread");
+    if (method === "thread/start" && (values.modelProvider !== "openai" || typeof values.ephemeral !== "boolean" || values.sandbox !== "read-only" || values.approvalPolicy !== "never" || typeof values.cwd !== "string" || !values.cwd.startsWith("/") || values.cwd.length > 4096 || typeof values.model !== "string" || !/^gpt-[a-z0-9.-]{1,100}$/.test(values.model))) throw new ProtocolSessionError("invalid-chat-thread");
+    if (["thread/resume","thread/fork","thread/name/set","thread/archive","thread/unarchive"].includes(method) && (typeof values.threadId !== "string" || !/^[a-z0-9-]{1,64}$/.test(values.threadId))) throw new ProtocolSessionError("invalid-session-scope");
+    if (["thread/resume","thread/fork"].includes(method) && (values.modelProvider !== "openai" || values.sandbox !== "read-only" || values.approvalPolicy !== "never" || values.excludeTurns !== true || typeof values.cwd !== "string" || !values.cwd.startsWith("/") || values.cwd.length > 4096 || typeof values.model !== "string" || !/^gpt-[a-z0-9.-]{1,100}$/.test(values.model) || (method === "thread/fork" && values.ephemeral !== false))) throw new ProtocolSessionError("invalid-session-resume");
+    if (method === "thread/name/set" && (typeof values.name !== "string" || !values.name.trim() || values.name.length > 100 || /[\x00-\x1f]/.test(values.name))) throw new ProtocolSessionError("invalid-session-name");
     if (method === "turn/start") {
       const policy = values.sandboxPolicy as Record<string, unknown> | undefined;
       const input = values.input as { type?: string; text?: string; text_elements?: unknown[] }[];
@@ -197,6 +206,7 @@ export class ProtocolSession {
     if (method === "config/read" && values.includeLayers !== false) throw new ProtocolSessionError("config-layers-disabled");
     if (method === "account/read" && values.refreshToken !== undefined && values.refreshToken !== false) throw new ProtocolSessionError("explicit-refresh-disabled");
     if (method === "thread/list") {
+      if(values.sourceKinds!==undefined && (!Array.isArray(values.sourceKinds)||values.sourceKinds.length>3||values.sourceKinds.some(kind=>!["cli","vscode","appServer"].includes(kind as string))))throw new ProtocolSessionError("invalid-source-filter");
       if (values.modelProviders !== undefined && (!Array.isArray(values.modelProviders) || values.modelProviders.length > 16 || values.modelProviders.some(value => typeof value !== "string" || value.length > 64))) throw new ProtocolSessionError("invalid-provider-filter");
     }
     if (method === "model/list" || method === "thread/list") {
@@ -307,6 +317,7 @@ export class ProtocolSession {
       if (applied || !pending.projectRead) this.#uncertain = this.#uncertain.filter(record => record.method !== "thread/read" || record.threadId !== result.thread.id);
       this.#event({ type: !pending.projectRead ? "metadata-read" : applied ? "snapshot-applied" : "snapshot-obsolete", method: pending.method, id });
     }
+    if (pending.method === "thread/unarchive" && (message.result as ThreadUnarchiveResponse).thread.id !== pending.params.threadId) throw new Error("Thread unarchive response mismatch");
     if (pending.method === "thread/turns/list" || pending.method === "thread/items/list") {
       const result = message.result as ThreadTurnsListResponse | ThreadItemsListResponse;
       if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || [result.nextCursor, result.backwardsCursor].some(cursor => cursor !== null && cursor.length > 4096)) throw new Error("Invalid bounded history page");
@@ -315,8 +326,13 @@ export class ProtocolSession {
     }
     if (pending.method === "thread/start") {
       const result = message.result as ThreadStartResponse;
-      if (result.modelProvider !== "openai" || result.model !== pending.params.model || result.cwd !== pending.params.cwd || result.thread.cwd !== pending.params.cwd || result.sandbox.type !== "readOnly" || result.sandbox.networkAccess !== false || result.thread.modelProvider !== "openai" || result.approvalPolicy !== "never" || result.thread.ephemeral !== true) throw new Error("Thread start configuration mismatch");
+      if (result.modelProvider !== "openai" || result.model !== pending.params.model || result.cwd !== pending.params.cwd || result.thread.cwd !== pending.params.cwd || result.sandbox.type !== "readOnly" || result.sandbox.networkAccess !== false || result.thread.modelProvider !== "openai" || result.approvalPolicy !== "never" || result.thread.ephemeral !== pending.params.ephemeral) throw new Error("Thread start configuration mismatch");
       this.#projection.apply("thread/started", { thread: result.thread }); this.#event({ type: "notification", method: pending.method });
+    }
+    if (pending.method === "thread/resume" || pending.method === "thread/fork") {
+      const result = message.result as ThreadResumeResponse | ThreadForkResponse;
+      if (result.modelProvider !== "openai" || result.thread.modelProvider !== "openai" || result.model !== pending.params.model || result.cwd !== pending.params.cwd || result.thread.cwd !== pending.params.cwd || result.sandbox.type !== "readOnly" || result.sandbox.networkAccess !== false || result.approvalPolicy !== "never" || result.thread.ephemeral || result.thread.turns.length || result.thread.status.type === "active" || (pending.method === "thread/resume" && result.thread.id !== pending.params.threadId)) throw new Error("Resume configuration mismatch");
+      this.#projection.replaceMetadata(result.thread); this.#event({type:"snapshot-applied",method:pending.method,id});
     }
     if (pending.method === "turn/start") {
       const result = message.result as TurnStartResponse;

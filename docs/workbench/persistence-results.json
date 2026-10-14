@@ -1,0 +1,478 @@
+{
+  "stage": "M2.c",
+  "predecessorCommit": "49c35c6a60b37366e49c8bc7c494a6a927399bd2",
+  "coreCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d",
+  "schemas": 43,
+  "offlineTests": {
+    "tests": 179,
+    "passed": 179,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "nativeIsolatedSyntheticPersistence": {
+    "result": "passed",
+    "identity": {
+      "version": "0.162.1",
+      "target": "aarch64-apple-darwin",
+      "sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0"
+    },
+    "isolatedSyntheticData": true,
+    "networkDeniedByPolicy": true,
+    "modelRequests": 0,
+    "turnStartRequests": 0,
+    "processes": [
+      {
+        "phase": "write",
+        "exitCode": 0,
+        "signal": null
+      },
+      {
+        "phase": "restart",
+        "exitCode": 0,
+        "signal": null
+      }
+    ],
+    "methods": [
+      {
+        "phase": "write",
+        "method": "initialize"
+      },
+      {
+        "phase": "write",
+        "method": "initialized"
+      },
+      {
+        "phase": "write",
+        "method": "config/read"
+      },
+      {
+        "phase": "write",
+        "method": "thread/start"
+      },
+      {
+        "phase": "write",
+        "method": "thread/fork"
+      },
+      {
+        "phase": "write",
+        "method": "thread/name/set"
+      },
+      {
+        "phase": "write",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "write",
+        "method": "thread/archive"
+      },
+      {
+        "phase": "write",
+        "method": "thread/unarchive"
+      },
+      {
+        "phase": "restart",
+        "method": "initialize"
+      },
+      {
+        "phase": "restart",
+        "method": "initialized"
+      },
+      {
+        "phase": "restart",
+        "method": "config/read"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/read"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/read"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/resume"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/archive"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/unarchive"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      }
+    ],
+    "defaultPersistentHistoryMode": "paginated",
+    "forkHistoryMode": "paginated",
+    "forkSource": "vscode",
+    "materializationForkId": "01a139b2-7449-7730-a4c8-a11c1c17eff6",
+    "preRestartTurns": 3,
+    "expectedThreadId": "00000000-0000-4000-8000-000000000004",
+    "forkListedAfterRestart": false,
+    "restartReadBeforeResumeConfirmed": true,
+    "restartTurns": 3,
+    "sourceRestartCursorConfirmed": true,
+    "explicitResumeConfirmed": true,
+    "archiveRestoreConfirmed": true,
+    "cleanupConfirmed": true,
+    "sourceSampleArchivedRestoredBeforeRestart": true,
+    "restartedSource": "cli"
+  },
+  "offlinePersistentUi": {
+    "write": {
+      "result": "passed",
+      "phase": "write",
+      "runKind": "offline-persistent-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "chat-1",
+      "offlineFakeTurns": 1,
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "persistent-default",
+        "repeated-confirm-once",
+        "completed-first-context",
+        "draft-stored-before-exit",
+        "all-eleven-menu-items",
+        "unknown-submenus-disabled",
+        "official-rename",
+        "local-pin",
+        "local-unread",
+        "share-and-delete-no-action",
+        "no-delete-share-fork-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "config/read",
+        "account/read",
+        "thread/start",
+        "turn/start",
+        "thread/read",
+        "thread/name/set"
+      ],
+      "consoleErrors": []
+    },
+    "restart": {
+      "result": "passed",
+      "phase": "restart",
+      "runKind": "offline-persistent-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "chat-1",
+      "offlineFakeTurns": 1,
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "same-id-after-app-and-peer-restart",
+        "exact-first-context-restored",
+        "draft-title-pin-restored",
+        "no-auto-resume-or-model-replay",
+        "explicit-resume-on-confirm",
+        "same-thread-continued-once",
+        "stable-old-and-live-message-ids",
+        "archive-confirmation-describes-scope",
+        "official-archive",
+        "archived-browse",
+        "archived-rename-disabled",
+        "official-unarchive",
+        "restored-history-continue-button-without-model",
+        "narrow-layout",
+        "no-delete-share-fork-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "config/read",
+        "account/read",
+        "thread/read",
+        "thread/resume",
+        "turn/start",
+        "thread/read",
+        "thread/archive",
+        "thread/list",
+        "thread/list",
+        "thread/unarchive",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "consoleErrors": []
+    }
+  },
+  "additionalRealModelRequests": 0,
+  "userHistoryReadByAgent": false,
+  "coreModified": false,
+  "userConfigurationModified": false,
+  "pushed": false,
+  "selectedLogoSha256": "fa71fb064ea40553bb41d2e07b95dc927db1698422d8c02f89cb32f78c9ea0d6",
+  "menuReference": {
+    "materializedThroughOfficialLibraryHelper": true,
+    "visuallyInspected": true,
+    "items": 11,
+    "sourceImageCommitted": false,
+    "submenuContentsAvailable": false
+  },
+  "independentReview": {
+    "model": "gpt-6-sol",
+    "effort": "xhigh",
+    "status": "completed",
+    "targetedPassed": 88,
+    "nativeModelGuiRuns": 0,
+    "newReproducibleP1P2": 0,
+    "diffCheckPassed": true,
+    "fixedFindings": [
+      "uncertain archive switch retains original session body and draft",
+      "catalog does not clear uncertainty before explicit restore ACK",
+      "save failure does not prevent core stop",
+      "late thread-save completion cannot send after disconnect",
+      "preflight cannot start core after disconnect",
+      "slow save stops core first and forbids reconnect during transition",
+      "obsolete configuration rejection cannot interfere with new connection",
+      "manual execution disconnect retains unknown outcome",
+      "unarchive response must match target ID"
+    ]
+  },
+  "storage": {
+    "profile": "$appData/Codex Workbench",
+    "ownMetadata": "sessions.json",
+    "officialProjection": "core/state",
+    "officialRollouts": "$CODEX_HOME/sessions (default ~/.codex/sessions)",
+    "stableChatCwd": "core/chat-cwd",
+    "logs": "core/log",
+    "defaultEphemeral": false,
+    "restoreOnStartup": "read-only; next confirmed message resumes once",
+    "ownMetadataFileMode": "0600"
+  },
+  "limitations": [
+    "Real account UI model-created history restart/continuation not run.",
+    "Generated fork absent in restart catalog; fork menu disabled pending investigation.",
+    "Menu project/section/copy submenus and multiwindow disabled; share/delete are non-executing dialogs.",
+    "Actual temporary cache only; unrecorded closed ephemeral body cannot be reconstructed.",
+    "Large real history, attachment/tool renderers, native IME/VoiceOver and shortcuts not verified.",
+    "Earlier unique real model smoke endpoint/side-process/ephemeral measurement gaps remain."
+  ],
+  "launchModes": {
+    "officialChat": "npm run desktop:chat",
+    "offlinePersistentUi": "npm run desktop:persistence:smoke -- /absolute/output",
+    "isolatedSyntheticNative": "npm run persistence:core:check -- --result /absolute/result.json"
+  },
+  "offlineHistoryUi": {
+    "result": "passed",
+    "runKind": "offline-history-protocol-fixture",
+    "officialNativeExecuted": false,
+    "realModelRequests": 0,
+    "offlineFakeTurns": 1,
+    "checks": [
+      "explicit-offline-label",
+      "renderer-isolation",
+      "persistent-default-retained",
+      "current-refresh-official-full-turns",
+      "persistence-visible",
+      "server-list-cursor",
+      "overlap-row-dedup",
+      "read-only-composer-model-send",
+      "history-execution-boundary",
+      "selected-late-response-ignored",
+      "full-turn-server-pagination",
+      "chronology-with-equal-times",
+      "overlap-turn-item-dedup",
+      "stable-message-dom",
+      "terminal-page-button-disabled",
+      "raw-path-omitted",
+      "catalog-refresh-keeps-selection",
+      "explicit-record-refresh",
+      "cancel-keeps-stale-cache",
+      "disconnect-cache",
+      "reconnect-read-load-without-resume-or-replay",
+      "return-retains-draft-and-text",
+      "late-page-after-return-ignored",
+      "no-resume-or-items-rpc",
+      "narrow-layout-controls",
+      "console-errors"
+    ],
+    "screenshots": [
+      "history-paged",
+      "history-disconnected",
+      "history-narrow"
+    ],
+    "methods": [
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list",
+      "config/read",
+      "config/read",
+      "account/read",
+      "thread/start",
+      "turn/start",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list",
+      "config/read",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list"
+    ],
+    "consoleErrors": []
+  },
+  "offlineChatUiRegression": {
+    "result": "passed",
+    "runKind": "offline-protocol-fixture",
+    "officialNativeExecuted": false,
+    "realModelRequests": 0,
+    "checks": [
+      "explicit-offline-label",
+      "renderer-isolation",
+      "native-account-metadata-shape",
+      "email-omitted",
+      "server-catalog-selection",
+      "ui-ipc-host-jsonl-chain",
+      "confirmation-once",
+      "streamed-text",
+      "completed-terminal",
+      "draft-cleared-on-ack",
+      "refresh-current-thread-only",
+      "persistence-and-pagination-visible",
+      "interrupt-ack-not-terminal",
+      "interrupted-terminal",
+      "late-delta-ignored",
+      "failed-terminal",
+      "private-error-omitted",
+      "disconnect-unknown",
+      "no-auto-replay",
+      "new-persistent-route",
+      "narrow-layout",
+      "console-errors"
+    ],
+    "screenshots": [
+      "chat-ready",
+      "chat-streaming",
+      "chat-interrupted",
+      "chat-disconnected",
+      "chat-narrow"
+    ],
+    "consoleErrors": []
+  },
+  "syntheticUiRegression": {
+    "result": "passed",
+    "checks": [
+      "selected-app-icon",
+      "ready-synthetic-peer",
+      "renderer-isolation",
+      "project-thread-navigation",
+      "draft-preservation",
+      "repeated-clicks",
+      "confirm-return",
+      "cancel-running",
+      "complete-synthetic-response",
+      "disconnect-stale",
+      "explicit-reconnect",
+      "new-back",
+      "search-empty",
+      "narrow-controls",
+      "console-errors",
+      "history-overlap-and-order",
+      "stable-message-dom",
+      "history-cancel",
+      "approval-once",
+      "approval-decline",
+      "approval-cancel",
+      "approval-expiry",
+      "approval-disconnect"
+    ],
+    "selectedIcon": {
+      "width": 1254,
+      "height": 1254
+    },
+    "screenshots": [
+      "empty",
+      "conversation",
+      "submitted",
+      "disconnected",
+      "narrow",
+      "empty-final",
+      "approvals-pending",
+      "approvals-processed",
+      "history-cancelled",
+      "history-paged"
+    ],
+    "consoleErrors": []
+  }
+}

@@ -3,11 +3,11 @@ import { HostOperationError } from "./client.ts";
 import { FullTurnsWindow } from "../domain/full-turns-window.ts";
 import type { DemoMessage } from "./demo-controller.ts";
 export type HistoryRow = { id: string; title: string };
-export type HistoryBrowserView = { rows: HistoryRow[]; selectedId: string | null; title: string; messages: DemoMessage[]; turnCount: number; moreThreads: boolean; moreTurns: boolean; loading: boolean; inflight: boolean; listStale: boolean; stale: boolean; notice: string };
-/** Only persisted non-archived sessions. Browsing never calls resume or any execution request. */
+export type HistoryBrowserView = { archived: boolean; rows: HistoryRow[]; selectedId: string | null; title: string; messages: DemoMessage[]; turnCount: number; moreThreads: boolean; moreTurns: boolean; loading: boolean; inflight: boolean; listStale: boolean; stale: boolean; notice: string };
+/** Persisted archived/unarchived sessions. Browsing never resumes execution. */
 export class HistoryBrowser {
   #client: WorkbenchClient; #unsubscribe: () => void; #listeners = new Set<() => void>(); #disposed = false;
-  #rows: HistoryRow[] = []; #listCursor: string | null | undefined; #listSeen = new Set<string>(); #listBusy = false; #listStale = true; #listLimited = false;
+  #archived = false; #rows: HistoryRow[] = []; #listCursor: string | null | undefined; #listSeen = new Set<string>(); #listBusy = false; #listStale = true; #listLimited = false;
   #windows = new Map<string, FullTurnsWindow>(); #selected: string | null = null; #selectedRow: HistoryRow | null = null; #readBusy = false;
   #listIntent = 0; #readIntent = 0; #inflight = 0; #generation = 0; #notice = "未归档历史只读；按服务端游标加载完整轮次，不恢复执行或调用模型。";
   constructor(client: WorkbenchClient) {
@@ -26,10 +26,11 @@ export class HistoryBrowser {
   cancel(): void { this.#listIntent++; this.#readIntent++; this.#listBusy = false; this.#readBusy = false; this.#publish(); }
   snapshot(): HistoryBrowserView {
     const snapshot = this.#selected ? this.#windows.get(this.#selected)?.snapshot() : null;
-    return { rows: structuredClone(this.#rows), selectedId: this.#selected, title: this.#rows.find(row => row.id === this.#selected)?.title ?? this.#selectedRow?.title ?? "未归档历史会话", messages: snapshot?.messages ?? [], turnCount: snapshot?.turnCount ?? 0,
+    return { archived:this.#archived, rows: structuredClone(this.#rows), selectedId: this.#selected, title: this.#rows.find(row => row.id === this.#selected)?.title ?? this.#selectedRow?.title ?? (this.#archived ? "归档历史会话" : "未归档历史会话"), messages: snapshot?.messages ?? [], turnCount: snapshot?.turnCount ?? 0,
       moreThreads: !this.#listLimited && this.#listCursor !== null, moreTurns: snapshot?.hasMore ?? false, loading: this.#listBusy || this.#readBusy, inflight: this.#inflight > 0, listStale: this.#listStale, stale: this.#client.getView().state !== "ready" || (snapshot?.stale ?? this.#listStale), notice: this.#notice };
   }
   #ready(): void { if (this.#disposed || this.#client.getView().state !== "ready") throw new Error("history-offline"); if (this.#inflight >= 4) throw new Error("history-read-budget"); }
+  async setArchived(value: boolean): Promise<void> { this.cancel(); this.#archived=value; this.#selected=null; this.#selectedRow=null; this.#rows=[]; this.#listCursor=undefined; this.#listLimited=false; this.#listStale=true; await this.list(true); }
   async list(refresh = false): Promise<void> {
     this.#ready(); if (this.#listBusy || (!refresh && (this.#listCursor === null || this.#listLimited))) return;
     const intent = ++this.#listIntent, generation = this.#client.getView().generation;
@@ -37,7 +38,7 @@ export class HistoryBrowser {
     this.#listBusy = true; this.#inflight++; this.#publish();
     const current = () => !this.#disposed && intent === this.#listIntent && generation === this.#client.getView().generation && this.#client.getView().state === "ready";
     try {
-      const page = await this.#client.listThreads({ cursor, limit: 20, sortKey: "created_at", sortDirection: "desc", modelProviders: [], archived: false });
+      const page = await this.#client.listThreads({ cursor, limit: 20, sortKey: "created_at", sortDirection: "desc", modelProviders: [], sourceKinds:["cli","vscode","appServer"], archived: this.#archived });
       if (!current()) return;
       const seen = refresh ? new Set<string>() : new Set(this.#listSeen), requestKey = JSON.stringify(cursor);
       if (seen.size >= 16) { this.#listLimited = true; throw new Error("thread-display-limit"); }
@@ -50,7 +51,7 @@ export class HistoryBrowser {
       }
       if (rows.length > 200) { this.#listLimited = true; throw new Error("thread-display-limit"); }
       seen.add(requestKey); this.#rows = rows; this.#listCursor = page.nextCursor; this.#listSeen = seen; this.#listStale = false; this.#listLimited = page.nextCursor !== null && (rows.length >= 200 || seen.size >= 16);
-      this.#notice = this.#listLimited ? "历史列表已达本地展示上限（200会话/16页）；已保留缓存并停止更多加载，可刷新列表。" : rows.length ? "未归档历史只读；选择会话读取文字记录，原当前聊天与草稿会保留。" : "未找到未归档的持久会话；临时会话不会列入历史。";
+      this.#notice = this.#listLimited ? "历史列表已达本地展示上限（200会话/16页）；已保留缓存并停止更多加载，可刷新列表。" : rows.length ? (this.#archived ? "归档历史只读；恢复归档后才能选择继续聊。" : "未归档历史只读；选择会话读取文字记录，原当前聊天与草稿会保留。") : (this.#archived ? "未找到归档的持久会话。" : "未找到未归档的持久会话；临时会话不会列入历史。");
     } catch (error) { if (current()) this.#notice = error instanceof Error && error.message === "thread-display-limit" ? "历史列表已达本地展示上限（200会话/16页）；已保留缓存并停止更多加载，可刷新列表。" : "历史列表读取未完成，已保留缓存；可刷新重试。"; }
     finally { this.#inflight--; if (intent === this.#listIntent) this.#listBusy = false; this.#publish(); }
   }

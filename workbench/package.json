@@ -25,7 +25,9 @@
     "desktop:chat": "npm run desktop:build && electron .desktop/main.mjs --official-chat",
     "desktop:chat:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-chat-offline --smoke-output",
     "desktop:history:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-chat-offline --history-smoke --smoke-output",
-    "history:core:check": "node scripts/history-core-check.mjs"
+    "history:core:check": "node scripts/history-core-check.mjs",
+    "persistence:core:check": "node scripts/persistent-core-check.mjs",
+    "desktop:persistence:smoke": "npm run desktop:build && node scripts/persistence-ui-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

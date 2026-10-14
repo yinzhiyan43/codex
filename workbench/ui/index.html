@@ -45,7 +45,7 @@
     <p id="core-connection"></p><button id="probe-core" type="button">检查只读接口</button>
     <ul id="core-results"></ul><p id="core-next-step">没有加载既有聊天。模型和账户能力将在获准登录后验证。</p>
   </section>
-  <section id="saved-history-toolbar" class="history-toolbar" hidden><button id="return-chat">返回当前聊天</button><button id="refresh-threads">刷新列表</button><button id="more-threads">更多会话</button><span id="saved-history-notice"></span></section>
+  <section id="saved-history-toolbar" class="history-toolbar" hidden><button id="return-chat">返回当前聊天</button><button id="refresh-threads">刷新列表</button><button id="more-threads">更多会话</button><button id="toggle-archived">查看归档</button><button id="continue-session">继续聊</button><span id="saved-history-notice"></span></section>
   <section id="history-toolbar" class="history-toolbar" aria-label="历史分页" hidden><span id="history-count"></span><span id="history-status" role="status"></span><button id="refresh-saved-history" hidden>刷新记录</button><button id="load-history">加载更早历史</button><button id="cancel-history" hidden>取消加载</button></section>
     <section id="approval-list" class="approval-list" aria-label="审批请求" hidden></section>
     <section id="empty" class="empty"><i class="ph ph-terminal-window" aria-hidden="true"></i><h1 id="empty-title"></h1></section>
@@ -58,6 +58,12 @@
   <aside id="details" class="details" aria-label="工作台详情" hidden><div class="detail-heading"><i class="ph ph-user-circle" aria-hidden="true"></i><div><strong>本地工作台</strong><span>合成演示</span></div></div><h2>电脑</h2><div class="computer-row"><i class="ph ph-desktop" aria-hidden="true"></i><div>演示环境<span id="detail-connection"></span></div></div><h2>最近活动</h2><div class="activity"><i class="ph ph-chat-circle" aria-hidden="true"></i>检查导航与会话</div><div class="activity"><i class="ph ph-chat-circle" aria-hidden="true"></i>验证输入和取消</div><h2>输出内容</h2><div class="activity"><i class="ph ph-file-text" aria-hidden="true"></i>工作台阶段说明</div></aside>
 </div>
 <dialog id="connection-dialog"><form method="dialog"><h2 id="connection-title">演示连接</h2><p id="connection-description">只连接本地合成 peer，不使用真实账户或模型。</p><div class="dialog-actions"><button id="disconnect" type="button">断开</button><button id="reconnect" type="button">重连</button><button id="close-connection">返回</button></div></form></dialog>
+<section id="session-menu" class="session-menu" role="menu" hidden aria-label="会话操作">
+<button id="session-rename" role="menuitem">重命名</button><button id="session-pin" role="menuitem" title="只影响当前工作台列表">置顶</button><button id="session-unread" role="menuitem" title="仅工作台未读标记">标记为未读</button>
+<button disabled role="menuitem" title="子菜单未提供；官方项目接口仍属实验，待接入">项目 ›</button><button disabled role="menuitem" title="子菜单未提供；先记录为待实现">分区 ›</button><button disabled role="menuitem" title="官方分叉会创建线程；子菜单和恢复安全交互待接入">分叉 ›</button>
+<button id="session-share" role="menuitem">分享</button><button disabled role="menuitem" title="复制子菜单未提供，待核对">复制 ›</button><button disabled role="menuitem" title="新窗口尚未接入；当前保持一个持久工作台窗口">在新窗口中打开</button><button id="session-archive" role="menuitem">归档</button><button id="session-delete" role="menuitem" class="danger">永久删除</button>
+</section>
+<dialog id="session-dialog"><form id="session-form"><h2 id="session-dialog-title"></h2><p id="session-dialog-description"></p><label id="session-name-label">名称<input id="session-name" maxlength="100"></label><div class="dialog-actions"><button id="session-dismiss" type="button">返回</button><button id="session-apply" type="submit">确认</button></div></form></dialog>
 <dialog id="confirm-dialog"><h2 id="confirm-title">发送演示消息？</h2><p id="confirm-text"></p><p class="dialog-caption" id="confirm-caption">只生成本地演示回应。</p><div class="dialog-actions"><button id="cancel-confirm">返回编辑</button><button id="confirm" class="primary">发送</button></div></dialog>
 </body>
 </html>

@@ -179,6 +179,56 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadListResponse.json",
       "path": "contracts/schemas/threadListResult.json",
       "sha256": "1d70e930492151917c427834065a911fe9f10d5e1dd5ccaa8d80ccd80a7bacbb"
+    },
+    "threadResumeParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadResumeParams.json",
+      "path": "contracts/schemas/threadResumeParams.json",
+      "sha256": "948779cace55dda4384689a1627cd6675aa4782744bb5820cca16bfc0118586c"
+    },
+    "threadResumeResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadResumeResponse.json",
+      "path": "contracts/schemas/threadResumeResult.json",
+      "sha256": "3f19a9c3a9891526685b0f61ce781098ddd65bfa2aed8c24ba4722fef10e08fe"
+    },
+    "threadForkParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadForkParams.json",
+      "path": "contracts/schemas/threadForkParams.json",
+      "sha256": "60540b97d453ddbc5e12bfaa007a3718f31847d18dec0da59a5e4b89be4717ad"
+    },
+    "threadForkResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadForkResponse.json",
+      "path": "contracts/schemas/threadForkResult.json",
+      "sha256": "1488ab8371b209dbb10bb99351062983fb0f42084f7dc29c10bda19ff9ea84cd"
+    },
+    "threadRenameParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSetNameParams.json",
+      "path": "contracts/schemas/threadRenameParams.json",
+      "sha256": "8e334c816bbaeb80f807aca61bf659246f3f60c245c21b5cb7e3ca4ee3ce4820"
+    },
+    "threadRenameResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSetNameResponse.json",
+      "path": "contracts/schemas/threadRenameResult.json",
+      "sha256": "f8763716433feea94f7c1ebd59b6cea4c261432e83240c13a8d49ba8185aa567"
+    },
+    "threadArchiveParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadArchiveParams.json",
+      "path": "contracts/schemas/threadArchiveParams.json",
+      "sha256": "dc2c0b133b814a5d9d543cc37afdb3f4f22feca35b7cea4272834b20a1e47705"
+    },
+    "threadArchiveResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadArchiveResponse.json",
+      "path": "contracts/schemas/threadArchiveResult.json",
+      "sha256": "2e021dabd0930ae3e2beb68cd0ddbafc40fc20cfbf8dbcb5e2f9c0493d06a08c"
+    },
+    "threadUnarchiveParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadUnarchiveParams.json",
+      "path": "contracts/schemas/threadUnarchiveParams.json",
+      "sha256": "a1d5d847b61ea16ab09d5b9d1c1461134a7829292aae02a7e11b0a69b00c76ca"
+    },
+    "threadUnarchiveResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadUnarchiveResponse.json",
+      "path": "contracts/schemas/threadUnarchiveResult.json",
+      "sha256": "66cfe007cebae2b6f5dd8678bb0ec87d25cf0dce328937bfc3a96f8631777a91"
     }
   },
   "requests": {
@@ -231,6 +281,31 @@
       "params": "threadListParams",
       "result": "threadListResult",
       "experimental": false
+    },
+    "thread/resume": {
+      "params": "threadResumeParams",
+      "result": "threadResumeResult",
+      "experimental": false
+    },
+    "thread/fork": {
+      "params": "threadForkParams",
+      "result": "threadForkResult",
+      "experimental": false
+    },
+    "thread/name/set": {
+      "params": "threadRenameParams",
+      "result": "threadRenameResult",
+      "experimental": false
+    },
+    "thread/archive": {
+      "params": "threadArchiveParams",
+      "result": "threadArchiveResult",
+      "experimental": false
+    },
+    "thread/unarchive": {
+      "params": "threadUnarchiveParams",
+      "result": "threadUnarchiveResult",
+      "experimental": false
     }
   },
   "notifications": {
@@ -264,5 +339,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "0b647a60075d1d5869c7bebb247a880a59b3facbadab85085963ca26b68c39eb"
+  "specSha256": "82787d8bee47e51ace41656057d5ad0c64cfa57c469490e49f86e6e00b45e7cf"
 }

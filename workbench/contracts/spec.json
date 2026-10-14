@@ -47,7 +47,17 @@
     "turnInterruptParams": "v2/TurnInterruptParams.json",
     "turnInterruptResult": "v2/TurnInterruptResponse.json",
     "threadListParams": "v2/ThreadListParams.json",
-    "threadListResult": "v2/ThreadListResponse.json"
+    "threadListResult": "v2/ThreadListResponse.json",
+    "threadResumeParams": "v2/ThreadResumeParams.json",
+    "threadResumeResult": "v2/ThreadResumeResponse.json",
+    "threadForkParams": "v2/ThreadForkParams.json",
+    "threadForkResult": "v2/ThreadForkResponse.json",
+    "threadRenameParams": "v2/ThreadSetNameParams.json",
+    "threadRenameResult": "v2/ThreadSetNameResponse.json",
+    "threadArchiveParams": "v2/ThreadArchiveParams.json",
+    "threadArchiveResult": "v2/ThreadArchiveResponse.json",
+    "threadUnarchiveParams": "v2/ThreadUnarchiveParams.json",
+    "threadUnarchiveResult": "v2/ThreadUnarchiveResponse.json"
   },
   "requests": {
     "thread/read": {
@@ -98,6 +108,31 @@
     "thread/list": {
       "params": "threadListParams",
       "result": "threadListResult",
+      "experimental": false
+    },
+    "thread/resume": {
+      "params": "threadResumeParams",
+      "result": "threadResumeResult",
+      "experimental": false
+    },
+    "thread/fork": {
+      "params": "threadForkParams",
+      "result": "threadForkResult",
+      "experimental": false
+    },
+    "thread/name/set": {
+      "params": "threadRenameParams",
+      "result": "threadRenameResult",
+      "experimental": false
+    },
+    "thread/archive": {
+      "params": "threadArchiveParams",
+      "result": "threadArchiveResult",
+      "experimental": false
+    },
+    "thread/unarchive": {
+      "params": "threadUnarchiveParams",
+      "result": "threadUnarchiveResult",
       "experimental": false
     }
   },

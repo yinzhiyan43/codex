@@ -60,3 +60,14 @@ export type { TurnInterruptParams } from "../../codex-rs/app-server-protocol/sch
 export type { TurnInterruptResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/TurnInterruptResponse.ts";
 export type { ThreadListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadListParams.ts";
 export type { ThreadListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadListResponse.ts";
+
+export type { ThreadResumeParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadResumeParams.ts";
+export type { ThreadResumeResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadResumeResponse.ts";
+export type { ThreadForkParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadForkParams.ts";
+export type { ThreadForkResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadForkResponse.ts";
+export type { ThreadSetNameParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSetNameParams.ts";
+export type { ThreadSetNameResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSetNameResponse.ts";
+export type { ThreadArchiveParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadArchiveParams.ts";
+export type { ThreadArchiveResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadArchiveResponse.ts";
+export type { ThreadUnarchiveParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadUnarchiveParams.ts";
+export type { ThreadUnarchiveResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadUnarchiveResponse.ts";

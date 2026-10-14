@@ -1,12 +1,14 @@
 export type DesktopCommand =
-  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" | "browseHistory" | "returnToChat" | "refreshThreads" | "moreThreads" | "refreshHistory" }
+  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" | "browseHistory" | "returnToChat" | "refreshThreads" | "moreThreads" | "refreshHistory" | "toggleArchived" }
   | { type: "selectModel"; model: string }
   | { type: "project" | "thread"; id: string }
   | { type: "draft"; routeId: string; text: string }
   | { type: "search"; text: string }
   | { type: "history"; threadId: string }
+  | { type: "continueSession" | "forkSession" | "archiveSession" | "unarchiveSession" | "pinSession" | "unreadSession"; id: string }
+  | { type: "renameSession"; id: string; name: string }
   | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
-const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory"]);
+const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-command");
   const v = value as Record<string, unknown>;
@@ -14,6 +16,8 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   const keys = Object.keys(v).sort().join(",");
   if (simple.has(v.type) && keys === "type") return v as DesktopCommand;
   if (v.type === "selectModel" && keys === "model,type" && typeof v.model === "string" && /^gpt-[a-z0-9.-]{1,100}$/.test(v.model)) return v as DesktopCommand;
+  if (v.type === "renameSession" && keys === "id,name,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id) && typeof v.name === "string" && v.name.trim().length > 0 && v.name.length <= 100 && !/[\x00-\x1f]/.test(v.name)) return v as DesktopCommand;
+  if (["continueSession","forkSession","archiveSession","unarchiveSession","pinSession","unreadSession"].includes(v.type) && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if ((v.type === "project" || v.type === "thread") && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if (v.type === "draft" && keys === "routeId,text,type" && typeof v.routeId === "string" && /^[a-z0-9-]{1,64}$/.test(v.routeId) && typeof v.text === "string" && v.text.length <= 4000 && !v.text.includes("\0")) return v as DesktopCommand;
   if (v.type === "search" && keys === "text,type" && typeof v.text === "string" && v.text.length <= 128 && !v.text.includes("\0")) return v as DesktopCommand;

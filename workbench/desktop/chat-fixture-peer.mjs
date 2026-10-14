@@ -1,7 +1,10 @@
+import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 // OFFLINE protocol simulator. No Codex binary, credentials, files, network or models.
 import { StringDecoder } from "node:string_decoder";
 const decoder = new StringDecoder("utf8"); let buffer = "", threads = new Map(), threadCount = 0, turnCount = 0;
 const mode = process.argv[2] ?? "normal";
+const statePath = process.argv[3]; if(statePath && (!statePath.startsWith("/")||statePath.includes("\0")))throw new Error("invalid-offline-state-path");
+const persist = () => { if(!statePath)return;const value={threadCount,turnCount,threads:[...threads.values()].filter(t=>t.saved).map(t=>({...t,turns:[...t.turns.values()].map(v=>({id:v.id,items:v.items,status:v.status,text:v.text}))}))};writeFileSync(statePath+".tmp",JSON.stringify(value),{mode:0o600});renameSync(statePath+".tmp",statePath); };
 const send = value => process.stdout.write(JSON.stringify(value)+"\n");
 const reply = (id,result) => send({id,result});
 const error = (id,code=-32603) => send({id,error:{code,message:"offline-rpc-error"}});
@@ -18,28 +21,37 @@ for (const [id,title] of (["many-history","large-catalog","small-page-catalog"].
  }
  threads.set(id,t);
 }
+if(statePath&&existsSync(statePath)){const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));}
 function serverPage(values,cursor,prefix,limit=2) {
  const start=cursor===null||cursor===undefined?0:Number(String(cursor).slice(prefix.length));
  const end=Math.min(start+limit,values.length),data=values.slice(start,end);
  return {data,nextCursor:end<values.length?prefix+end:null,backwardsCursor:data.length?prefix+start:null};
 }
-function finish(t,v,status) { if (v.status!=="inProgress") return; v.status=status; clearInterval(v.timer); notify("turn/completed",{threadId:t.id,turn:turn(v.id,v.items,status)}); }
+function finish(t,v,status) { if (v.status!=="inProgress") return; v.status=status; clearInterval(v.timer);persist(); notify("turn/completed",{threadId:t.id,turn:turn(v.id,v.items,status)}); }
 function handle(m) {
   if(m.method==="initialize") return reply(m.id,{userAgent:"OFFLINE-chat-fixture",codexHome:"/synthetic/home",platformFamily:"unix",platformOs:"macos"});
   if(m.method==="initialized") return;
-  if(m.method==="config/read") return reply(m.id,{config:{model_provider:mode==="unsafe-config"?"local":"openai",forced_login_method:"chatgpt",openai_base_url:"https://chatgpt.com/backend-api/codex",chatgpt_base_url:"https://chatgpt.com/backend-api/",notify:[],features:{hooks:false,shell_tool:mode==="unsafe-tools",unified_exec:false,view_image:false,apps:false,plugins:false,code_mode:false,multi_agent:false,multi_agent_v2:mode==="unsafe-agents",image_generation:false,browser_use:false,browser_use_external:false,browser_use_full_cdp_access:false,computer_use:mode==="unsafe-computer"},agents:{enabled:mode==="unsafe-agents"},web_search:"disabled",mcp_servers:{disabled:{enabled:false}}},origins:{},layers:null});
+  if(m.method==="config/read") return reply(m.id,{config:{model_provider:mode==="unsafe-config"?"local":"openai",forced_login_method:"chatgpt",openai_base_url:"https://chatgpt.com/backend-api/codex",chatgpt_base_url:"https://chatgpt.com/backend-api/",notify:[],features:{background_paginated_rollout_migration:false,goals:mode==="unsafe-goals",daemon_auto_start:false,hooks:false,shell_tool:mode==="unsafe-tools",unified_exec:false,view_image:false,apps:false,plugins:false,code_mode:false,multi_agent:false,multi_agent_v2:mode==="unsafe-agents",image_generation:false,browser_use:false,browser_use_external:false,browser_use_full_cdp_access:false,computer_use:mode==="unsafe-computer"},agents:{enabled:mode==="unsafe-agents"},web_search:"disabled",mcp_servers:{disabled:{enabled:false}}},origins:{},layers:null});
   if(m.method==="account/read") return reply(m.id,{account:mode==="no-account"?null:{type:"chatgpt",email:"fixture@example.invalid",planType:"pro"},requiresOpenaiAuth:true});
   if(m.method==="model/list") return reply(m.id,{data:[model("gpt-fixture-one",true),model("gpt-fixture-two",false)],nextCursor:null});
-  if(m.method==="thread/start") { const id="chat-"+(++threadCount); const t={id,turns:new Map()};threads.set(id,t);return reply(m.id,{thread:metadata(t),model:m.params.model,modelProvider:"openai",cwd:"/synthetic/chat",approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null}); }
+  if(m.method==="thread/start") { const id="chat-"+(++threadCount); const t={id,saved:!m.params.ephemeral,turns:new Map()};threads.set(id,t);persist();return reply(m.id,{thread:metadata(t),model:m.params.model,modelProvider:"openai",cwd:"/synthetic/chat",approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null}); }
   if(m.method==="thread/list") {
-    const saved=[...threads.values()].filter(t=>t.saved).map(t=>({...metadata(t),turns:[]}));
+    const saved=[...threads.values()].filter(t=>t.saved && !!t.archived===!!m.params.archived).map(t=>({...metadata(t),turns:[]}));
     // Intentional inclusive overlap: repeat last row on continuation.
     const page=serverPage(saved,m.params.cursor,"threads:",["many-history","large-catalog"].includes(mode)?20:2);
     if(m.params.cursor&&!["many-history","large-catalog","small-page-catalog"].includes(mode))page.data.unshift(saved[1]);
     return reply(m.id,page);
   }
   const t=threads.get(m.params?.threadId); if(!t) return error(m.id,-32600);
-  if(m.method==="thread/read") { if(!t.saved&&m.params.includeTurns)return error(m.id,-32600); const result=metadata(t); if(!m.params.includeTurns) result.turns=[]; return mode==="slow-read" ? setTimeout(()=>reply(m.id,{thread:result}),400) : reply(m.id,{thread:result}); }
+  if(m.method==="thread/name/set"){t.title=m.params.name.trim();persist();return reply(m.id,{});}
+  if(m.method==="thread/archive"){if(mode==="late-archive")return setTimeout(()=>{t.archived=true;persist();reply(m.id,{});},1500);t.archived=true;persist();if(mode==="slow-archive")return;return reply(m.id,{});}
+  if(m.method==="thread/unarchive"){t.archived=false;persist();return reply(m.id,{thread:{...metadata(t),id:mode==="wrong-unarchive"?"saved-a":t.id,turns:[]}});}
+  if(m.method==="thread/resume"){
+    if(!t.saved||t.archived)return error(m.id,-32600);
+    const value={thread:{...metadata(t),turns:[]},model:m.params.model,modelProvider:mode==="unsafe-resume"?"local":"openai",cwd:m.params.cwd,approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null,collaborationMode:null,turnsBackwardsCursor:null,itemsBackwardsCursor:null};
+    return mode==="slow-resume"?setTimeout(()=>reply(m.id,value),400):reply(m.id,value);
+  }
+  if(m.method==="thread/read") { if(!t.saved&&m.params.includeTurns)return error(m.id,-32600); const result=metadata(t);if(mode==="active-history")result.status={type:"active",activeFlags:[]}; if(!m.params.includeTurns) result.turns=[]; return mode==="slow-read" ? setTimeout(()=>reply(m.id,{thread:result}),400) : reply(m.id,{thread:result}); }
   if(m.method==="thread/turns/list") {
     if(!t.saved)return error(m.id,-32600);
     if(mode==="unsupported-history")return error(m.id,-32601);
@@ -55,7 +67,7 @@ function handle(m) {
   if(m.method==="turn/start") {
     const text=m.params.input[0].text; if(text.includes("[reply-error]")) return error(m.id);
     const id="chat-turn-"+(++turnCount),user={type:"userMessage",id:id+"-user",clientId:null,content:m.params.input};
-    const a=agent(id+"-agent",""); const v={id,items:[user,a],status:"inProgress",text,timer:null}; t.turns.set(id,v);
+    const a=agent(id+"-agent",""); const v={id,items:[user,a],status:"inProgress",text,timer:null}; t.turns.set(id,v);persist();
     notify("turn/started",{threadId:t.id,turn:turn(id,[user])});
     notify("item/started",{threadId:t.id,turnId:id,startedAtMs:1000,item:user}); notify("item/started",{threadId:t.id,turnId:id,startedAtMs:1000,item:a});
     setTimeout(()=>reply(m.id,{turn:turn(id,[],"inProgress")}),text.includes("[slow]")?350:25);

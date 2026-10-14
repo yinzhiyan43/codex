@@ -359,6 +359,11 @@ test("saved metadata reads validate identity without filling live projection",as
 });
 test("thread catalog input and replies retain bounds and forbid path filters",async()=>{
  const session=await ready();assert.throws(()=>session.listThreads({cwd:"/private"} as any),/unsupported-field/);assert.throws(()=>session.listThreads({limit:101}),/invalid-page-limit/);assert.throws(()=>session.listThreads({cursor:"x".repeat(4097)}),/invalid-page-cursor/);assert.throws(()=>session.listThreads({modelProviders:Array(17).fill("openai")}),/invalid-provider-filter/);
- const good=session.listThreads({limit:1,modelProviders:[]});let request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread()],nextCursor:"opaque",backwardsCursor:null}});assert.equal((await good).nextCursor,"opaque");
+ assert.throws(()=>session.listThreads({sourceKinds:["subAgent"]}),/invalid-source-filter/);const good=session.listThreads({limit:1,modelProviders:[],sourceKinds:["cli","vscode","appServer"]});let request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread()],nextCursor:"opaque",backwardsCursor:null}});assert.equal((await good).nextCursor,"opaque");
  const oversized=session.listThreads({limit:1});const rejected=assert.rejects(oversized,/invalid-protocol/);request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread(),syntheticThread()],nextCursor:null,backwardsCursor:null}});await rejected;assert.equal(session.state,"failed");
+});
+
+test("persistent start and ID-only resume reject unreviewed history/path or elevated policies",async()=>{
+ const session=await ready();const options={threadId:"saved",model:"gpt-fixture-one",modelProvider:"openai",cwd:"/synthetic/chat",approvalPolicy:"never" as const,sandbox:"read-only" as const,excludeTurns:true};assert.throws(()=>session.resumeThread({...options,path:"/private"} as any),/unsupported-field/);assert.throws(()=>session.resumeThread({...options,sandbox:"danger-full-access"}),/invalid-session-resume/);assert.throws(()=>session.resumeThread({...options,excludeTurns:false}),/invalid-session-resume/);assert.throws(()=>session.request("thread/delete",{threadId:"saved"}),/unsupported-method/);
+ const response=session.resumeThread(options);const sent=outgoing(session)[0]!;assert.equal(sent.method,"thread/resume");const rejected=assert.rejects(response,/transport-closed/);session.disconnect(session.epoch);await rejected;
 });
