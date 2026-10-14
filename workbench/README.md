@@ -1,6 +1,6 @@
-# Workbench protocol and stdio host — M1.a/M1.b
+# Workbench protocol, host and synthetic desktop — M1.a/M1.b/M1.c
 
-This package contains a local protocol engine and a stdio process host. Tests launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. The production launcher has not been run or verified against a real binary. See [the M1.b report](../docs/workbench/transport-milestone.md).
+This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Tests launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. The production launcher has not been run or verified against a real binary. See [the M1.b report](../docs/workbench/transport-milestone.md) and [the M1.c desktop report](../docs/workbench/desktop-milestone.md).
 
 The core is pinned to `rust-v0.162.1` / `092d3acd6bec3e3a14bdc7e7a2810ab628ab759d`. UI reference `26.1007.30912` / build `20156` has partial user-supplied screenshot evidence. See [the full plan](../docs/workbench/implementation-plan.md) and [all 92 goals](../docs/workbench/acceptance-checklist.md). This unit does not complete M1, the UI, or the application.
 
@@ -41,4 +41,20 @@ await initialized;
 
 Inbound/outbound frames, pending calls, server request IDs/bytes, recovery records/bytes, projection entities/bytes and diagnostic history have limits. Large valid batches are decoded incrementally, independent of host chunk boundaries. Resolved approvals clear their full parameters; bounded request hash tombstones remain until reconnect so duplicates cannot reopen an approval. The default 4096 server-ID budget is per connection; exhausting it fails closed and requires explicit reconnect. Recovery budgets are reserved before admitting work; if unresolved old notices exhaust them, explicit local acknowledgement is required before further requests. Over-budget or invalid known messages fail the connection; callers must inspect the diagnostic/state, then recover explicitly. Snapshots are display caches, not a complete persisted history or proof that an execution succeeded.
 
-A production stdio launcher and lifecycle host are implemented with synthetic verification. No PTY bridge, desktop container/IPC, login, model catalog, turn/start, settings, full pagination, durable data store or UI is present. Server-side user input, MCP/permissions and experiment support need separate reviewed contracts and tests. Native formats that JSON Schema describes only as strings (such as paths) are not semantically validated for OS access by this unit; a future host must validate before using them. Framework ADR, real binary compatibility, native integration, performance budgets, visual verification and the remaining milestones remain open.
+A production stdio launcher and lifecycle host are implemented with synthetic verification. A synthetic desktop UI and restricted IPC are present. No PTY bridge, official login, model catalog, turn/start, settings backend, full pagination or durable data store is present. Server-side user input, MCP/permissions and experiment support need separate reviewed contracts and tests. Native formats that JSON Schema describes only as strings (such as paths) are not semantically validated for OS access by this unit; a future host must validate before using them. The framework ADR is recorded; real binary compatibility, native integration, performance budgets, complete visual verification and remaining milestones remain open.
+
+## Synthetic desktop
+
+```sh
+npm run desktop
+```
+
+Opens our own local Electron window. Only the bundled synthetic peer is launched; sending produces a clearly labeled local demo response. No official app, account or model is contacted. New demo chats are in-memory and bounded to eight; quit clears the demo state.
+
+```sh
+npm run desktop:smoke -- /absolute/private/output-directory
+```
+
+Runs the same renderer in accessory/offscreen mode without showing a window, focusing it, or requesting Dock attention, saves synthetic screenshots and a result JSON, then exits. Startup has a 15-second limit; smoke has a 30-second limit. The final check passed 85 tests and 15 desktop interaction groups; native keyboard/IME/accessibility remain unverified. Build files stay in ignored `.desktop/`.
+
+After a fresh `npm ci --ignore-scripts`, install the pinned official Electron runtime with `node node_modules/electron/install.js`. This may take time to download; it does not launch the Codex core. See [design QA](design-qa.md) and [desktop ADR](../docs/workbench/desktop-adr.md).

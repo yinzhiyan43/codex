@@ -1,12 +1,12 @@
 # 本地重建实施计划
 
-状态：总体设计提案；M1.a 纯协议单元及 M1.b stdio host 已实现并通过合成测试，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
+状态：总体设计提案；M1.a 纯协议单元、M1.b stdio host 及 M1.c 桌面壳/受限 IPC 已实现并通过合成测试，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)、[桌面证据](desktop-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
 
 ## 1. 官方核心与工作台边界
 
 保持官方 CLI、app-server、Harness、工具执行、安全策略、上下文管理、认证和历史存储实现不变。工作台通过公开协议使用它们；产品 UI 需求不能成为改写核心执行语义的理由。
 
-已新增独立 `workbench/` 顶层目录，未加入上游 Rust workspace、未修改上游依赖锁文件。以下是完整模块规划；当前已实现 contracts、protocol-adapter、desktop-host 的 stdio 生命周期和合成 tests；窗口/IPC 等其他能力仍待实现：
+已新增独立 `workbench/` 顶层目录，未加入上游 Rust workspace、未修改上游依赖锁文件。以下是完整模块规划；当前已实现 contracts、protocol-adapter、desktop-host 的 stdio 生命周期和合成 tests；并实现首个 Electron 窗口、受限 IPC 和合成 UI；其他能力仍待实现：
 
 ```text
 workbench/
@@ -29,7 +29,7 @@ workbench/
 | host services | Git/worktree 生命周期、用户终端、文件预览、调度、浏览器 | 独立接口、数据目录和权限；失败不修改核心语义；不冒充官方云端服务 |
 | 服务适配器 | 可用的官方托管服务或外部集成 | 每一项需公开接口与授权证据；未知接口不以内部端点或复制 token 替代 |
 
-实现框架在 M1 决定：UI 与协议层建议 TypeScript；比较桌面容器的 macOS 窗口、浏览器隔离、PTY、签名分发、可访问性与维护成本，再写 ADR。当前不声称官方使用何种前端栈，也不为选框架提取闭源应用代码。框架选择不应改变上述边界。
+M1.c 采用 TypeScript/Node + Electron，决定及限制见 [ADR](desktop-adr.md)。首个合成窗口与隔离 IPC 已验证；PTY、签名分发、可访问性、性能与完整维护成本仍待比较和验收。当前不声称官方使用何种前端栈，也不为选框架提取闭源应用代码。框架选择不应改变上述边界。
 
 ## 2. 协议与认证
 
@@ -76,7 +76,7 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 ## 5. 里程碑与退出条件
 
-以下仍是总体实施阶段；当前完成 M1.a 纯协议单元和 M1.b stdio host，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
+以下仍是总体实施阶段；当前完成 M1.a 协议单元、M1.b stdio host 和 M1.c 合成桌面壳/IPC，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
 
 | 阶段 | 交付 | 可验证退出条件 | 依赖 |
 | --- | --- | --- | --- |
@@ -105,4 +105,4 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 M1.a 已在独立 `workbench/` 内建立版本 manifest、adapter 接口和合成 JSONL 测试夹具，实现初始化、请求关联、通知分发、命令/文件审批及断线恢复状态。它的验收交付是模拟会话可确定地重放，异常不会自动重复触发动作。
 
-M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。后续补齐分页及其恢复契约、桌面容器 ADR 与受限 IPC。真实核心兼容性、登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。
+M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。M1.c 已补桌面 ADR、受限 IPC 及首个合成界面，85项测试和14组后台窗口交互检查通过；后续补分页/审批 UI 合成契约和原生输入验收。真实核心兼容性、登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。

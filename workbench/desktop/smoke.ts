@@ -1,0 +1,78 @@
+import type { BrowserWindow } from "electron";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import assert from "node:assert/strict";
+/** Exercises only this app's synthetic document through its own webContents. */
+export async function runDesktopSmoke(window: BrowserWindow, output: string, errors: string[], iconSize: { width: number; height: number }): Promise<void> {
+  assert.deepEqual(iconSize, { width: 1254, height: 1254 });
+  const js = (source: string) => window.webContents.executeJavaScript(source);
+  const snapshot = () => js("window.workbench.snapshot()");
+  const wait = async (predicate: string) => {
+    for (let i = 0; i < 100; i++) { if (await js(predicate)) return; await new Promise(resolve => setTimeout(resolve, 25)); }
+    throw new Error(`Smoke condition timed out: ${predicate}`);
+  };
+  const click = async (selector: string) => { await js(`document.querySelector(${JSON.stringify(selector)}).click()`); };
+  const screenshot = async (name: string) => {
+    await js("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+    await writeFile(join(output, name + ".png"), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
+  };
+  await wait("document.getElementById('project-context').textContent === 'studio-demo'");
+  assert.equal((await snapshot()).connection, "ready");
+  await wait("document.getElementById('notice').hidden");
+  assert.equal(await js("typeof require"), "undefined");
+  assert.deepEqual(await js("Object.keys(window.workbench).sort()"), ["dispatch", "snapshot", "subscribe"]);
+  await screenshot("empty");
+  await click('[data-thread="thread-welcome"]');
+  await wait("document.querySelectorAll('.message').length === 4");
+  await click('#toggle-details'); await click('#account');
+  await wait("!document.getElementById('details').hidden && !document.getElementById('account-menu').hidden");
+  await screenshot("conversation");
+  await click('#account-close'); await click('#toggle-details');
+  await js("document.getElementById('draft').value='保留我的演示草稿'; document.getElementById('draft').dispatchEvent(new Event('input',{bubbles:true}))");
+  await click('[data-project="project-garden"]');
+  await wait("document.getElementById('project-context').textContent === 'garden-lab'");
+  await click('[data-thread="thread-welcome"]');
+  await wait("document.getElementById('draft').value === '保留我的演示草稿'");
+  await click('[data-thread="thread-welcome"]'); await click('[data-thread="thread-welcome"]');
+  await wait("document.querySelector('.loading') === null && !document.getElementById('conversation').hidden");
+  assert.equal((await snapshot()).loading, false);
+  await click('#send'); await wait("document.getElementById('confirm-dialog').open");
+  await click('#cancel-confirm'); await wait("!document.getElementById('confirm-dialog').open");
+  assert.equal((await snapshot()).draft, "保留我的演示草稿");
+  await click('#send'); await wait("document.getElementById('confirm-dialog').open");
+  await click('#confirm'); await click('#confirm');
+  await wait("!document.getElementById('stop').hidden");
+  await click('#stop'); await wait("document.getElementById('stop').hidden");
+  assert.equal((await snapshot()).messages.filter((m: { status: string }) => m.status === "cancelled").length, 1);
+  await click('#send'); await wait("document.getElementById('confirm-dialog').open"); await click('#confirm');
+  await wait("document.getElementById('stop').hidden");
+  assert.match((await snapshot()).messages.at(-1).text, /没有调用真实模型/);
+  await screenshot("submitted");
+  await click('#connection-menu'); await click('#disconnect');
+  await wait("!document.getElementById('notice').hidden && document.getElementById('send').disabled");
+  assert.equal((await snapshot()).stale, true);
+  await screenshot("disconnected");
+  await click('#retry'); await click('#retry');
+  await wait("document.getElementById('notice').hidden");
+  assert.equal((await snapshot()).connection, "ready");
+  await click('#new'); await wait("!document.getElementById('empty').hidden");
+  await click('#back'); await wait("!document.getElementById('conversation').hidden");
+  await click('#toggle-search');
+  await js("document.getElementById('search').value='不存在'; document.getElementById('search').dispatchEvent(new Event('input',{bubbles:true}))");
+  await wait("document.querySelector('.search-empty') !== null");
+  await js("document.getElementById('search').value=''; document.getElementById('search').dispatchEvent(new Event('input',{bubbles:true}))");
+  await wait("document.querySelectorAll('[data-thread]').length >= 3");
+  await click('#toggle-search');
+  window.setSize(900, 650);
+  await wait("innerWidth === 900");
+  assert.equal(await js("document.documentElement.scrollWidth > innerWidth"), false);
+  const visible = await js("(()=>{const r=document.getElementById('send').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight})()");
+  assert.equal(visible, true);
+  await screenshot("narrow");
+  window.setSize(1536, 894);
+  await click('[data-project="project-studio"]');
+  await wait("!document.getElementById('empty').hidden");
+  await screenshot("empty-final");
+  assert.deepEqual(errors, []);
+  await writeFile(join(output, "smoke-results.json"), JSON.stringify({ result: "passed", checks: ["selected-app-icon", "ready-synthetic-peer", "renderer-isolation", "project-thread-navigation", "draft-preservation", "repeated-clicks", "confirm-return", "cancel-running", "complete-synthetic-response", "disconnect-stale", "explicit-reconnect", "new-back", "search-empty", "narrow-controls", "console-errors"], selectedIcon: iconSize, screenshots: ["empty", "conversation", "submitted", "disconnected", "narrow", "empty-final"], consoleErrors: errors }, null, 2));
+}

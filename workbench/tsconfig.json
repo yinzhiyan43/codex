@@ -9,7 +9,15 @@
     "noEmit": true,
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["protocol-adapter/**/*.ts", "desktop-host/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "protocol-adapter/**/*.ts",
+    "desktop-host/**/*.ts",
+    "tests/**/*.ts",
+    "desktop/**/*.ts",
+    "ui/**/*.ts"
+  ]
 }
