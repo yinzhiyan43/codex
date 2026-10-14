@@ -331,3 +331,24 @@ test("disconnect before dequeue reports not-sent and leaves no uncertain read", 
   assert.deepEqual(outgoing(session), []);
   assert.deepEqual(session.recoveryPlan().uncertainRequests, []);
 });
+
+test("account/model reads reject refresh and unknown fields while validating bounded replies", async () => {
+  const { ready, outgoing, feed } = await import("./helpers.ts"); const session = await ready();
+  assert.throws(() => session.getAccount({ refreshToken: true }), /explicit-refresh-disabled/);
+  assert.throws(() => session.request("account/read", { apiKey: "never" }), /unsupported-field/);
+  const account = session.getAccount({ refreshToken: false }); const sent = outgoing(session)[0]!;
+  feed(session, { id: sent.id, result: { account: null, requiresOpenaiAuth: true } }); assert.equal((await account).account, null);
+  assert.throws(() => session.listModels({ limit: 101 }), /invalid-page-limit/);
+  const models = session.listModels({ limit: 1 }); const modelRequest = outgoing(session)[0]!;
+  feed(session, { id: modelRequest.id, result: { data: [], nextCursor: null } }); assert.deepEqual((await models).data, []);
+  session.disconnect(session.epoch);
+});
+
+test("configuration reads reject project scopes and layers", async () => {
+  const session = await ready();
+  assert.throws(() => session.readConfiguration({ includeLayers: true }), /config-layers-disabled/);
+  assert.throws(() => session.readConfiguration({ includeLayers: false, cwd: "/private-project" }), /unsupported-field/);
+  const response = session.readConfiguration({ includeLayers: false }); const sent = outgoing(session)[0]!;
+  assert.equal(sent.method, "config/read"); assert.deepEqual(sent.params, { includeLayers: false });
+  const rejected = assert.rejects(response, /transport-closed/); session.disconnect(session.epoch); await rejected;
+});

@@ -109,6 +109,36 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadItemsListResponse.json",
       "path": "contracts/schemas/itemsListResult.json",
       "sha256": "0ecf37ff62571c8411aab271ea65d22be4da1108cc2fd2dffb15a7034bfedb28"
+    },
+    "accountReadParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/GetAccountParams.json",
+      "path": "contracts/schemas/accountReadParams.json",
+      "sha256": "30b545275f60975b55bd6fbaafd70f15505801d14168ee82d3931b6e93c78aab"
+    },
+    "accountReadResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/GetAccountResponse.json",
+      "path": "contracts/schemas/accountReadResult.json",
+      "sha256": "c3092dd8e52c2933c5ba5f0bf92377174f65bed627ff4ef5d7c04a189dd34fd1"
+    },
+    "modelsListParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ModelListParams.json",
+      "path": "contracts/schemas/modelsListParams.json",
+      "sha256": "de29a536c00a5b8f46f34dba417dabd93365305571a8ed200e33bea85db68b5a"
+    },
+    "modelsListResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ModelListResponse.json",
+      "path": "contracts/schemas/modelsListResult.json",
+      "sha256": "2fb387a2ed258fc74258828ea342d68f89ce4e8e22cd0329ca59d2b423f9108b"
+    },
+    "configReadParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ConfigReadParams.json",
+      "path": "contracts/schemas/configReadParams.json",
+      "sha256": "257c54a423b47c1d209ff1076765a1564d82322fd5161670fd489a2874de1bac"
+    },
+    "configReadResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json",
+      "path": "contracts/schemas/configReadResult.json",
+      "sha256": "69a32e3d84e16045802dff8abf01770d759ebc758965c3258a30ea4a93159fce"
     }
   },
   "requests": {
@@ -125,6 +155,21 @@
     "thread/items/list": {
       "params": "itemsListParams",
       "result": "itemsListResult",
+      "experimental": false
+    },
+    "account/read": {
+      "params": "accountReadParams",
+      "result": "accountReadResult",
+      "experimental": false
+    },
+    "model/list": {
+      "params": "modelsListParams",
+      "result": "modelsListResult",
+      "experimental": false
+    },
+    "config/read": {
+      "params": "configReadParams",
+      "result": "configReadResult",
       "experimental": false
     }
   },
@@ -159,5 +204,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "c2357eb58168dd8a24b59cef833507e518f738603d336b433f3997979a208b7e"
+  "specSha256": "b429e57ed53656eeb3d15f00e55a96ab81f8e47cf48337874bb71e3aa18026ad"
 }

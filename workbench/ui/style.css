@@ -118,3 +118,9 @@ dialog p { line-height:1.55; overflow-wrap:anywhere; white-space:pre-wrap; max-h
 .approval-actions button:disabled { color:#9c978c; background:#302e29; }
 .approval-card[data-approval-status="resolved"],.approval-card[data-approval-status="expired"],.approval-card[data-approval-status="disconnected"] { border-color:#444; background:#252525; }
 .cache-label { display:block; margin-top:7px; font-size:10px; color:#c6bd9d; }
+
+.core-status { max-width:660px; margin:36px auto; padding:20px; background:var(--input-bg, #2b2b2b); border:1px solid #444; border-radius:12px; }
+.core-status h2 { margin:0 0 12px; font-size:20px; font-weight:500; }
+.core-status p,.core-status li { line-height:1.6; color:#bdbdbd; }
+.core-status ul { padding-left:20px; overflow-wrap:anywhere; }
+.core-status button { padding:8px 12px; }

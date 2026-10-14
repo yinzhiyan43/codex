@@ -15,8 +15,33 @@ function render(next: DesktopView): void {
   const project = next.projects.find(p => p.id === next.route.projectId)!;
   el("project-context").textContent = project.name;
   el("empty-title").textContent = `我们应该在${project.name}中做些什么？`;
+  const official = next.mode !== "synthetic";
+  const accountMode = next.mode === "official-account";
+  el("mode-label").textContent = official ? (accountMode ? "官方核心 · 原生登录" : "官方核心 · 隔离连接") : "合成演示";
+  document.title = official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示";
+  el("core-status").hidden = !official;
+  for (const id of ["new", "back", "home", "workspace"]) el<HTMLButtonElement>(id).disabled = official;
+  el<HTMLButtonElement>("toggle-search").disabled = official;
+  el<HTMLButtonElement>("account").disabled = official;
+  el<HTMLButtonElement>("toggle-details").disabled = official;
+  draft.disabled = official;
+  draft.placeholder = official ? (accountMode ? "原生账户连接：此页仅检查状态" : "尚未登录，本阶段不发送消息") : "随心输入";
+  el("connection-title").textContent = official ? "官方核心隔离连接" : "演示连接";
+  el("connection-description").textContent = official ? (accountMode ? "使用官方CLI现有ChatGPT登录；此页只检查状态与模型目录，不读取既有聊天或发送消息。" : "使用空配置验证官方 0.162.1 进程；不读取既有聊天、不登录、不发送模型请求。") : "只连接本地合成 peer，不使用真实账户或模型。";
+  const modelLabel = el("model-text");
+  modelLabel.textContent = official ? next.coreStatus?.defaultModel ?? "模型尚未验证" : "合成模型";
+  if (next.coreStatus) {
+    const core = next.coreStatus;
+    el("core-description").textContent = accountMode ? "使用官方 CLI 现有登录；不复制凭证，不加载既有聊天。此页仅检查连接与模型目录。" : "只验证本机进程和只读协议。此环境为空，尚未登录；不发送消息。";
+    el("core-next-step").textContent = accountMode ? "没有加载既有聊天；真实模型可用性由独立冒烟测试验证。" : "没有加载既有聊天。模型和账户能力将在获准登录后验证。";
+    el("core-account").textContent = core.authentication ? `已登录 ChatGPT · 官方套餐标识：${core.authentication.planType ?? "未知"} · ${core.models.length}个GPT模型` : accountMode ? "官方账户状态尚未确认" : "";
+    el("core-connection").textContent = `${core.handshake ? "Codex" : "目标核心"} ${core.version} · ${next.connection} · 第${core.generation}次连接 · ${core.handshake ? "握手已确认" : "握手未确认"}`;
+    el<HTMLButtonElement>("probe-core").disabled = next.connection !== "ready" || core.checking;
+    const results = el("core-results"); results.replaceChildren();
+    for (const probe of core.probes) { const row = document.createElement("li"); row.textContent = `${probe.method} · ${probe.code === "rpc-error:-32601" ? "当前服务实现不支持" : probe.code === "rpc-error:-32600" ? "空环境中的检查线程不存在" : "检查失败"} (${probe.code})`; results.append(row); }
+  }
   const hasConversation = !!next.route.threadId || next.messages.length > 0;
-  el("empty").hidden = hasConversation;
+  el("empty").hidden = hasConversation || official;
   el("conversation").hidden = !hasConversation;
   const scroller = el("conversation"), oldTop = scroller.scrollTop, oldHeight = scroller.scrollHeight;
   const messageRoot = el("messages");
@@ -82,12 +107,12 @@ function render(next: DesktopView): void {
   el("composer").classList.toggle("conversation-composer", hasConversation);
   const online = next.connection === "ready";
   el("connection-label").textContent = online ? "" : "已断开";
-  el("detail-connection").textContent = online ? "已连接（合成）" : "已断开";
-  const notice = next.error ?? (next.stale ? "演示连接已断开，显示的是缓存内容。草稿会保留。" : next.history.stale ? "较早历史仍是缓存，可以继续加载核对。" : null);
+  el("detail-connection").textContent = online ? (official ? "已连接（官方核心）" : "已连接（合成）") : "已断开";
+  const notice = next.error ?? (next.stale ? (official ? "官方核心连接未就绪，可显式重连。" : "演示连接已断开，显示的是缓存内容。草稿会保留。") : next.history.stale ? "较早历史仍是缓存，可以继续加载核对。" : null);
   el("notice").hidden = !notice;
   el("notice-text").textContent = notice ?? "";
   el("retry").hidden = online;
-  el<HTMLButtonElement>("send").disabled = !draft.value.trim() || !online || next.loading;
+  el<HTMLButtonElement>("send").disabled = official || !draft.value.trim() || !online || next.loading;
   el("send").hidden = next.running;
   el("stop").hidden = !next.running;
   if (next.pending) { el("confirm-text").textContent = next.pending; if (!dialog.open) dialog.showModal(); }
@@ -98,7 +123,7 @@ function render(next: DesktopView): void {
     const visible = p.name.toLocaleLowerCase().includes(query) ? p.threads : p.threads.filter(t => t.title.toLocaleLowerCase().includes(query));
     if (query && !visible.length && !p.name.toLocaleLowerCase().includes(query)) continue;
     const button = document.createElement("button"); button.className = "project-row";
-    button.dataset.project = p.id; button.setAttribute("aria-pressed", String(p.id === next.route.projectId && !next.route.threadId));
+    button.disabled = official; button.dataset.project = p.id; button.setAttribute("aria-pressed", String(p.id === next.route.projectId && !next.route.threadId));
     const icon = document.createElement("i"); icon.className = "ph ph-folder-open"; icon.setAttribute("aria-hidden", "true");
     button.append(icon, document.createTextNode(p.name)); list.append(button);
     for (const t of visible) {
@@ -113,18 +138,20 @@ async function send(command: DesktopCommand): Promise<void> {
   catch { el("notice").hidden = false; el("notice-text").textContent = "操作未完成，请稍后重试。"; }
 }
 async function flushDraft(): Promise<void> {
+  if (view?.mode !== "synthetic") return;
   if (draftTimer) clearTimeout(draftTimer); draftTimer = null;
   inputSequence++; await send({ type: "draft", routeId: routeKey, text: draft.value });
 }
 async function navigate(command: DesktopCommand): Promise<void> { await flushDraft(); await send(command); }
 draft.addEventListener("input", () => {
+  if (view?.mode !== "synthetic") return;
   el<HTMLButtonElement>("send").disabled = !draft.value.trim() || view?.connection !== "ready" || !!view?.loading;
   if (draftTimer) clearTimeout(draftTimer);
   const sequence = ++inputSequence; const routeId = routeKey; const text = draft.value;
   draftTimer = setTimeout(() => { if (sequence === inputSequence) { draftTimer = null; void send({ type: "draft", routeId, text }); } }, 180);
 });
 draft.addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!el<HTMLButtonElement>("send").disabled && !view?.running) el<HTMLFormElement>("composer").requestSubmit(); } });
-el("composer").addEventListener("submit", event => { event.preventDefault(); void (async () => { await flushDraft(); await send({ type: "submit" }); })(); });
+el("composer").addEventListener("submit", event => { event.preventDefault(); if (view?.mode !== "synthetic") return; void (async () => { await flushDraft(); await send({ type: "submit" }); })(); });
 el("project-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
   if (button?.dataset.project) void navigate({ type: "project", id: button.dataset.project });
@@ -157,3 +184,5 @@ document.addEventListener("keydown", event => { if (event.key === "Escape") { el
 const unsubscribe = window.workbench.subscribe(render);
 window.addEventListener("beforeunload", () => { unsubscribe(); if (draftTimer) clearTimeout(draftTimer); }, { once: true });
 void window.workbench.snapshot().then(render);
+
+el("probe-core").addEventListener("click", () => void send({ type: "probeCore" }));

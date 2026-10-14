@@ -1,0 +1,263 @@
+{
+  "native": {
+    "result": "passed",
+    "identity": {
+      "version": "0.162.1",
+      "target": "aarch64-apple-darwin",
+      "sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0"
+    },
+    "isolatedHomeConfirmed": true,
+    "networkDenied": true,
+    "otherUserFileDenied": true,
+    "outsideHomeFileAndDirectoryDenied": true,
+    "keychainMachLookupRuleConfigured": true,
+    "knownAuthFilesPresent": false,
+    "methods": [
+      "initialize",
+      "initialized",
+      "thread/read",
+      "thread/turns/list",
+      "thread/items/list",
+      "initialize",
+      "initialized",
+      "initialize",
+      "initialized"
+    ],
+    "errorCodes": [
+      -32600,
+      -32600,
+      -32601
+    ],
+    "modelRequests": 0,
+    "checks": [
+      "policy-denials",
+      "version-and-package-metadata",
+      "actual-initialize",
+      "actual-read-errors",
+      "read-only-controller",
+      "owned-exit",
+      "explicit-reconnect",
+      "clean-stop",
+      "no-known-auth-files",
+      "disposed"
+    ],
+    "processActive": false
+  },
+  "ui": {
+    "official": {
+      "result": "passed",
+      "mode": "official-isolated",
+      "coreVersion": "0.162.1",
+      "checks": [
+        "actual-native-handshake",
+        "mode-separated",
+        "no-fixture-messages",
+        "submissions-disabled",
+        "renderer-isolation",
+        "actual-read-errors",
+        "unsupported-items-visible",
+        "actual-process-stop",
+        "explicit-new-generation",
+        "no-automatic-read-replay",
+        "narrow-layout",
+        "console-errors"
+      ],
+      "screenshots": [
+        "official-ready",
+        "official-read-errors",
+        "official-stopped",
+        "official-reconnected",
+        "official-narrow"
+      ],
+      "consoleErrors": []
+    },
+    "startupFailure": {
+      "result": "passed",
+      "mode": "official-isolated",
+      "scenario": "startup-failure",
+      "checks": [
+        "failed-preflight-visible",
+        "no-handshake-claim",
+        "send-and-probe-disabled",
+        "explicit-retry-failure",
+        "console-errors"
+      ],
+      "screenshots": [
+        "official-start-failed"
+      ],
+      "consoleErrors": []
+    },
+    "syntheticRegression": {
+      "result": "passed",
+      "checks": [
+        "selected-app-icon",
+        "ready-synthetic-peer",
+        "renderer-isolation",
+        "project-thread-navigation",
+        "draft-preservation",
+        "repeated-clicks",
+        "confirm-return",
+        "cancel-running",
+        "complete-synthetic-response",
+        "disconnect-stale",
+        "explicit-reconnect",
+        "new-back",
+        "search-empty",
+        "narrow-controls",
+        "console-errors",
+        "history-overlap-and-order",
+        "stable-message-dom",
+        "history-cancel",
+        "approval-once",
+        "approval-decline",
+        "approval-cancel",
+        "approval-expiry",
+        "approval-disconnect"
+      ],
+      "selectedIcon": {
+        "width": 1254,
+        "height": 1254
+      },
+      "screenshots": [
+        "empty",
+        "conversation",
+        "submitted",
+        "disconnected",
+        "narrow",
+        "empty-final",
+        "approvals-pending",
+        "approvals-processed",
+        "history-cancelled",
+        "history-paged"
+      ],
+      "consoleErrors": []
+    },
+    "officialAccountFinal": {
+      "result": "passed",
+      "mode": "official-account",
+      "coreVersion": "0.162.1",
+      "checks": [
+        "native-chatgpt-login-reuse",
+        "official-model-catalog",
+        "account-email-omitted",
+        "actual-native-handshake",
+        "mode-separated",
+        "no-fixture-messages",
+        "submissions-disabled",
+        "renderer-isolation",
+        "actual-read-errors",
+        "unsupported-items-visible",
+        "actual-process-stop",
+        "explicit-new-generation",
+        "no-automatic-read-replay",
+        "narrow-layout",
+        "console-errors"
+      ],
+      "screenshots": [
+        "official-ready",
+        "official-read-errors",
+        "official-stopped",
+        "official-reconnected",
+        "official-narrow"
+      ],
+      "consoleErrors": []
+    }
+  },
+  "officialModelSmokeOriginal": {
+    "result": "passed",
+    "authenticationType": "chatgpt",
+    "provider": "openai",
+    "model": "gpt-6.1-sol",
+    "modelRequests": 2,
+    "toolItems": 0,
+    "methods": [
+      "initialize",
+      "initialized",
+      "account/read",
+      "model/list",
+      "thread/start",
+      "turn/start",
+      "turn/start",
+      "turn/interrupt"
+    ],
+    "normal": {
+      "status": "completed",
+      "deltas": 4,
+      "expectedText": true,
+      "outputChars": 12
+    },
+    "cancellation": {
+      "status": "interrupted",
+      "deltas": 6,
+      "outputChars": 6,
+      "interruptAcknowledged": true
+    },
+    "processExitCode": 0,
+    "processSignal": null,
+    "accountPlanOmittedForPrivacy": true
+  },
+  "followupRouteMetadata": {
+    "metadataOnly": true,
+    "provider": "openai",
+    "effectiveModelEndpointClass": "official-default",
+    "enabledMcpServerCount": 1,
+    "legacyNotifyConfigured": true,
+    "inlineHooksConfigured": false,
+    "userHooksFileExists": false,
+    "modelCalls": 0,
+    "note": "Follow-up snapshot of current effective configuration; no raw config, headers, environment values, credentials, or old chats output."
+  },
+  "finalMetadataGuard": {
+    "result": "passed",
+    "authenticationType": "chatgpt",
+    "provider": "openai",
+    "configuredEndpoint": "https://chatgpt.com/backend-api/codex",
+    "configurationGuardConfirmed": true,
+    "model": "gpt-6.1-sol",
+    "modelRequests": 0,
+    "toolItems": 0,
+    "methods": [
+      "initialize",
+      "initialized",
+      "config/read",
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list"
+    ],
+    "normal": null,
+    "cancellation": null,
+    "routeGuardConfirmed": true,
+    "processExitCode": 0,
+    "processSignal": null,
+    "cleanupConfirmed": true,
+    "accountPlanOmittedForPrivacy": true
+  },
+  "configurationPreservation": {
+    "result": "passed",
+    "unchangedDuringFinalMetadataChecks": true,
+    "configExists": true,
+    "credentialFilesReadByAgent": false
+  },
+  "verification": {
+    "schemas": 25,
+    "offlineTests": 114,
+    "offlinePassed": 114,
+    "nativeTestsPreviouslyPassed": 6,
+    "independentReview": {
+      "model": "gpt-6-sol",
+      "effort": "xhigh",
+      "targetedPassed": 85,
+      "newReproducibleP1P2": 0,
+      "nativeModelGuiRuns": 0
+    },
+    "additionalModelRequestsDuringFinalization": 0
+  },
+  "evidenceLimits": [
+    "Original smoke did not measure effective endpoint, MCP/notify side processes, or returned ephemeral value.",
+    "Follow-up metadata and guards do not retroactively fill original measurements.",
+    "config/read returns complete effective configuration into local script memory; only MCP names are used and recorded.",
+    "Final user config hash check covers final metadata/UI runs, not an unavailable pre-original-smoke hash."
+  ]
+}

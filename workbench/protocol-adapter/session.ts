@@ -1,3 +1,4 @@
+import type { ConfigReadParams, ConfigReadResponse, GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "./contracts.ts";
 import { JsonlDecoder } from "./jsonl.ts";
 import { validate, contractManifest } from "./contracts.ts";
 import type { InitializeResponse, ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "./contracts.ts";
@@ -157,6 +158,9 @@ export class ProtocolSession {
   }
   listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse> { return this.request("thread/turns/list", params) as Promise<ThreadTurnsListResponse>; }
   listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse> { return this.request("thread/items/list", params) as Promise<ThreadItemsListResponse>; }
+  readConfiguration(params: ConfigReadParams): Promise<ConfigReadResponse> { return this.request("config/read", params) as Promise<ConfigReadResponse>; }
+  getAccount(params: GetAccountParams): Promise<GetAccountResponse> { return this.request("account/read", params) as Promise<GetAccountResponse>; }
+  listModels(params: ModelListParams): Promise<ModelListResponse> { return this.request("model/list", params) as Promise<ModelListResponse>; }
   request(method: string, params: unknown): Promise<unknown> {
     if (this.#state !== "ready") throw new ProtocolSessionError("not-ready");
     const spec = Object.hasOwn(manifest.requests, method) ? manifest.requests[method] : undefined;
@@ -168,9 +172,15 @@ export class ProtocolSession {
     validate(spec.params, params);
     const values = params as Record<string, unknown>;
     // The narrow M1 allowlist also rejects fields not yet reviewed, including experimental ones.
-    const fields: Record<string, string[]> = { "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
+    const fields: Record<string, string[]> = { "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
     if (Object.keys(values).some(field => !fields[method]!.includes(field))) throw new ProtocolSessionError("unsupported-field");
-    if (method !== "thread/read") {
+    if (method === "config/read" && values.includeLayers !== false) throw new ProtocolSessionError("config-layers-disabled");
+    if (method === "account/read" && values.refreshToken !== undefined && values.refreshToken !== false) throw new ProtocolSessionError("explicit-refresh-disabled");
+    if (method === "model/list") {
+      if (values.limit !== undefined && values.limit !== null && (!Number.isSafeInteger(values.limit) || (values.limit as number) < 1 || (values.limit as number) > 100)) throw new ProtocolSessionError("invalid-page-limit");
+      if (typeof values.cursor === "string" && values.cursor.length > 4096) throw new ProtocolSessionError("invalid-page-cursor");
+    }
+    if (method === "thread/turns/list" || method === "thread/items/list") {
       if (typeof values.threadId !== "string" || !values.threadId.length || values.threadId.length > 4096) throw new ProtocolSessionError("invalid-history-scope");
       if (values.limit !== undefined && values.limit !== null && (!Number.isSafeInteger(values.limit) || (values.limit as number) < 1 || (values.limit as number) > 100)) throw new ProtocolSessionError("invalid-page-limit");
       if (typeof values.cursor === "string" && values.cursor.length > 4096) throw new ProtocolSessionError("invalid-page-cursor");
@@ -280,6 +290,7 @@ export class ProtocolSession {
       if (pending.method === "thread/items/list" && typeof pending.params.turnId === "string" && (result as ThreadItemsListResponse).data.some(entry => entry.turnId !== pending.params.turnId)) throw new Error("Item page turn mismatch");
       this.#event({ type: "history-page", method: pending.method, id });
     }
+    if (pending.method === "model/list") { const result = message.result as ModelListResponse; if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || (result.nextCursor !== null && result.nextCursor.length > 4096)) throw new Error("Invalid bounded model page"); }
     this.#pending.delete(key(id)); clearTimeout(pending.timer); pending.resolve(structuredClone(message.result));
   }
   #notification(method: string, params: unknown): void {

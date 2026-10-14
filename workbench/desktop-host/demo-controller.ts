@@ -1,3 +1,4 @@
+import type { CoreStatus } from "./core-controller.ts";
 import type { WorkbenchClient, HostState } from "./client.ts";
 import { HistoryWindow } from "../domain/history-window.ts";
 import { ApprovalCards } from "../domain/approval-cards.ts";
@@ -9,7 +10,7 @@ export const demoProjects = [
 ];
 export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" };
 export type DesktopView = {
-  mode: "synthetic"; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
+  mode: "synthetic" | "official-isolated" | "official-account"; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
   route: { projectId: string; threadId: string | null }; title: string; messages: DemoMessage[];
   draft: string; search: string; loading: boolean; pending: string | null; running: boolean;
   error: string | null;
@@ -152,6 +153,7 @@ export class DemoController {
         if (this.#client.getView().state !== "ready") { this.#error = "连接已断开，无法继续加载历史。"; break; }
         this.#error = null; await this.#loadHistory(command.threadId, false); break;
       }
+      case "probeCore": throw new Error("synthetic-mode-only");
       case "cancelHistory": this.#historySequence++; this.#loading = false; this.#historyNotice = "已取消本次加载，迟到结果会忽略"; break;
       case "approval": {
         const card = this.#approvals.snapshot(this.#route.threadId).find(card => card.key === command.key);

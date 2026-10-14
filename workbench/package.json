@@ -14,7 +14,14 @@
     "check": "npm run contracts:check && npm run typecheck && npm test",
     "desktop:build": "node scripts/build-desktop.mjs",
     "desktop": "npm run desktop:build && electron .desktop/main.mjs",
-    "desktop:smoke": "npm run desktop:build && electron .desktop/main.mjs --smoke-output"
+    "desktop:smoke": "npm run desktop:build && electron .desktop/main.mjs --smoke-output",
+    "core:check": "node --test tests/real-core/official.test.ts",
+    "desktop:core": "npm run desktop:build && electron .desktop/main.mjs --official-core",
+    "desktop:core:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-core --smoke-output",
+    "desktop:account": "npm run desktop:build && electron .desktop/main.mjs --official-account",
+    "official:status": "node scripts/official-model-smoke.mjs",
+    "official:model:smoke": "node scripts/official-model-smoke.mjs --run-model-smoke",
+    "desktop:account:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-account --smoke-output"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

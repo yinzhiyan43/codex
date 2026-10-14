@@ -15,6 +15,11 @@ export type { ThreadItemsListParams } from "../../codex-rs/app-server-protocol/s
 export type { ThreadItemsListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadItemsListResponse.ts";
 export type { ThreadItemEntry } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadItemEntry.ts";
 
+export type { GetAccountParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/GetAccountParams.ts";
+export type { GetAccountResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/GetAccountResponse.ts";
+export type { ModelListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ModelListParams.ts";
+export type { ModelListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ModelListResponse.ts";
+
 type MethodSpec = { params: string; result: string; experimental?: boolean };
 type Manifest = {
   core: { repository: string; tag: string; commit: string };
@@ -43,3 +48,7 @@ export function validate(schema: string, value: unknown): void {
   }
 }
 export function contractManifest(): Manifest { return structuredClone(manifest); }
+
+export type { ConfigReadParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ConfigReadParams.ts";
+
+export type { ConfigReadResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ConfigReadResponse.ts";

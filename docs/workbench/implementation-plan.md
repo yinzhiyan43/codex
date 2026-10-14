@@ -1,6 +1,6 @@
 # 本地重建实施计划
 
-状态：总体设计提案；M1.a 纯协议单元、M1.b stdio host、M1.c 桌面壳/受限 IPC 及 M1.d 分页/审批交互已实现并通过合成测试，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)、[桌面证据](desktop-milestone.md)、[分页与审批证据](pagination-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
+状态：总体设计提案；M1.a 纯协议单元、M1.b stdio host、M1.c 桌面壳/受限 IPC 、M1.d 分页/审批交互已通过合成测试，M1.e 官方核心隔离连接、原生登录复用与有界GPT文本测试已通过各自部分验证，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)、[桌面证据](desktop-milestone.md)、[分页与审批证据](pagination-milestone.md)、[真实连接证据](core-connection-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
 
 ## 1. 官方核心与工作台边界
 
@@ -41,7 +41,7 @@ M1.c 采用 TypeScript/Node + Electron，决定及限制见 [ADR](desktop-adr.md
 
 历史与持久化分工：官方核心拥有会话历史；工作台独立存储窗口、面板、排序偏好及 host 服务元数据。只有协议已定义的项目、分区、附件等资源才使用对应接口；不得修改官方数据库来模拟缺失 API。迁移需要版本号、备份、失败回退，备份不含凭证。
 
-认证采用官方管理的 ChatGPT OAuth：读取账户状态，必要时通过 `account/login/start` 发起官方登录，由官方核心保存与刷新登录状态。用户已说明 Pro 登录可用，不要求另购 API；本轮未尝试登录或验证额度。UI 不读取 `auth.json`、浏览器 cookie 或系统凭证库；`chatgptAuthTokens` 在源码标注仅供内部且不稳定，不作为重建接口。账户、模型和额度按真实服务结果呈现，不能把 unknown 显示成 0。
+认证采用官方管理的 ChatGPT OAuth：读取账户状态，必要时通过 `account/login/start` 发起官方登录，由官方核心保存与刷新登录状态。用户已说明 Pro 登录可用，不要求另购 API；后续已通过官方CLI复用现有ChatGPT登录与一次有界GPT文本冒烟，未验证剩余额度。UI 不读取 `auth.json`、浏览器 cookie 或系统凭证库；`chatgptAuthTokens` 在源码标注仅供内部且不稳定，不作为重建接口。账户、模型和额度按真实服务结果呈现，不能把 unknown 显示成 0。
 
 ## 3. 稳定、实验与 host 能力
 
@@ -76,7 +76,7 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 ## 5. 里程碑与退出条件
 
-以下仍是总体实施阶段；当前完成 M1.a 协议单元、M1.b stdio host、M1.c 合成桌面壳/IPC 和 M1.d 分页/审批交互，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
+以下仍是总体实施阶段；当前完成 M1.a 协议单元、M1.b stdio host、M1.c 合成桌面壳/IPC 和 M1.d 分页/审批交互及 M1.e 真实隔离连接，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
 
 | 阶段 | 交付 | 可验证退出条件 | 依赖 |
 | --- | --- | --- | --- |
@@ -105,4 +105,4 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 M1.a 已在独立 `workbench/` 内建立版本 manifest、adapter 接口和合成 JSONL 测试夹具，实现初始化、请求关联、通知分发、命令/文件审批及断线恢复状态。它的验收交付是模拟会话可确定地重放，异常不会自动重复触发动作。
 
-M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。M1.c 已补桌面 ADR、受限 IPC 及首个合成界面。M1.d 已补 turns/items 分页、稳定消息 ID、重叠页去重、取消/迟到结果隔离、跨代重读及审批单次答复；最终100项测试、19份 schema 核验及23组后台界面检查通过，独立 Sol xhigh 复审问题已修复。原生输入验收仍待进行。真实核心兼容性、登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。
+M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。M1.c 已补桌面 ADR、受限 IPC 及首个合成界面。M1.d 已补 turns/items 分页、稳定消息 ID、重叠页去重、取消/迟到结果隔离、跨代重读及审批单次答复；最终100项测试、19份 schema 核验及23组后台界面检查通过，独立 Sol xhigh 复审问题已修复。原生输入验收仍待进行。M1.e 已获准并完成官方0.162.1隔离启动、握手、只读错误、退出/重连和真实状态UI；114项离线合成、6项原生测试及真实/失败UI检查通过。实测thread/items/list当前存储不支持，不能宣称分页真实兼容。后续用户已授权官方CLI登录复用和唯一GPT文本流式/取消冒烟；已完成，首次附带进程和ephemeral返回值测量缺失见阶段报告。下一步为真实桌面thread/turn闭环的离线接入。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。

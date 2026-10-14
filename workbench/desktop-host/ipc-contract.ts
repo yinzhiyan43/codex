@@ -1,11 +1,11 @@
 export type DesktopCommand =
-  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" }
+  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" }
   | { type: "project" | "thread"; id: string }
   | { type: "draft"; routeId: string; text: string }
   | { type: "search"; text: string }
   | { type: "history"; threadId: string }
   | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
-const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory"]);
+const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-command");
   const v = value as Record<string, unknown>;

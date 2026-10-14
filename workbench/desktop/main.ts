@@ -6,17 +6,25 @@ import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { StdioWorkbenchHost } from "../desktop-host/stdio-host.ts";
 import { DemoController } from "../desktop-host/demo-controller.ts";
+import { CoreController } from "../desktop-host/core-controller.ts";
+import { prepareIsolatedCore, prepareOfficialAccountCore } from "../desktop-host/isolated-core.ts";
+import { HostOperationError } from "../desktop-host/client.ts";
+import { runCoreSmoke } from "./core-smoke.ts";
 import { IpcBudget, validateDesktopSender } from "../desktop-host/ipc-contract.ts";
 import { runDesktopSmoke } from "./smoke.ts";
 const directory = dirname(fileURLToPath(import.meta.url));
 const profile = mkdtempSync(join(tmpdir(), "codex-workbench-synthetic-"));
-app.setPath("userData", profile); app.setName("Codex Workbench — 合成演示");
+app.setPath("userData", profile); app.setName(process.argv.includes("--official-account") ? "Codex Workbench — 官方核心原生账户状态" : process.argv.includes("--official-core") ? "Codex Workbench — 官方核心隔离连接" : "Codex Workbench — 合成演示");
+const accountMode = process.argv.includes("--official-account");
+const official = process.argv.includes("--official-core") || accountMode;
 const isSmoke = process.argv.includes("--smoke-output");
+let isolatedDirectory: string | null = null;
 if (isSmoke) { app.setActivationPolicy("accessory"); void app.dock?.hide(); }
 protocol.registerSchemesAsPrivileged([{ scheme: "workbench", privileges: { standard: true, secure: true, supportFetchAPI: false } }]);
-let controller: DemoController | null = null;
+let controller: DemoController | CoreController | null = null;
 let closing = false;
-app.on("will-quit", () => rmSync(profile, { recursive: true, force: true }));
+const cleanupProfiles = () => { rmSync(profile, { recursive: true, force: true }); if (isolatedDirectory) rmSync(isolatedDirectory, { recursive: true, force: true }); };
+app.on("will-quit", cleanupProfiles);
 const startupTimeout = setTimeout(() => { console.error("Desktop startup timed out"); app.exit(1); }, 15000);
 void app.whenReady().then(async () => {
 clearTimeout(startupTimeout);
@@ -39,13 +47,21 @@ isolated.protocol.handle("workbench", request => {
   if (url.hostname !== "app" || url.search || !asset) return new Response("Not found", { status: 404 });
   return new Response(readFileSync(join(directory, asset[0]!)), { headers: { "Content-Type": asset[1]! } });
 });
-const host = new StdioWorkbenchHost(() => spawn(process.execPath, [join(directory, "peer.cjs")], {
+let launch = () => spawn(process.execPath, [join(directory, "peer.cjs")], {
   cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"],
-}));
-controller = new DemoController(host.client());
+});
+if (official) {
+  try {
+    const binaryIndex = process.argv.indexOf("--core-binary");
+    const prepared = await (accountMode ? prepareOfficialAccountCore : prepareIsolatedCore)(join(dirname(directory), "tests", "real-core", ".runs"), binaryIndex < 0 ? undefined : process.argv[binaryIndex + 1]);
+    isolatedDirectory = prepared.directory; launch = prepared.launcher;
+  } catch (error) { const code = error instanceof Error && ["core-version-mismatch", "core-version-or-provenance-mismatch", "core-chatgpt-login-required"].includes(error.message) ? error.message : "core-preflight-failed"; launch = () => { throw new HostOperationError(code); }; }
+}
+const host = new StdioWorkbenchHost(launch, { requestTimeoutMs: 5000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
+controller = official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
 const window = new BrowserWindow({ width: 1536, height: 894, minWidth: 900, minHeight: 650,
   icon: applicationIcon,
-  backgroundColor: "#181818", title: "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
+  backgroundColor: "#181818", title: official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
   trafficLightPosition: { x: 14, y: 12 }, show: false,
   webPreferences: { preload: join(directory, "preload.cjs"), session: isolated,
     offscreen: isSmoke, backgroundThrottling: !isSmoke,
@@ -89,8 +105,8 @@ if (smokeIndex >= 0) {
   if (!output?.startsWith("/")) throw new Error("smoke-output-must-be-absolute");
   mkdirSync(output, { recursive: true });
   const smokeTimeout = setTimeout(() => { console.error("Desktop smoke timed out"); void controller!.dispose().finally(() => app.exit(1)); }, 30000);
-  try { await runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()); console.log("Desktop smoke passed"); window.close(); }
-  catch (error) { console.error(error); await controller.dispose(); app.exit(1); }
+  try { await (official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize())); console.log("Desktop smoke passed"); window.close(); }
+  catch (error) { console.error(error); await controller.dispose(); cleanupProfiles(); app.exit(1); }
   finally { clearTimeout(smokeTimeout); }
 }
-}).catch(error => { clearTimeout(startupTimeout); console.error(error); app.exit(1); });
+}).catch(error => { clearTimeout(startupTimeout); console.error(error); cleanupProfiles(); app.exit(1); });

@@ -1,7 +1,9 @@
+import { assertOfficialRouteConfiguration } from "./official-config.ts";
+import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { ProtocolSession, ProtocolSessionError } from "../protocol-adapter/session.ts";
 import type { ApprovalHandle, ApprovalDecision } from "../protocol-adapter/session.ts";
-import type { ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
+import type { InitializeResponse, ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
 import type { ProcessLauncher } from "./launch.ts";
 import { HostOperationError } from "./client.ts";
 import type { WorkbenchClient, HostView, HostState, HostDiagnostic } from "./client.ts";
@@ -24,6 +26,7 @@ export type HostOptions = { requestTimeoutMs?: number; shutdownGraceMs?: number;
 export class StdioWorkbenchHost implements WorkbenchClient {
   #launch: ProcessLauncher;
   #session: ProtocolSession;
+  #serverInfo: InitializeResponse | null = null;
   #state: HostState = "stopped";
   #context: Context | null = null;
   #listeners = new Set<() => void>();
@@ -48,13 +51,15 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   client(): WorkbenchClient {
     return Object.freeze({ start: () => this.start(), reconnect: () => this.reconnect(), stop: () => this.stop(), dispose: () => this.dispose(),
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
+      checkOfficialRoute: () => this.checkOfficialRoute(),
+      getAccount: (params: GetAccountParams) => this.getAccount(params), listModels: (params: ModelListParams) => this.listModels(params),
       readThread: (params: ThreadReadParams) => this.readThread(params),
       listTurns: (params: ThreadTurnsListParams) => this.listTurns(params), listItems: (params: ThreadItemsListParams) => this.listItems(params),
       respondApproval: (handle: ApprovalHandle, decision: ApprovalDecision) => this.respondApproval(handle, decision),
       acknowledgeRecovery: () => this.acknowledgeRecovery() });
   }
   getView(): HostView {
-    return { state: this.#state, generation: this.#session.epoch, processActive: this.#context !== null,
+    return { serverInfo: structuredClone(this.#serverInfo), state: this.#state, generation: this.#session.epoch, processActive: this.#context !== null,
       protocolState: this.#session.state, threads: this.#session.snapshot(), approvals: this.#session.approvals(), recovery: this.#session.recoveryPlan() };
   }
   takeDiagnostics(): HostDiagnostic[] { const records = this.#diagnostics; this.#diagnostics = []; return records; }
@@ -94,7 +99,7 @@ export class StdioWorkbenchHost implements WorkbenchClient {
       if (this.#state === "starting" || this.#state === "initializing") return this.#context.start;
       return Promise.reject(new HostOperationError("process-still-active"));
     }
-    this.#stateTo("starting");
+    this.#serverInfo = null; this.#stateTo("starting");
     let connection: ReturnType<ProtocolSession["connect"]>;
     try { connection = this.#session.connect(); }
     catch { this.#stateTo("failed"); return Promise.reject(new HostOperationError("initialization-failed")); }
@@ -112,11 +117,11 @@ export class StdioWorkbenchHost implements WorkbenchClient {
       ctx.protocolQueued = true;
       queueMicrotask(() => { ctx.protocolQueued = false; this.#protocolChanged(ctx); });
     });
-    void connection.initialized.then(() => { ctx.handshakeDone = true; this.#finishStart(ctx); }, () => {
+    void connection.initialized.then(info => { if (this.#active(ctx) && !ctx.stopRequested && !ctx.failure) this.#serverInfo = structuredClone(info); ctx.handshakeDone = true; this.#finishStart(ctx); }, () => {
       if (this.#active(ctx) && !ctx.stopRequested) this.#fail(ctx, "initialization-failed");
     });
     try { ctx.child = this.#launch(); this.#bind(ctx); }
-    catch { this.#fail(ctx, "spawn-failed"); if (!ctx.child) this.#closed(ctx); }
+    catch (error) { this.#fail(ctx, error instanceof HostOperationError && /^core-(preflight-failed|version-mismatch|version-or-provenance-mismatch|sandbox-unavailable|chatgpt-login-required)$/.test(error.code) ? error.code : "spawn-failed"); if (!ctx.child) this.#closed(ctx); }
     return start;
   }
   #bind(ctx: Context): void {
@@ -268,6 +273,24 @@ export class StdioWorkbenchHost implements WorkbenchClient {
       this.#disposePromise = null; throw error;
     });
     return this.#disposePromise;
+  }
+  async checkOfficialRoute(): Promise<void> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try {
+      const response = this.#session.readConfiguration({ includeLayers: false }); this.#pump(this.#context);
+      assertOfficialRouteConfiguration((await response).config);
+    } catch (error) {
+      if (error instanceof Error && ["official-endpoint-not-confirmed", "lifecycle-callbacks-not-disabled"].includes(error.message)) throw new HostOperationError(error.message);
+      throw this.#error(error);
+    }
+  }
+  async getAccount(params: GetAccountParams): Promise<GetAccountResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.getAccount(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async listModels(params: ModelListParams): Promise<ModelListResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.listModels(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
   }
   async readThread(params: ThreadReadParams): Promise<ThreadReadResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

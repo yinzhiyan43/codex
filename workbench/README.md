@@ -1,6 +1,6 @@
-# Workbench protocol, host and synthetic desktop — M1.a/M1.b/M1.c/M1.d
+# Workbench protocol, host and synthetic desktop — M1.a/M1.b/M1.c/M1.d/M1.e
 
-This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Tests launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. The production launcher has not been run or verified against a real binary. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md).
+This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Default npm test checks are offline and launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. An explicit isolated mode has now verified the installed official 0.162.1 binary for handshake, read errors and lifecycle; it does not log in or send model requests. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md), plus [the M1.e real connection report](../docs/workbench/core-connection-milestone.md).
 
 The core is pinned to `rust-v0.162.1` / `092d3acd6bec3e3a14bdc7e7a2810ab628ab759d`. UI reference `26.1007.30912` / build `20156` has partial user-supplied screenshot evidence. See [the full plan](../docs/workbench/implementation-plan.md) and [all 92 goals](../docs/workbench/acceptance-checklist.md). This unit does not complete M1, the UI, or the application.
 
@@ -61,6 +61,22 @@ Opens our own local Electron window. Only the bundled synthetic peer is launched
 npm run desktop:smoke -- /absolute/private/output-directory
 ```
 
-Runs the same renderer in accessory/offscreen mode without showing a window, focusing it, or requesting Dock attention, saves synthetic screenshots and a result JSON, then exits. Startup has a 15-second limit; smoke has a 30-second limit. The M1.d final check passed 100 tests, verified 19 schemas, and passed 23 desktop interaction groups with zero console errors; native keyboard/IME/accessibility remain unverified. Build files stay in ignored `.desktop/`.
+Runs the same renderer in accessory/offscreen mode without showing a window, focusing it, or requesting Dock attention, saves synthetic screenshots and a result JSON, then exits. Startup has a 15-second limit; smoke has a 30-second limit. The M1.e check passed 114 offline synthetic tests and verified 25 schemas; the synthetic UI regression still passed 23 groups with zero console errors; native keyboard/IME/accessibility remain unverified. Build files stay in ignored `.desktop/`.
 
 After a fresh `npm ci --ignore-scripts`, install the pinned official Electron runtime with `node node_modules/electron/install.js`. This may take time to download; it does not launch the Codex core. See [design QA](design-qa.md) and [desktop ADR](../docs/workbench/desktop-adr.md).
+
+## Official core connection — explicit opt-in
+
+```sh
+npm run core:check
+npm run desktop:core
+npm run desktop:core:smoke -- /absolute/private/output-directory
+```
+
+These separate commands use the installed official npm darwin-arm64 0.162.1 native binary with a new empty HOME/CODEX_HOME, file credential storage, telemetry disabled, and a test-only child sandbox. The policy denies network, writes outside the run, and content reads from user storage roots; metadata/xattr and keychain lookup are restricted. It is not a complete filesystem content allowlist. Package layout/version/metadata and native --version are checked before launch; failures produce an error rather than a synthetic fallback. This mode cannot submit drafts, create threads, log in, browse existing history or send model requests. npm test remains synthetic only.
+
+Native integration passed 6 tests; real UI passed 12 groups and startup-failure UI passed 5. Actual read/turns-list probes on a fixed nonexistent UUID return -32600; items-list returns -32601 (current default storage does not support it). Schema presence does not establish real pagination support, and logging in alone does not prove that support. The existing official ChatGPT login and one GPT text/interrupt smoke were subsequently verified. See the M1.e report for the first-run evidence limits and next desktop integration step.
+
+### Native account and bounded model evidence
+
+`npm run desktop:account` reuses the official CLI-managed login and displays sanitized account/catalog metadata after effective route validation. `npm run official:status` makes no model turns. One authorized GPT streaming/cancellation smoke was completed before finalization; it was not rerun. Final configuration guards disable MCP/notify/hooks for future model smoke runs using session overrides, without rewriting user config. See the M1.e report for missing first-run side-process/endpoint/ephemeral measurements and the zero-model final verification.

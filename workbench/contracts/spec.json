@@ -33,7 +33,13 @@
     "turnsListParams": "v2/ThreadTurnsListParams.json",
     "turnsListResult": "v2/ThreadTurnsListResponse.json",
     "itemsListParams": "v2/ThreadItemsListParams.json",
-    "itemsListResult": "v2/ThreadItemsListResponse.json"
+    "itemsListResult": "v2/ThreadItemsListResponse.json",
+    "accountReadParams": "v2/GetAccountParams.json",
+    "accountReadResult": "v2/GetAccountResponse.json",
+    "modelsListParams": "v2/ModelListParams.json",
+    "modelsListResult": "v2/ModelListResponse.json",
+    "configReadParams": "v2/ConfigReadParams.json",
+    "configReadResult": "v2/ConfigReadResponse.json"
   },
   "requests": {
     "thread/read": {
@@ -49,6 +55,21 @@
     "thread/items/list": {
       "params": "itemsListParams",
       "result": "itemsListResult",
+      "experimental": false
+    },
+    "account/read": {
+      "params": "accountReadParams",
+      "result": "accountReadResult",
+      "experimental": false
+    },
+    "model/list": {
+      "params": "modelsListParams",
+      "result": "modelsListResult",
+      "experimental": false
+    },
+    "config/read": {
+      "params": "configReadParams",
+      "result": "configReadResult",
       "experimental": false
     }
   },
