@@ -19,7 +19,7 @@ test("official 0.162.1 app-server with empty isolated HOME and no network", { ti
     const c = prepared.launcher(); child = c;
     const write = c.stdin.write.bind(c.stdin);
     c.stdin.write = ((data: string | Uint8Array, ...args: unknown[]) => {
-      for (const line of String(data).trim().split("\n")) { const frame = JSON.parse(line); methods.push(frame.method); assert.ok(["initialize", "initialized", "thread/read", "thread/turns/list", "thread/items/list"].includes(frame.method)); }
+      for (const line of String(data).trim().split("\n")) { const frame = JSON.parse(line); methods.push(frame.method); assert.ok(["initialize", "initialized", "thread/read", "thread/turns/list"].includes(frame.method)); }
       return Reflect.apply(write, c.stdin, [data, ...args]);
     }) as typeof c.stdin.write;
     return c;
@@ -48,7 +48,7 @@ test("official 0.162.1 app-server with empty isolated HOME and no network", { ti
   });
   await t.test("actual read errors are visible without any existing thread or model call", async () => {
     await controller.dispatch({ type: "probeCore" });
-    assert.deepEqual(controller.snapshot().coreStatus!.probes.map(value => value.code), ["rpc-error:-32600", "rpc-error:-32600", "rpc-error:-32601"]);
+    assert.deepEqual(controller.snapshot().coreStatus!.probes.map(value => value.code), ["rpc-error:-32600", "rpc-error:-32600", "known-unsupported:not-requested"]);
     assert.equal(host.getView().state, "ready"); assert.deepEqual(controller.snapshot().messages, []);
     for (const command of [{ type: "submit" }, { type: "confirm" }, { type: "new" }, { type: "thread", id: "thread-welcome" }, { type: "draft", routeId: "core-check", text: "never submitted" }]) await assert.rejects(controller.dispatch(command), /isolated-core-read-only/);
     assert.equal(methods.filter(method => method === "thread/read").length, 1);
@@ -67,5 +67,5 @@ test("official 0.162.1 app-server with empty isolated HOME and no network", { ti
     for (const name of ["auth.json", ".credentials.json"]) await assert.rejects(access(join(prepared.codexHome, name)));
     await controller.dispose(); assert.equal(host.getView().state, "disposed"); assert.equal(host.getView().processActive, false);
   });
-  if (process.env.WORKBENCH_CORE_RESULT) await writeFile(process.env.WORKBENCH_CORE_RESULT, JSON.stringify({ result: "passed", identity: prepared.identity, isolatedHomeConfirmed: true, networkDenied: true, otherUserFileDenied: true, outsideHomeFileAndDirectoryDenied: true, keychainMachLookupRuleConfigured: true, knownAuthFilesPresent: false, methods, errorCodes: [-32600, -32600, -32601], modelRequests: 0, checks: ["policy-denials", "version-and-package-metadata", "actual-initialize", "actual-read-errors", "read-only-controller", "owned-exit", "explicit-reconnect", "clean-stop", "no-known-auth-files", "disposed"], processActive: host.getView().processActive }, null, 2));
+  if (process.env.WORKBENCH_CORE_RESULT) await writeFile(process.env.WORKBENCH_CORE_RESULT, JSON.stringify({ result: "passed", identity: prepared.identity, isolatedHomeConfirmed: true, networkDenied: true, otherUserFileDenied: true, outsideHomeFileAndDirectoryDenied: true, keychainMachLookupRuleConfigured: true, knownAuthFilesPresent: false, methods, errorCodes: [-32600, -32600], itemsProbe: "known-unsupported:not-requested", modelRequests: 0, checks: ["policy-denials", "version-and-package-metadata", "actual-initialize", "actual-read-errors", "read-only-controller", "owned-exit", "explicit-reconnect", "clean-stop", "no-known-auth-files", "disposed"], processActive: host.getView().processActive }, null, 2));
 });

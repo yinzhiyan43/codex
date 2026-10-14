@@ -1,3 +1,4 @@
+import type { HistoryBrowserView } from "./history-browser.ts";
 import type { CoreStatus } from "./core-controller.ts";
 import type { WorkbenchClient, HostState } from "./client.ts";
 import { HistoryWindow } from "../domain/history-window.ts";
@@ -10,7 +11,7 @@ export const demoProjects = [
 ];
 export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" | "failed" | "unknown" };
 export type DesktopView = {
-  mode: "synthetic" | "official-isolated" | "official-account" | "official-chat"; chatStatus?: { phase: string; model: string | null; offline: boolean; ready: boolean; canRefresh: boolean; interruptAcknowledged: boolean }; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
+  mode: "synthetic" | "official-isolated" | "official-account" | "official-chat"; historyBrowser?: HistoryBrowserView; chatStatus?: { phase: string; model: string | null; offline: boolean; ready: boolean; canRefresh: boolean; interruptAcknowledged: boolean; historyMode?: boolean }; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
   route: { projectId: string; threadId: string | null }; title: string; messages: DemoMessage[];
   draft: string; search: string; loading: boolean; pending: string | null; running: boolean;
   error: string | null;
@@ -153,6 +154,7 @@ export class DemoController {
         if (this.#client.getView().state !== "ready") { this.#error = "连接已断开，无法继续加载历史。"; break; }
         this.#error = null; await this.#loadHistory(command.threadId, false); break;
       }
+      case "browseHistory": case "returnToChat": case "refreshThreads": case "moreThreads": case "refreshHistory": throw new Error("synthetic-mode-only");
       case "selectModel": throw new Error("synthetic-mode-only");
       case "probeCore": throw new Error("synthetic-mode-only");
       case "cancelHistory": this.#historySequence++; this.#loading = false; this.#historyNotice = "已取消本次加载，迟到结果会忽略"; break;

@@ -1,3 +1,4 @@
+import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import { assertOfficialRouteConfiguration, assertOfficialChatConfiguration, disableConfiguredMcp } from "./official-config.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
@@ -52,9 +53,11 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   client(): WorkbenchClient {
     return Object.freeze({ start: () => this.start(), reconnect: () => this.reconnect(), stop: () => this.stop(), dispose: () => this.dispose(),
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
+      listThreads: (params: ThreadListParams) => this.listThreads(params),
       startThread: (params: ThreadStartParams) => this.startThread(params), startTurn: (params: TurnStartParams) => this.startTurn(params), interruptTurn: (params: TurnInterruptParams) => this.interruptTurn(params), checkModelConfiguration: () => this.checkModelConfiguration(),
       checkOfficialRoute: () => this.checkOfficialRoute(),
       getAccount: (params: GetAccountParams) => this.getAccount(params), listModels: (params: ModelListParams) => this.listModels(params),
+      readThreadMetadata: (params: Pick<ThreadReadParams, "threadId">) => this.readThreadMetadata(params),
       readThread: (params: ThreadReadParams) => this.readThread(params),
       listTurns: (params: ThreadTurnsListParams) => this.listTurns(params), listItems: (params: ThreadItemsListParams) => this.listItems(params),
       respondApproval: (handle: ApprovalHandle, decision: ApprovalDecision) => this.respondApproval(handle, decision),
@@ -284,6 +287,10 @@ export class StdioWorkbenchHost implements WorkbenchClient {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     const response = this.#session.readConfiguration({ includeLayers: false }); this.#pump(this.#context); return (await response).config;
   }
+  async listThreads(params: ThreadListParams): Promise<ThreadListResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const response = this.#session.listThreads(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
+  }
   async startThread(params: ThreadStartParams): Promise<ThreadStartResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     try { const response = this.#session.startThread(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
@@ -313,6 +320,11 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   async listModels(params: ModelListParams): Promise<ModelListResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     try { const result = this.#session.listModels(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async readThreadMetadata(params: Pick<ThreadReadParams, "threadId">): Promise<ThreadReadResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.readThreadMetadata(params); this.#pump(this.#context); return await result; }
+    catch (error) { throw this.#error(error); }
   }
   async readThread(params: ThreadReadParams): Promise<ThreadReadResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

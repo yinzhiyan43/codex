@@ -352,3 +352,13 @@ test("configuration reads reject project scopes and layers", async () => {
   assert.equal(sent.method, "config/read"); assert.deepEqual(sent.params, { includeLayers: false });
   const rejected = assert.rejects(response, /transport-closed/); session.disconnect(session.epoch); await rejected;
 });
+
+test("saved metadata reads validate identity without filling live projection",async()=>{
+ const session=await ready();for(let n=0;n<130;n++){const id="saved-"+n;const call=session.readThreadMetadata({threadId:id});const request=outgoing(session)[0]!;assert.deepEqual(request.params,{threadId:id,includeTurns:false});feed(session,{id:request.id,result:{thread:{...syntheticThread(),id,turns:[]}}});await call;}assert.equal(session.state,"ready");assert.deepEqual(session.snapshot(),[]);
+ assert.throws(()=>session.readThreadMetadata({threadId:"saved",path:"/private"} as any),/unsupported-field/);const mismatched=session.readThreadMetadata({threadId:"saved"});const rejected=assert.rejects(mismatched,/invalid-protocol/);const request=outgoing(session)[0]!;feed(session,{id:request.id,result:{thread:syntheticThread()}});await rejected;assert.equal(session.state,"failed");
+});
+test("thread catalog input and replies retain bounds and forbid path filters",async()=>{
+ const session=await ready();assert.throws(()=>session.listThreads({cwd:"/private"} as any),/unsupported-field/);assert.throws(()=>session.listThreads({limit:101}),/invalid-page-limit/);assert.throws(()=>session.listThreads({cursor:"x".repeat(4097)}),/invalid-page-cursor/);assert.throws(()=>session.listThreads({modelProviders:Array(17).fill("openai")}),/invalid-provider-filter/);
+ const good=session.listThreads({limit:1,modelProviders:[]});let request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread()],nextCursor:"opaque",backwardsCursor:null}});assert.equal((await good).nextCursor,"opaque");
+ const oversized=session.listThreads({limit:1});const rejected=assert.rejects(oversized,/invalid-protocol/);request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread(),syntheticThread()],nextCursor:null,backwardsCursor:null}});await rejected;assert.equal(session.state,"failed");
+});

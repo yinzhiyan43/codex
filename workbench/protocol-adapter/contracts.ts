@@ -58,3 +58,5 @@ export type { TurnStartParams } from "../../codex-rs/app-server-protocol/schema/
 export type { TurnStartResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/TurnStartResponse.ts";
 export type { TurnInterruptParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/TurnInterruptParams.ts";
 export type { TurnInterruptResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/TurnInterruptResponse.ts";
+export type { ThreadListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadListParams.ts";
+export type { ThreadListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadListResponse.ts";

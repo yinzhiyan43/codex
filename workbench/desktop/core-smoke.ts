@@ -36,8 +36,8 @@ export async function runCoreSmoke(window: BrowserWindow, output: string, errors
   assert.match(await js("document.getElementById('mode-label').textContent"), /官方核心/);
   assert.equal(await js("typeof require"), "undefined"); await capture("official-ready");
   await click("probe-core"); await wait("document.querySelectorAll('#core-results li').length===3 && !document.getElementById('probe-core').disabled");
-  view = await snapshot(); assert.deepEqual(view.coreStatus.probes.map((row: { code: string }) => row.code), ["rpc-error:-32600", "rpc-error:-32600", "rpc-error:-32601"]);
-  assert.match(await js("document.getElementById('core-results').textContent"), /当前服务实现不支持/);
+  view = await snapshot(); assert.deepEqual(view.coreStatus.probes.map((row: { code: string }) => row.code), ["rpc-error:-32600", "rpc-error:-32600", "known-unsupported:not-requested"]);
+  assert.match(await js("document.getElementById('core-results').textContent"), /已知不可用/);
   await capture("official-read-errors");
   const generation = view.coreStatus.generation;
   await click("connection-menu"); await click("disconnect");
@@ -52,5 +52,5 @@ export async function runCoreSmoke(window: BrowserWindow, output: string, errors
   window.setSize(900, 650); await wait("innerWidth===900");
   assert.equal(await js("document.documentElement.scrollWidth > innerWidth"), false); await capture("official-narrow");
   assert.deepEqual(errors, []);
-  await writeFile(join(output, "smoke-results.json"), JSON.stringify({ result: "passed", mode: accountMode ? "official-account" : "official-isolated", coreVersion: "0.162.1", checks: [...(accountMode ? ["native-chatgpt-login-reuse", "official-model-catalog", "account-email-omitted"] : []), "actual-native-handshake", "mode-separated", "no-fixture-messages", "submissions-disabled", "renderer-isolation", "actual-read-errors", "unsupported-items-visible", "actual-process-stop", "explicit-new-generation", "no-automatic-read-replay", "narrow-layout", "console-errors"], screenshots: ["official-ready", "official-read-errors", "official-stopped", "official-reconnected", "official-narrow"], consoleErrors: errors }, null, 2));
+  await writeFile(join(output, "smoke-results.json"), JSON.stringify({ result: "passed", mode: accountMode ? "official-account" : "official-isolated", coreVersion: "0.162.1", checks: [...(accountMode ? ["native-chatgpt-login-reuse", "official-model-catalog", "account-email-omitted"] : []), "actual-native-handshake", "mode-separated", "no-fixture-messages", "submissions-disabled", "renderer-isolation", "actual-read-errors", "known-unavailable-not-retried", "actual-process-stop", "explicit-new-generation", "no-automatic-read-replay", "narrow-layout", "console-errors"], screenshots: ["official-ready", "official-read-errors", "official-stopped", "official-reconnected", "official-narrow"], consoleErrors: errors }, null, 2));
 }

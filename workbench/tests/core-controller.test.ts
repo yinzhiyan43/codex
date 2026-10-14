@@ -80,3 +80,10 @@ test("account route rejection prevents account and catalog reads", async t => {
   assert.equal(reads, 0); assert.match(controller.snapshot().error!, /official-endpoint-not-confirmed/);
   assert.equal(controller.snapshot().coreStatus!.authentication, null); assert.equal(controller.snapshot().loading, false);
 });
+
+test("official diagnostics never retries known unsupported items pagination",async t=>{
+ const fixture=fileURLToPath(new URL("../desktop/fixture-peer.mjs",import.meta.url));
+ const host=new StdioWorkbenchHost(()=>spawn(process.execPath,[fixture],{env:{},stdio:["pipe","pipe","pipe"]}));let items=0;
+ const controller=new CoreController({...host.client(),listItems:async()=>{items++;throw new Error("must-not-request");}});t.after(()=>controller.dispose());
+ await controller.dispatch({type:"connect"});await controller.dispatch({type:"probeCore"});assert.equal(items,0);assert.equal(controller.snapshot().coreStatus!.probes.at(-1)!.code,"known-unsupported:not-requested");
+});

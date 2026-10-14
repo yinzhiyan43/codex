@@ -45,7 +45,8 @@
     <p id="core-connection"></p><button id="probe-core" type="button">检查只读接口</button>
     <ul id="core-results"></ul><p id="core-next-step">没有加载既有聊天。模型和账户能力将在获准登录后验证。</p>
   </section>
-  <section id="history-toolbar" class="history-toolbar" aria-label="历史分页" hidden><span id="history-count"></span><span id="history-status" role="status"></span><button id="load-history">加载更早历史</button><button id="cancel-history" hidden>取消加载</button></section>
+  <section id="saved-history-toolbar" class="history-toolbar" hidden><button id="return-chat">返回当前聊天</button><button id="refresh-threads">刷新列表</button><button id="more-threads">更多会话</button><span id="saved-history-notice"></span></section>
+  <section id="history-toolbar" class="history-toolbar" aria-label="历史分页" hidden><span id="history-count"></span><span id="history-status" role="status"></span><button id="refresh-saved-history" hidden>刷新记录</button><button id="load-history">加载更早历史</button><button id="cancel-history" hidden>取消加载</button></section>
     <section id="approval-list" class="approval-list" aria-label="审批请求" hidden></section>
     <section id="empty" class="empty"><i class="ph ph-terminal-window" aria-hidden="true"></i><h1 id="empty-title"></h1></section>
     <section id="conversation" class="conversation" aria-label="演示会话" hidden><div id="messages" class="messages"></div></section>

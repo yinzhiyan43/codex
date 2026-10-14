@@ -1,3 +1,4 @@
+import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
 import type { InitializeResponse, ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
@@ -26,6 +27,7 @@ export interface WorkbenchClient {
   getView(): HostView;
   takeDiagnostics(): HostDiagnostic[];
   subscribe(listener: () => void): () => void;
+  listThreads(params: ThreadListParams): Promise<ThreadListResponse>;
   startThread(params: ThreadStartParams): Promise<ThreadStartResponse>;
   startTurn(params: TurnStartParams): Promise<TurnStartResponse>;
   interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse>;
@@ -33,6 +35,7 @@ export interface WorkbenchClient {
   checkOfficialRoute(): Promise<void>;
   getAccount(params: GetAccountParams): Promise<GetAccountResponse>;
   listModels(params: ModelListParams): Promise<ModelListResponse>;
+  readThreadMetadata(params: Pick<ThreadReadParams, "threadId">): Promise<ThreadReadResponse>;
   readThread(params: ThreadReadParams): Promise<ThreadReadResponse>;
   listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse>;
   listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse>;

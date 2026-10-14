@@ -45,7 +45,9 @@
     "turnStartParams": "v2/TurnStartParams.json",
     "turnStartResult": "v2/TurnStartResponse.json",
     "turnInterruptParams": "v2/TurnInterruptParams.json",
-    "turnInterruptResult": "v2/TurnInterruptResponse.json"
+    "turnInterruptResult": "v2/TurnInterruptResponse.json",
+    "threadListParams": "v2/ThreadListParams.json",
+    "threadListResult": "v2/ThreadListResponse.json"
   },
   "requests": {
     "thread/read": {
@@ -91,6 +93,11 @@
     "turn/interrupt": {
       "params": "turnInterruptParams",
       "result": "turnInterruptResult",
+      "experimental": false
+    },
+    "thread/list": {
+      "params": "threadListParams",
+      "result": "threadListResult",
       "experimental": false
     }
   },

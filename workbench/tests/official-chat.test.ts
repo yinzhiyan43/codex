@@ -27,7 +27,7 @@ test("offline real-protocol chain selects catalog model, sends once, streams and
   assert.ok(frames.findIndex(f=>f.method==="config/read")<frames.findIndex(f=>f.method==="thread/start"));
   await wait(()=>c.snapshot().messages.some(m=>m.status==="completed"));assert.equal(c.snapshot().messages.filter(m=>m.role==="user").length,1);assert.equal(c.snapshot().draft,"");
   assert.equal(c.snapshot().history.hasMore,false);assert.equal(c.snapshot().chatStatus!.canRefresh,true);
-  await c.dispatch({type:"history",threadId:c.snapshot().route.threadId!});assert.equal(frames.filter(f=>f.method==="thread/items/list").length,0);assert.equal(frames.find(f=>f.method==="thread/read")!.params.includeTurns,true);
+  await c.dispatch({type:"history",threadId:c.snapshot().route.threadId!});assert.equal(frames.filter(f=>f.method==="thread/items/list").length,0);assert.equal(frames.find(f=>f.method==="thread/read")!.params.includeTurns,false);
   assert.equal(JSON.stringify(c.snapshot()).includes("fixture@example.invalid"),false);assert.equal(host.getView().state,"ready");
 });
 test("cancel while turn/start reply is pending sends one interrupt and waits for terminal",async t=>{

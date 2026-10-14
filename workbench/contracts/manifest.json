@@ -169,6 +169,16 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/TurnInterruptResponse.json",
       "path": "contracts/schemas/turnInterruptResult.json",
       "sha256": "531de6be06fe979b5963f249bab82498a175e614bf65ac12fb2e849dfe60bcf1"
+    },
+    "threadListParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadListParams.json",
+      "path": "contracts/schemas/threadListParams.json",
+      "sha256": "bf5abcb5363c177f8d6b60e6193c76ad8807d6452b67a73ee2f1d77dfe427ac9"
+    },
+    "threadListResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadListResponse.json",
+      "path": "contracts/schemas/threadListResult.json",
+      "sha256": "1d70e930492151917c427834065a911fe9f10d5e1dd5ccaa8d80ccd80a7bacbb"
     }
   },
   "requests": {
@@ -216,6 +226,11 @@
       "params": "turnInterruptParams",
       "result": "turnInterruptResult",
       "experimental": false
+    },
+    "thread/list": {
+      "params": "threadListParams",
+      "result": "threadListResult",
+      "experimental": false
     }
   },
   "notifications": {
@@ -249,5 +264,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "3816825fa48a3779fe9128399c6510ea1bb23de3de6ebd63ade9a7c7a0f101c5"
+  "specSha256": "0b647a60075d1d5869c7bebb247a880a59b3facbadab85085963ca26b68c39eb"
 }

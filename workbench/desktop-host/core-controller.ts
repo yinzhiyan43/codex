@@ -45,7 +45,6 @@ export class CoreController {
       const requests = [
         ["thread/read", () => this.#client.readThread({ threadId: PROBE_THREAD_ID, includeTurns: false })],
         ["thread/turns/list", () => this.#client.listTurns({ threadId: PROBE_THREAD_ID, limit: 1, itemsView: "summary" })],
-        ["thread/items/list", () => this.#client.listItems({ threadId: PROBE_THREAD_ID, limit: 1 })],
       ] as const;
       for (const [method, request] of requests) {
         let code = "unexpected-success", status: CoreProbe["status"] = "error";
@@ -56,6 +55,7 @@ export class CoreController {
         if (this.#disposed || intent !== this.#intent || generation !== this.#client.getView().generation || this.#client.getView().state !== "ready") return;
         this.#probes.push({ method, code, status }); this.#publish();
       }
+      this.#probes.push({ method: "thread/items/list", code: "known-unsupported:not-requested", status: "unavailable" }); this.#publish();
     } finally { if (intent === this.#intent) this.#checking = false; this.#publish(); }
   }
   async dispatch(value: unknown): Promise<DesktopView> {

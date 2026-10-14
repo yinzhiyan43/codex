@@ -1,12 +1,14 @@
 import type { WorkbenchClient } from "./client.ts";
 import { HostOperationError } from "./client.ts";
+import { HistoryBrowser } from "./history-browser.ts";
 import { CoreController } from "./core-controller.ts";
 import { validateDesktopCommand } from "./ipc-contract.ts";
 import type { DesktopView, DemoMessage } from "./demo-controller.ts";
-const historyNotice = "只显示当前临时会话；刷新使用 thread/read。当前核心默认存储不支持 items 分页，未加载既有聊天。";
+const historyNotice = "只显示当前临时会话；临时会话只核对元数据，正文保留已观察缓存。持久历史请打开历史会话；不使用 items 分页。";
 type Phase = "connecting" | "idle" | "starting" | "running" | "cancelling" | "reading" | "unknown";
 /** One current ephemeral conversation; model turns are never replayed on reconnect. */
 export class OfficialChatController {
+  #browser: HistoryBrowser; #browserUnsubscribe: () => void; #browsing = false;
   #client: WorkbenchClient; #core: CoreController; #cwd: string; #offline: boolean;
   #unsubscribe: () => void; #listeners = new Set<() => void>(); #disposed = false; #version = 0; #intent = 0;
   #phase: Phase = "idle"; #model: string | null = null; #thread: string | null = null; #generation = 0;
@@ -16,6 +18,7 @@ export class OfficialChatController {
   constructor(client: WorkbenchClient, cwd: string, offline = false, cancelTimeoutMs = 15000) {
     if (!Number.isSafeInteger(cancelTimeoutMs) || cancelTimeoutMs < 1 || cancelTimeoutMs > 60000) throw new Error("invalid-cancel-timeout"); this.#cancelTimeout = cancelTimeoutMs;
     this.#client = client; this.#cwd = cwd; this.#offline = offline; this.#core = new CoreController(client, true);
+    this.#browser = new HistoryBrowser(client); this.#browserUnsubscribe = this.#browser.subscribe(() => this.#publish());
     this.#unsubscribe = this.#core.subscribe(() => { this.#sync(); this.#publish(); });
   }
   subscribe(listener: () => void): () => void { if (this.#disposed || this.#listeners.size >= 16) throw new Error("controller-unavailable"); this.#listeners.add(listener); return () => this.#listeners.delete(listener); }
@@ -54,13 +57,18 @@ export class OfficialChatController {
     }
   }
   snapshot(): DesktopView {
-    const base = this.#core.snapshot(), messages = this.#messages();
+    const base = this.#core.snapshot(), messages = this.#messages(), saved = this.#browser.snapshot();
+    if (this.#browsing) return { ...base, mode: "official-chat", version: this.#version,
+      chatStatus: { phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !!this.#model && base.connection === "ready", interruptAcknowledged: false, canRefresh: !!saved.selectedId && !saved.loading && base.connection === "ready", historyMode: true },
+      historyBrowser: saved, projects: [{ id: "official-history", name: "只读历史会话", threads: saved.rows.map(row => ({ id: row.id, title: row.title })) }], route: { projectId: "official-history", threadId: saved.selectedId }, title: saved.title,
+      messages: saved.messages, draft: "", pending: null, running: false, loading: saved.loading || base.loading,
+      error: base.error, history: { turnCount: saved.turnCount, itemCount: saved.messages.length, hasMore: saved.moreTurns, busy: saved.loading, loading: saved.loading, stale: saved.stale, notice: saved.notice } };
     return { ...base, mode: "official-chat", version: this.#version,
       chatStatus: { phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !!this.#model && base.connection === "ready", interruptAcknowledged: this.#interruptAcknowledged, canRefresh: !!this.#thread && this.#generation === this.#client.getView().generation && this.#phase === "idle" && base.connection === "ready" },
       projects: [{ id: "official-chat", name: "官方临时聊天", threads: this.#thread ? [{ id: this.#thread, title: "当前临时会话" }] : [] }],
       route: { projectId: "official-chat", threadId: this.#thread }, title: "官方临时聊天", messages,
       draft: this.#draft, pending: this.#pending, running: ["starting", "running", "cancelling"].includes(this.#phase),
-      loading: base.loading || this.#phase === "reading", error: this.#error ?? base.error,
+      loading: base.loading || this.#phase === "reading" || saved.inflight, error: this.#error ?? base.error,
       history: { ...base.history, turnCount: this.#prompts.size, itemCount: messages.length, hasMore: false, notice: historyNotice, stale: base.stale, loading: this.#phase === "reading", busy: this.#phase !== "idle" } };
   }
   #current(intent: number, generation: number): boolean { return !this.#disposed && intent === this.#intent && generation === this.#client.getView().generation && this.#client.getView().state === "ready"; }
@@ -80,7 +88,7 @@ export class OfficialChatController {
     this.#publish();
   }
   async #confirm(): Promise<void> {
-    if (!this.#pending || this.#phase !== "idle" || !this.#guarded || !this.#model) return;
+    if (this.#browsing || this.#browser.snapshot().inflight || !this.#pending || this.#phase !== "idle" || !this.#guarded || !this.#model) return;
     const text = this.#pending, model = this.#model; this.#pending = null; this.#submitted = text;
     this.#phase = "starting"; this.#cancelWanted = false; this.#interruptSent = false; this.#interruptAcknowledged = false; this.#error = null;
     const intent = ++this.#intent, generation = this.#client.getView().generation; this.#publish();
@@ -115,7 +123,16 @@ export class OfficialChatController {
   }
   async dispatch(value: unknown): Promise<DesktopView> {
     if (this.#disposed) throw new Error("controller-unavailable"); const command = validateDesktopCommand(value);
+    if (this.#browsing && ["draft", "submit", "confirm", "selectModel", "cancel"].includes(command.type)) throw new Error("saved-history-read-only");
     switch (command.type) {
+      case "browseHistory": {
+        if (this.#phase !== "idle" || this.#pending || !this.#guarded || this.#client.getView().state !== "ready") throw new Error("history-unavailable");
+        this.#browsing = true; this.#publish(); await this.#browser.list(true); break;
+      }
+      case "returnToChat": this.#browser.cancel(); this.#browsing = false; break;
+      case "refreshThreads": case "moreThreads": if (!this.#browsing) throw new Error("history-view-required"); await this.#browser.list(command.type === "refreshThreads"); break;
+      case "refreshHistory": if (!this.#browsing || !this.#browser.snapshot().selectedId) throw new Error("history-view-required"); await this.#browser.select(this.#browser.snapshot().selectedId!, true); break;
+      case "cancelHistory": if (!this.#browsing) throw new Error("history-view-required"); this.#browser.cancel(); break;
       case "connect": case "reconnect": {
         if (["connecting", "starting", "running", "cancelling", "reading"].includes(this.#phase)) throw new Error("chat-busy");
         const intent = ++this.#intent; this.#phase = "connecting"; this.#guarded = false; this.#cached = this.#messages(); this.#thread = null; this.#turn = null; this.#pending = null;
@@ -126,18 +143,19 @@ export class OfficialChatController {
         } catch { this.#phase = "idle"; this.#error = "官方聊天配置尚未确认，发送已禁用。"; }
         break;
       }
-      case "disconnect": this.#clearCancelTimer(); this.#cached = this.#messages(); this.#intent++; if (["reading", "connecting"].includes(this.#phase)) this.#phase = "idle"; this.#guarded = false; this.#pending = null; await this.#core.dispatch(command); break;
+      case "disconnect": this.#browser.cancel(); this.#clearCancelTimer(); this.#cached = this.#messages(); this.#intent++; if (["reading", "connecting"].includes(this.#phase)) this.#phase = "idle"; this.#guarded = false; this.#pending = null; await this.#core.dispatch(command); break;
       case "draft": if (command.routeId !== (this.#thread ?? "official-chat")) throw new Error("invalid-draft-route"); this.#draft = command.text; break;
       case "selectModel": if (this.#phase !== "idle" || this.#pending || !this.#core.snapshot().coreStatus?.models.includes(command.model)) throw new Error("model-unavailable"); this.#model = command.model; break;
-      case "submit": if (this.#phase === "idle" && !this.#pending && this.#guarded && this.#model && this.#client.getView().state === "ready" && this.#draft.trim()) this.#pending = this.#draft.trim(); break;
+      case "submit": if (!this.#browser.snapshot().inflight && this.#phase === "idle" && !this.#pending && this.#guarded && this.#model && this.#client.getView().state === "ready" && this.#draft.trim()) this.#pending = this.#draft.trim(); break;
       case "confirm": await this.#confirm(); break;
       case "cancel": if (this.#pending) this.#pending = null; else if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#cancelWanted = true; await this.#interrupt(); } break;
-      case "new": if (!["idle", "unknown"].includes(this.#phase)) throw new Error("chat-busy"); this.#intent++; this.#thread = null; this.#turn = null; this.#cached = []; this.#prompts.clear(); this.#draft = ""; this.#pending = null; this.#error = null; if (this.#guarded) this.#phase = "idle"; break;
-      case "thread": if (command.id !== this.#thread) throw new Error("unknown-chat-thread"); break;
+      case "new": if (!["idle", "unknown"].includes(this.#phase)) throw new Error("chat-busy"); this.#browser.cancel(); this.#browsing = false; this.#intent++; this.#thread = null; this.#turn = null; this.#cached = []; this.#prompts.clear(); this.#draft = ""; this.#pending = null; this.#error = null; if (this.#guarded) this.#phase = "idle"; break;
+      case "thread": if (this.#browsing) await this.#browser.select(command.id, true); else if (command.id !== this.#thread) throw new Error("unknown-chat-thread"); break;
       case "history": {
+        if (this.#browsing) { if (command.threadId !== this.#browser.snapshot().selectedId) throw new Error("invalid-history-route"); await this.#browser.select(command.threadId, false); break; }
         if (command.threadId !== this.#thread || this.#generation !== this.#client.getView().generation || this.#phase !== "idle") throw new Error("history-unavailable");
         const intent = this.#intent, generation = this.#generation; this.#phase = "reading"; this.#publish();
-        try { await this.#client.readThread({ threadId: command.threadId, includeTurns: true }); }
+        try { await this.#client.readThread({ threadId: command.threadId, includeTurns: false }); }
         catch { if (this.#current(intent, generation)) this.#error = "当前会话刷新未完成，已保留显示缓存；分页不可用。"; }
         finally { if (intent === this.#intent) this.#phase = "idle"; this.#publish(); } break;
       }
@@ -146,5 +164,5 @@ export class OfficialChatController {
     }
     this.#publish(); return this.snapshot();
   }
-  async dispose(): Promise<void> { if (this.#disposed) return; this.#intent++; this.#disposed = true; this.#clearCancelTimer(); this.#unsubscribe(); this.#listeners.clear(); await this.#core.dispose(); }
+  async dispose(): Promise<void> { if (this.#disposed) return; this.#intent++; this.#disposed = true; this.#browserUnsubscribe(); this.#browser.dispose(); this.#clearCancelTimer(); this.#unsubscribe(); this.#listeners.clear(); await this.#core.dispose(); }
 }

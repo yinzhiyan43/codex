@@ -23,7 +23,9 @@
     "official:model:smoke": "node scripts/official-model-smoke.mjs --run-model-smoke",
     "desktop:account:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-account --smoke-output",
     "desktop:chat": "npm run desktop:build && electron .desktop/main.mjs --official-chat",
-    "desktop:chat:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-chat-offline --smoke-output"
+    "desktop:chat:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-chat-offline --smoke-output",
+    "desktop:history:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-chat-offline --history-smoke --smoke-output",
+    "history:core:check": "node scripts/history-core-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

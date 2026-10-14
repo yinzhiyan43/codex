@@ -14,34 +14,40 @@ function render(next: DesktopView): void {
   const changedRoute = key !== routeKey; routeKey = key;
   const project = next.projects.find(p => p.id === next.route.projectId)!;
   el("project-context").textContent = project.name;
-  el("execution-context").textContent = next.mode === "official-chat" ? "\u4e34\u65f6\u7eaf\u6587\u672c\u4f1a\u8bdd" : "\u6b64\u8ba1\u7b97\u673a";
+  el("execution-context").textContent = next.chatStatus?.historyMode ? "只读历史" : next.mode === "official-chat" ? "\u4e34\u65f6\u7eaf\u6587\u672c\u4f1a\u8bdd" : "\u6b64\u8ba1\u7b97\u673a";
   el("empty-title").textContent = `我们应该在${project.name}中做些什么？`;
   const official = next.mode !== "synthetic";
   const chat = next.mode === "official-chat";
+  const savedHistory = chat && !!next.chatStatus?.historyMode;
   const accountMode = next.mode === "official-account" || chat;
   el("app").classList.toggle("chat-mode", chat);
   el("mode-label").textContent = chat ? (next.chatStatus?.offline ? "官方聊天协议 · 离线合成验证" : "官方核心 · ChatGPT聊天") : official ? (accountMode ? "官方核心 · 原生登录" : "官方核心 · 隔离连接") : "合成演示";
   document.title = chat ? "Codex Workbench — " + (next.chatStatus?.offline ? "\u5b98\u65b9\u804a\u5929\u534f\u8bae\u79bb\u7ebf\u9a8c\u8bc1" : "\u5b98\u65b9ChatGPT\u804a\u5929") : official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示";
-  el("core-status").hidden = !official || (chat && next.messages.length > 0);
+  el("core-status").hidden = savedHistory || !official || (chat && next.messages.length > 0);
   el("chat-summary").hidden = !chat;
   const phases: Record<string,string> = { connecting: "正在核验连接", idle: "就绪", starting: "正在发送", running: "正在回应", cancelling: "等待官方中断确认", reading: "刷新当前会话", unknown: "结果未知，不会自动重发" };
-  el("chat-summary").textContent = chat ? `ChatGPT · ${next.chatStatus?.model ?? "目录未确认"} · ${phases[next.chatStatus?.phase ?? "idle"]} · 临时会话${next.chatStatus?.offline ? " · 仅离线合成数据" : ""}` : "";
+  el("chat-summary").textContent = savedHistory ? `只读历史记录 · 不恢复执行、不调用模型${next.chatStatus?.offline ? " · 离线合成验证" : ""}` : chat ? `ChatGPT · ${next.chatStatus?.model ?? "目录未确认"} · ${phases[next.chatStatus?.phase ?? "idle"]} · 临时会话（正文只保留已观察缓存）${next.chatStatus?.offline ? " · 仅离线合成数据" : ""}` : "";
   for (const id of ["new", "back", "home", "workspace"]) el<HTMLButtonElement>(id).disabled = official && !(chat && id === "new" && ["idle","unknown"].includes(next.chatStatus?.phase ?? "idle"));
+  if (chat) { el<HTMLButtonElement>("workspace").disabled = next.running || !!next.pending || next.chatStatus?.phase === "connecting" || next.connection !== "ready"; el("workspace").textContent = "浏览历史会话"; }
+  el("saved-history-toolbar").hidden = !savedHistory;
+  el("saved-history-notice").textContent = savedHistory ? next.historyBrowser?.notice ?? "" : "";
+  el<HTMLButtonElement>("refresh-threads").disabled = !!next.historyBrowser?.loading || next.connection !== "ready";
+  el<HTMLButtonElement>("more-threads").disabled = !next.historyBrowser?.moreThreads || !!next.historyBrowser?.loading || next.connection !== "ready";
   el<HTMLButtonElement>("toggle-search").disabled = official;
   el<HTMLButtonElement>("account").disabled = official && !chat;
   el("account-menu").querySelector("strong")!.textContent = chat ? "官方CLI当前ChatGPT账号" : "演示账户";
   el("account-menu").querySelector("span")!.textContent = chat ? `套餐标识：${next.coreStatus?.authentication?.planType ?? "未知"}。使用原生登录；更换账号请在终端执行 codex login。` : "仅合成内容";
   el("account").setAttribute("aria-label", chat ? "官方账户状态" : "演示账户菜单");
   el<HTMLButtonElement>("toggle-details").disabled = official;
-  draft.disabled = (official && !chat) || (chat && (next.running || next.loading));
-  draft.placeholder = chat ? "发送到所选官方GPT模型" : official ? (accountMode ? "原生账户连接：此页仅检查状态" : "尚未登录，本阶段不发送消息") : "随心输入";
+  draft.disabled = savedHistory || (official && !chat) || (chat && (next.running || next.loading));
+  draft.placeholder = savedHistory ? "历史只读；返回当前聊天后可发送" : chat ? "发送到所选官方GPT模型" : official ? (accountMode ? "原生账户连接：此页仅检查状态" : "尚未登录，本阶段不发送消息") : "随心输入";
   el("connection-title").textContent = chat ? "官方聊天连接" : official ? "官方核心隔离连接" : "演示连接";
   el("connection-description").textContent = chat ? "复用官方CLI现有ChatGPT登录，重连创建新临时会话；不会自动重复消息。发送使用当前套餐额度。" : official ? (accountMode ? "使用官方CLI现有ChatGPT登录；此页只检查状态与模型目录，不读取既有聊天或发送消息。" : "使用空配置验证官方 0.162.1 进程；不读取既有聊天、不登录、不发送模型请求。") : "只连接本地合成 peer，不使用真实账户或模型。";
   const choice = el<HTMLSelectElement>("model-choice"); choice.hidden = !chat; el("model-label").hidden = chat;
   if (chat) {
     const models = next.coreStatus?.models ?? [];
     if (JSON.stringify([...choice.options].map(option => option.value)) !== JSON.stringify(models)) { choice.replaceChildren(); for (const model of models) { const option = document.createElement("option"); option.value = model; option.textContent = model; choice.append(option); } }
-    choice.value = next.chatStatus?.model ?? ""; choice.disabled = !next.chatStatus?.ready || next.running || next.loading || !!next.pending;
+    choice.value = next.chatStatus?.model ?? ""; choice.disabled = savedHistory || !next.chatStatus?.ready || next.running || next.loading || !!next.pending;
   }
   el("confirm-title").textContent = chat ? "发送官方消息？" : "发送演示消息？";
   el("confirm-caption").textContent = chat ? `使用 ${next.chatStatus?.model ?? "所选模型"} 与现有ChatGPT套餐额度。${next.chatStatus?.offline ? "当前为离线合成验证，不调用模型。" : ""}` : "只生成本地演示回应。";
@@ -50,7 +56,7 @@ function render(next: DesktopView): void {
   if (next.coreStatus) {
     const core = next.coreStatus;
     el("core-description").textContent = chat ? "使用官方CLI当前ChatGPT账号；在下方选择GPT模型，输入并确认发送。会话临时保留，退出或重连后不自动恢复。" : accountMode ? "使用官方 CLI 现有登录；不复制凭证，不加载既有聊天。此页仅检查连接与模型目录。" : "只验证本机进程和只读协议。此环境为空，尚未登录；不发送消息。";
-    el("core-next-step").textContent = chat ? "本阶段支持纯文本聊天和停止；工具、附件、旧聊天与历史分页暂不可用。" : accountMode ? "没有加载既有聊天；真实模型可用性由独立冒烟测试验证。" : "没有加载既有聊天。模型和账户能力将在获准登录后验证。";
+    el("core-next-step").textContent = chat ? "支持纯文本聊天与未归档历史只读浏览；临时会话正文不能重新读取，仅核对元数据并保留已观察缓存。" : accountMode ? "没有加载既有聊天；真实模型可用性由独立冒烟测试验证。" : "没有加载既有聊天。模型和账户能力将在获准登录后验证。";
     el("core-account").textContent = core.authentication ? `已登录 ChatGPT · 官方套餐标识：${core.authentication.planType ?? "未知"} · ${core.models.length}个GPT模型` : accountMode ? "官方账户状态尚未确认" : "";
     el("core-connection").textContent = `${core.handshake ? "Codex" : "目标核心"} ${core.version} · ${next.connection} · 第${core.generation}次连接 · ${core.handshake ? "握手已确认" : "握手未确认"}`;
     if (chat && next.chatStatus?.offline) {
@@ -63,7 +69,7 @@ function render(next: DesktopView): void {
     el("probe-core").hidden = chat;
     el<HTMLButtonElement>("probe-core").disabled = next.connection !== "ready" || core.checking;
     const results = el("core-results"); results.replaceChildren();
-    for (const probe of core.probes) { const row = document.createElement("li"); row.textContent = `${probe.method} · ${probe.code === "rpc-error:-32601" ? "当前服务实现不支持" : probe.code === "rpc-error:-32600" ? "空环境中的检查线程不存在" : "检查失败"} (${probe.code})`; results.append(row); }
+    for (const probe of core.probes) { const row = document.createElement("li"); row.textContent = `${probe.method} · ${probe.code === "known-unsupported:not-requested" ? "已知不可用（本次未请求）" : probe.code === "rpc-error:-32601" ? "当前服务实现不支持" : probe.code === "rpc-error:-32600" ? "空环境中的检查线程不存在" : "检查失败"} (${probe.code})`; results.append(row); }
   }
   const hasConversation = !!next.route.threadId || next.messages.length > 0;
   el("empty").hidden = hasConversation || official;
@@ -82,29 +88,31 @@ function render(next: DesktopView): void {
     const signature = JSON.stringify([message.text, message.stale, message.status]);
     if (signature !== node.dataset.signature) {
       node.replaceChildren(document.createTextNode(message.text)); node.dataset.signature = signature;
-      if (chat && message.status && message.status !== "running") { const state = document.createElement("span"); state.className = "cache-label"; state.textContent = ({ completed: "已完成", cancelled: "官方已确认中断", failed: "失败", unknown: "结果未知" })[message.status]; node.append(state); }
+      if (chat && message.status && message.status !== "running") { const state = document.createElement("span"); state.className = "cache-label"; state.textContent = savedHistory ? ({ completed: "历史完成记录", cancelled: "历史中断记录", failed: "历史失败记录", unknown: "历史未完成状态" })[message.status] : ({ completed: "已完成", cancelled: "官方已确认中断", failed: "失败", unknown: "结果未知" })[message.status]; node.append(state); }
       if (message.stale) { const badge = document.createElement("span"); badge.className = "cache-label"; badge.textContent = "缓存"; node.append(badge); }
     }
     if (message.status) node.dataset.status = message.status; else delete node.dataset.status;
-    node.setAttribute("aria-label", message.role === "user" ? "用户消息" : message.status === "running" ? (chat ? "官方模型正在回应" : "演示正在回应") : message.status === "cancelled" ? (chat ? "官方已确认中断" : "演示已取消") : "助手消息");
+    node.setAttribute("aria-label", message.role === "user" ? "用户消息" : message.status === "running" ? (savedHistory ? "历史保存状态" : chat ? "官方模型正在回应" : "演示正在回应") : message.status === "cancelled" ? (savedHistory ? "历史中断记录" : chat ? "官方已确认中断" : "演示已取消") : "助手消息");
     if (messageRoot.children[messageIndex] !== node) messageRoot.insertBefore(node, messageRoot.children[messageIndex] ?? null);
     messageIndex++;
   }
 
-  if (next.loading) { const loading = document.createElement("p"); loading.className = "loading"; loading.textContent = chat ? "正在读取当前会话…" : "正在读取演示历史…"; messageRoot.append(loading); }
+  if (next.loading) { const loading = document.createElement("p"); loading.className = "loading"; loading.textContent = savedHistory ? "正在读取历史记录…" : chat ? "正在核对当前会话元数据…" : "正在读取演示历史…"; messageRoot.append(loading); }
   if (changedRoute || (oldLast && oldLast !== next.messages.at(-1)?.id)) scroller.scrollTop = scroller.scrollHeight;
   else if (oldFirst && next.messages.findIndex(message => message.id === oldFirst) > 0) scroller.scrollTop = oldTop + scroller.scrollHeight - oldHeight;
   else scroller.scrollTop = oldTop;
   const remoteThread = !!next.route.threadId && !next.route.threadId.startsWith("local-");
   el("history-toolbar").hidden = !remoteThread;
-  el("load-history").textContent = chat ? "刷新当前会话" : "加载更早历史";
-  el("conversation").setAttribute("aria-label", chat ? "官方临时会话" : "演示会话");
+  el("load-history").textContent = savedHistory ? "加载更早轮次" : chat ? "核对当前会话元数据" : "加载更早历史";
+  el("conversation").setAttribute("aria-label", savedHistory ? "只读历史记录" : chat ? "官方临时会话" : "演示会话");
   el("stop").setAttribute("aria-label", chat ? "停止官方回应" : "停止演示");
   el<HTMLButtonElement>("stop").disabled = chat && next.chatStatus?.phase === "cancelling";
   el("history-count").textContent = `${next.history.turnCount} 个轮次 · ${next.history.itemCount} 项历史`;
   el("history-status").textContent = next.history.notice ?? (next.history.loading ? "读取中…" : next.history.busy ? "正在结束读取…" : next.history.stale ? "部分缓存待核对" : "");
-  el<HTMLButtonElement>("load-history").disabled = (chat ? !next.chatStatus?.canRefresh : !next.history.hasMore) || next.history.busy || next.connection !== "ready";
-  el("cancel-history").hidden = chat || !next.history.loading;
+  el<HTMLButtonElement>("load-history").disabled = (savedHistory ? !next.history.hasMore : chat ? !next.chatStatus?.canRefresh : !next.history.hasMore) || next.history.busy || next.connection !== "ready";
+  el("refresh-saved-history").hidden = !savedHistory;
+  el<HTMLButtonElement>("refresh-saved-history").disabled = !next.chatStatus?.canRefresh;
+  el("cancel-history").hidden = (!savedHistory && chat) || !next.history.loading;
   el("approval-list").hidden = next.approvals.length === 0;
   const approvalRoot = el("approval-list");
   const cards = new Map([...approvalRoot.querySelectorAll<HTMLElement>("article")].map(node => [node.dataset.approvalKey!, node]));
@@ -142,7 +150,7 @@ function render(next: DesktopView): void {
   el("notice").hidden = !notice;
   el("notice-text").textContent = notice ?? "";
   el("retry").hidden = chat ? next.chatStatus?.phase === "connecting" || (online && !!next.chatStatus?.ready) : online;
-  el<HTMLButtonElement>("send").disabled = (official && !chat) || (chat && (!next.chatStatus?.ready || next.running || !!next.pending)) || !draft.value.trim() || !online || next.loading;
+  el<HTMLButtonElement>("send").disabled = savedHistory || (official && !chat) || (chat && (!next.chatStatus?.ready || next.running || !!next.pending)) || !draft.value.trim() || !online || next.loading;
   el("send").hidden = next.running;
   el("stop").hidden = !next.running;
   if (next.pending) { el("confirm-text").textContent = next.pending; if (!dialog.open) dialog.showModal(); }
@@ -158,7 +166,7 @@ function render(next: DesktopView): void {
     button.append(icon, document.createTextNode(p.name)); list.append(button);
     for (const t of visible) {
       const thread = document.createElement("button"); thread.className = "thread-row"; thread.textContent = t.title; thread.dataset.thread = t.id;
-      thread.setAttribute("aria-current", String(t.id === next.route.threadId)); list.append(thread);
+      thread.disabled = savedHistory && next.connection !== "ready"; thread.setAttribute("aria-current", String(t.id === next.route.threadId)); list.append(thread);
     }
   }
   if (!list.childElementCount) { const empty = document.createElement("p"); empty.className = "search-empty"; empty.textContent = "没有匹配的演示会话"; list.append(empty); }
@@ -168,26 +176,26 @@ async function send(command: DesktopCommand): Promise<void> {
   catch { el("notice").hidden = false; el("notice-text").textContent = "操作未完成，请稍后重试。"; }
 }
 async function flushDraft(): Promise<void> {
-  if (view?.mode !== "synthetic" && view?.mode !== "official-chat") return;
+  if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return;
   if (draftTimer) clearTimeout(draftTimer); draftTimer = null;
   inputSequence++; await send({ type: "draft", routeId: routeKey, text: draft.value });
 }
 async function navigate(command: DesktopCommand): Promise<void> { await flushDraft(); await send(command); }
 draft.addEventListener("input", () => {
-  if (view?.mode !== "synthetic" && view?.mode !== "official-chat") return;
+  if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return;
   el<HTMLButtonElement>("send").disabled = !draft.value.trim() || view?.connection !== "ready" || !!view?.loading;
   if (draftTimer) clearTimeout(draftTimer);
   const sequence = ++inputSequence; const routeId = routeKey; const text = draft.value;
   draftTimer = setTimeout(() => { if (sequence === inputSequence) { draftTimer = null; void send({ type: "draft", routeId, text }); } }, 180);
 });
 draft.addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!el<HTMLButtonElement>("send").disabled && !view?.running) el<HTMLFormElement>("composer").requestSubmit(); } });
-el("composer").addEventListener("submit", event => { event.preventDefault(); if (view?.mode !== "synthetic" && view?.mode !== "official-chat") return; void (async () => { await flushDraft(); await send({ type: "submit" }); })(); });
+el("composer").addEventListener("submit", event => { event.preventDefault(); if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return; void (async () => { await flushDraft(); await send({ type: "submit" }); })(); });
 el("project-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
   if (button?.dataset.project) void navigate({ type: "project", id: button.dataset.project });
   if (button?.dataset.thread) void navigate({ type: "thread", id: button.dataset.thread });
 });
-for (const [id, type] of [["back", "back"], ["new", "new"], ["home", "new"], ["workspace", "new"]] as const) el(id).addEventListener("click", () => { void navigate({ type }); });
+for (const [id, type] of [["back", "back"], ["new", "new"], ["home", "new"], ["workspace", "new"]] as const) el(id).addEventListener("click", () => { void navigate({ type: id === "workspace" && view?.mode === "official-chat" ? "browseHistory" : type }); });
 el("confirm").addEventListener("click", () => { void send({ type: "confirm" }); });
 el("cancel-confirm").addEventListener("click", () => { void send({ type: "cancel" }); draft.focus(); });
 dialog.addEventListener("cancel", event => { event.preventDefault(); void send({ type: "cancel" }); draft.focus(); });
@@ -218,3 +226,8 @@ void window.workbench.snapshot().then(render);
 el("probe-core").addEventListener("click", () => void send({ type: "probeCore" }));
 
 el("model-choice").addEventListener("change", event => void send({ type: "selectModel", model: (event.target as HTMLSelectElement).value }));
+
+el("return-chat").addEventListener("click", () => void send({ type: "returnToChat" }));
+el("refresh-threads").addEventListener("click", () => void send({ type: "refreshThreads" }));
+el("more-threads").addEventListener("click", () => void send({ type: "moreThreads" }));
+el("refresh-saved-history").addEventListener("click", () => void send({ type: "refreshHistory" }));

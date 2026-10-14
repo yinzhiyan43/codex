@@ -24,7 +24,7 @@ export async function runChatSmoke(window: BrowserWindow, output: string, errors
   await wait("window.workbench.snapshot().then(v=>v.messages.some(m=>m.role==='assistant'&&m.status==='completed'))");
   view=await snap();assert.equal(view.history.turnCount,1);assert.equal(view.messages.filter((m:{role:string})=>m.role==="user").length,1);assert.equal(view.draft,"");
   assert.match(view.messages.at(-1).text,/离线协议流式验证已完成/);assert.equal(view.history.hasMore,false);
-  await click("load-history");await wait("window.workbench.snapshot().then(v=>!v.loading)");assert.match((await snap()).history.notice,/不支持 items 分页/);
+  await click("load-history");await wait("window.workbench.snapshot().then(v=>!v.loading)");assert.match((await snap()).history.notice,/不使用 items 分页/);
   await submit("[slow] 取消链");await wait("window.workbench.snapshot().then(v=>v.chatStatus.phase==='running')");await click("stop");
   await wait("window.workbench.snapshot().then(v=>v.chatStatus.phase==='cancelling'&&v.chatStatus.interruptAcknowledged)");assert.equal((await snap()).running,true);
   await wait("window.workbench.snapshot().then(v=>v.messages.some(m=>m.status==='cancelled'))");view=await snap();assert.equal(view.running,false);assert.equal(JSON.stringify(view).includes("LATE_MUST_IGNORE"),false);await capture("chat-interrupted");
