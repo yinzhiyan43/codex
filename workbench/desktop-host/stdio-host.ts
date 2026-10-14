@@ -1,4 +1,5 @@
-import { assertOfficialRouteConfiguration } from "./official-config.ts";
+import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
+import { assertOfficialRouteConfiguration, assertOfficialChatConfiguration, disableConfiguredMcp } from "./official-config.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { ProtocolSession, ProtocolSessionError } from "../protocol-adapter/session.ts";
@@ -51,6 +52,7 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   client(): WorkbenchClient {
     return Object.freeze({ start: () => this.start(), reconnect: () => this.reconnect(), stop: () => this.stop(), dispose: () => this.dispose(),
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
+      startThread: (params: ThreadStartParams) => this.startThread(params), startTurn: (params: TurnStartParams) => this.startTurn(params), interruptTurn: (params: TurnInterruptParams) => this.interruptTurn(params), checkModelConfiguration: () => this.checkModelConfiguration(),
       checkOfficialRoute: () => this.checkOfficialRoute(),
       getAccount: (params: GetAccountParams) => this.getAccount(params), listModels: (params: ModelListParams) => this.listModels(params),
       readThread: (params: ThreadReadParams) => this.readThread(params),
@@ -273,6 +275,26 @@ export class StdioWorkbenchHost implements WorkbenchClient {
       this.#disposePromise = null; throw error;
     });
     return this.#disposePromise;
+  }
+  async configurationMcpOverrides(): Promise<string[]> {
+    const config = await this.#readConfiguration(); assertOfficialRouteConfiguration(config); return disableConfiguredMcp(config);
+  }
+  async checkModelConfiguration(): Promise<void> { assertOfficialChatConfiguration(await this.#readConfiguration()); }
+  async #readConfiguration(): Promise<Record<string, unknown>> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    const response = this.#session.readConfiguration({ includeLayers: false }); this.#pump(this.#context); return (await response).config;
+  }
+  async startThread(params: ThreadStartParams): Promise<ThreadStartResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const response = this.#session.startThread(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
+  }
+  async startTurn(params: TurnStartParams): Promise<TurnStartResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const response = this.#session.startTurn(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
+  }
+  async interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const response = this.#session.interruptTurn(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
   }
   async checkOfficialRoute(): Promise<void> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

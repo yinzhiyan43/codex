@@ -73,7 +73,7 @@ test("error responses reject only their request and unknown responses are diagno
 });
 test("rejects unimplemented, experimental, prototype-named methods and unreviewed fields", async () => {
   const session = await ready();
-  assert.throws(() => session.request("turn/start", {}), /unsupported-method/);
+  assert.throws(() => session.request("turn/resume", {}), /unsupported-method/);
   assert.throws(() => session.request("project/list", {}), /experimental-disabled/);
   assert.throws(() => session.request("__proto__", {}), /unsupported-method/);
   assert.throws(() => session.request("thread/read", {}), /Invalid threadReadParams/);

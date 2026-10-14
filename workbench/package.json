@@ -21,7 +21,9 @@
     "desktop:account": "npm run desktop:build && electron .desktop/main.mjs --official-account",
     "official:status": "node scripts/official-model-smoke.mjs",
     "official:model:smoke": "node scripts/official-model-smoke.mjs --run-model-smoke",
-    "desktop:account:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-account --smoke-output"
+    "desktop:account:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-account --smoke-output",
+    "desktop:chat": "npm run desktop:build && electron .desktop/main.mjs --official-chat",
+    "desktop:chat:smoke": "npm run desktop:build && electron .desktop/main.mjs --official-chat-offline --smoke-output"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

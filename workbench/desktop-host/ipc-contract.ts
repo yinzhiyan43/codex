@@ -1,5 +1,6 @@
 export type DesktopCommand =
   | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" }
+  | { type: "selectModel"; model: string }
   | { type: "project" | "thread"; id: string }
   | { type: "draft"; routeId: string; text: string }
   | { type: "search"; text: string }
@@ -12,6 +13,7 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (typeof v.type !== "string") throw new Error("invalid-command");
   const keys = Object.keys(v).sort().join(",");
   if (simple.has(v.type) && keys === "type") return v as DesktopCommand;
+  if (v.type === "selectModel" && keys === "model,type" && typeof v.model === "string" && /^gpt-[a-z0-9.-]{1,100}$/.test(v.model)) return v as DesktopCommand;
   if ((v.type === "project" || v.type === "thread") && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if (v.type === "draft" && keys === "routeId,text,type" && typeof v.routeId === "string" && /^[a-z0-9-]{1,64}$/.test(v.routeId) && typeof v.text === "string" && v.text.length <= 4000 && !v.text.includes("\0")) return v as DesktopCommand;
   if (v.type === "search" && keys === "text,type" && typeof v.text === "string" && v.text.length <= 128 && !v.text.includes("\0")) return v as DesktopCommand;

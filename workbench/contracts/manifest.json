@@ -139,6 +139,36 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json",
       "path": "contracts/schemas/configReadResult.json",
       "sha256": "69a32e3d84e16045802dff8abf01770d759ebc758965c3258a30ea4a93159fce"
+    },
+    "threadStartParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadStartParams.json",
+      "path": "contracts/schemas/threadStartParams.json",
+      "sha256": "e9c6d3cc18d049bfbc0249add3808fb8e5a27e1a0b5a423767aafbc3859a9428"
+    },
+    "threadStartResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadStartResponse.json",
+      "path": "contracts/schemas/threadStartResult.json",
+      "sha256": "7247cd531d3f78174444f8262fd3090d5acf8ab74084547b4e0a831d74e77c9a"
+    },
+    "turnStartParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/TurnStartParams.json",
+      "path": "contracts/schemas/turnStartParams.json",
+      "sha256": "583aff13e7a2da43fbb0150e0edc3c73171f374f0aa745dddba256166988a005"
+    },
+    "turnStartResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/TurnStartResponse.json",
+      "path": "contracts/schemas/turnStartResult.json",
+      "sha256": "20e837d07826b9c01578ff40b962ab08f58a355a9984e96226733498514e9bad"
+    },
+    "turnInterruptParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/TurnInterruptParams.json",
+      "path": "contracts/schemas/turnInterruptParams.json",
+      "sha256": "6dff382dae73d1dbc58406ed045605f647e7a49660e2540fbd2c6c24d60c5f2b"
+    },
+    "turnInterruptResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/TurnInterruptResponse.json",
+      "path": "contracts/schemas/turnInterruptResult.json",
+      "sha256": "531de6be06fe979b5963f249bab82498a175e614bf65ac12fb2e849dfe60bcf1"
     }
   },
   "requests": {
@@ -170,6 +200,21 @@
     "config/read": {
       "params": "configReadParams",
       "result": "configReadResult",
+      "experimental": false
+    },
+    "thread/start": {
+      "params": "threadStartParams",
+      "result": "threadStartResult",
+      "experimental": false
+    },
+    "turn/start": {
+      "params": "turnStartParams",
+      "result": "turnStartResult",
+      "experimental": false
+    },
+    "turn/interrupt": {
+      "params": "turnInterruptParams",
+      "result": "turnInterruptResult",
       "experimental": false
     }
   },
@@ -204,5 +249,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "b429e57ed53656eeb3d15f00e55a96ab81f8e47cf48337874bb71e3aa18026ad"
+  "specSha256": "3816825fa48a3779fe9128399c6510ea1bb23de3de6ebd63ade9a7c7a0f101c5"
 }

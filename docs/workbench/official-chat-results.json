@@ -1,0 +1,135 @@
+{
+  "stage": "M2.a",
+  "predecessorCommit": "98db97444704e22fd7c1023126054cd71b293c61",
+  "coreCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d",
+  "schemas": 31,
+  "offlineTests": {
+    "tests": 131,
+    "passed": 131,
+    "failed": 0,
+    "skipped": 0
+  },
+  "offlineChatUi": {
+    "result": "passed",
+    "runKind": "offline-protocol-fixture",
+    "officialNativeExecuted": false,
+    "realModelRequests": 0,
+    "checks": [
+      "explicit-offline-label",
+      "renderer-isolation",
+      "native-account-metadata-shape",
+      "email-omitted",
+      "server-catalog-selection",
+      "ui-ipc-host-jsonl-chain",
+      "confirmation-once",
+      "streamed-text",
+      "completed-terminal",
+      "draft-cleared-on-ack",
+      "refresh-current-thread-only",
+      "pagination-unavailable-visible",
+      "interrupt-ack-not-terminal",
+      "interrupted-terminal",
+      "late-delta-ignored",
+      "failed-terminal",
+      "private-error-omitted",
+      "disconnect-unknown",
+      "no-auto-replay",
+      "new-ephemeral-route",
+      "narrow-layout",
+      "console-errors"
+    ],
+    "screenshots": [
+      "chat-ready",
+      "chat-streaming",
+      "chat-interrupted",
+      "chat-disconnected",
+      "chat-narrow"
+    ],
+    "consoleErrors": []
+  },
+  "syntheticUiRegression": {
+    "result": "passed",
+    "checks": [
+      "selected-app-icon",
+      "ready-synthetic-peer",
+      "renderer-isolation",
+      "project-thread-navigation",
+      "draft-preservation",
+      "repeated-clicks",
+      "confirm-return",
+      "cancel-running",
+      "complete-synthetic-response",
+      "disconnect-stale",
+      "explicit-reconnect",
+      "new-back",
+      "search-empty",
+      "narrow-controls",
+      "console-errors",
+      "history-overlap-and-order",
+      "stable-message-dom",
+      "history-cancel",
+      "approval-once",
+      "approval-decline",
+      "approval-cancel",
+      "approval-expiry",
+      "approval-disconnect"
+    ],
+    "selectedIcon": {
+      "width": 1254,
+      "height": 1254
+    },
+    "screenshots": [
+      "empty",
+      "conversation",
+      "submitted",
+      "disconnected",
+      "narrow",
+      "empty-final",
+      "approvals-pending",
+      "approvals-processed",
+      "history-cancelled",
+      "history-paged"
+    ],
+    "consoleErrors": []
+  },
+  "nativeMetadataOnly": {
+    "result": "passed",
+    "verification": "native-metadata-only",
+    "modelRequests": 0,
+    "threadRequests": 0,
+    "routeAndChatGuardConfirmed": true,
+    "configurationUnchanged": true,
+    "authenticationType": "chatgpt",
+    "visibleGptCount": 7,
+    "defaultModel": "gpt-6.1-sol",
+    "processActive": false,
+    "methods": [
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list"
+    ]
+  },
+  "independentReview": {
+    "model": "gpt-6-sol",
+    "effort": "xhigh",
+    "targetedPassed": 21,
+    "newReproducibleP1P2": 0,
+    "nativeModelGuiRuns": 0
+  },
+  "additionalRealModelRequests": 0,
+  "evidenceLimits": [
+    "Offline peer and UI results do not establish native chat UI behavior.",
+    "Native check created no thread or turn; ephemeral response and real current-thread refresh remain unverified in this UI.",
+    "Prior one real GPT smoke was not repeated; its endpoint/side-process/ephemeral measurements remain absent.",
+    "Guards cover named configuration entries; upstream has no general deny-all-tools guarantee here."
+  ],
+  "launchModes": {
+    "officialChat": "npm run desktop:chat",
+    "offlineChatUi": "npm run desktop:chat:smoke -- /absolute/output",
+    "readOnlyAccount": "npm run desktop:account",
+    "isolatedCore": "npm run desktop:core",
+    "synthetic": "npm run desktop"
+  }
+}

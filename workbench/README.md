@@ -80,3 +80,15 @@ Native integration passed 6 tests; real UI passed 12 groups and startup-failure 
 ### Native account and bounded model evidence
 
 `npm run desktop:account` reuses the official CLI-managed login and displays sanitized account/catalog metadata after effective route validation. `npm run official:status` makes no model turns. One authorized GPT streaming/cancellation smoke was completed before finalization; it was not rerun. Final configuration guards disable MCP/notify/hooks for future model smoke runs using session overrides, without rewriting user config. See the M1.e report for missing first-run side-process/endpoint/ephemeral measurements and the zero-model final verification.
+
+## Official text chat — M2.a
+
+```sh
+npm run desktop:chat
+```
+
+Uses the current official CLI-managed ChatGPT login and actual server model catalog. View the account using the lower-left button, select a GPT from the composer dropdown, type text, and confirm sending. Stop waits for the native interrupted terminal event; disconnect/reconnect never replays a turn. Switching accounts uses official `codex login`, then reconnect. This UI does not manage additional credentials or use local providers/API-key fallback.
+
+Conversations are ephemeral. The current conversation can be refreshed with thread/read; items pagination is unavailable and hasMore remains false. Named external tool and agent/browser/computer configuration entries are disabled and checked using process overrides, with read-only/no-network turn permissions. This does not claim a universal upstream deny-all-tools mechanism.
+
+`npm run desktop:chat:smoke -- /absolute/output-directory` is explicitly offline and uses a protocol fixture, never the Codex binary or a real model. Current validation: 31 schemas, 131 offline tests, 22 chat UI groups, and 23 existing synthetic UI groups. Native verification covered new launch configuration/account/catalog only, with zero thread/model requests; real UI streaming/cancellation and current-thread refresh remain unverified. See [the M2.a report](../docs/workbench/official-chat-milestone.md) and [machine evidence](../docs/workbench/official-chat-results.json).

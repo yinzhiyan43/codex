@@ -8,9 +8,9 @@ export const demoProjects = [
   { id: "project-garden", name: "garden-lab", threads: [{ id: "thread-garden", title: "整理花园计划" }] },
   { id: "project-studio", name: "studio-demo", threads: [{ id: "thread-welcome", title: "了解项目与未完成事项" }, { id: "thread-layout", title: "检查工作台布局" }] },
 ];
-export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" };
+export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" | "failed" | "unknown" };
 export type DesktopView = {
-  mode: "synthetic" | "official-isolated" | "official-account"; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
+  mode: "synthetic" | "official-isolated" | "official-account" | "official-chat"; chatStatus?: { phase: string; model: string | null; offline: boolean; ready: boolean; canRefresh: boolean; interruptAcknowledged: boolean }; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
   route: { projectId: string; threadId: string | null }; title: string; messages: DemoMessage[];
   draft: string; search: string; loading: boolean; pending: string | null; running: boolean;
   error: string | null;
@@ -153,6 +153,7 @@ export class DemoController {
         if (this.#client.getView().state !== "ready") { this.#error = "连接已断开，无法继续加载历史。"; break; }
         this.#error = null; await this.#loadHistory(command.threadId, false); break;
       }
+      case "selectModel": throw new Error("synthetic-mode-only");
       case "probeCore": throw new Error("synthetic-mode-only");
       case "cancelHistory": this.#historySequence++; this.#loading = false; this.#historyNotice = "已取消本次加载，迟到结果会忽略"; break;
       case "approval": {

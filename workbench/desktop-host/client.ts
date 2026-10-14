@@ -1,3 +1,4 @@
+import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
 import type { InitializeResponse, ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
 import type { ApprovalHandle, ApprovalDecision, ApprovalView, ConnectionState, ProtocolSession } from "../protocol-adapter/session.ts";
@@ -25,6 +26,10 @@ export interface WorkbenchClient {
   getView(): HostView;
   takeDiagnostics(): HostDiagnostic[];
   subscribe(listener: () => void): () => void;
+  startThread(params: ThreadStartParams): Promise<ThreadStartResponse>;
+  startTurn(params: TurnStartParams): Promise<TurnStartResponse>;
+  interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse>;
+  checkModelConfiguration(): Promise<void>;
   checkOfficialRoute(): Promise<void>;
   getAccount(params: GetAccountParams): Promise<GetAccountResponse>;
   listModels(params: ModelListParams): Promise<ModelListResponse>;

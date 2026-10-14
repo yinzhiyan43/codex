@@ -3,7 +3,7 @@ import { mkdir, copyFile, readFile, writeFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const output = new URL(".desktop/", root);
 await mkdir(output, { recursive: true });
-for (const [source, target] of [["desktop/main.ts", "main.mjs"], ["desktop/preload.ts", "preload.cjs"], ["desktop/fixture-peer.mjs", "peer.cjs"]]) {
+for (const [source, target] of [["desktop/main.ts", "main.mjs"], ["desktop/preload.ts", "preload.cjs"], ["desktop/fixture-peer.mjs", "peer.cjs"], ["desktop/chat-fixture-peer.mjs", "chat-peer.cjs"]]) {
   await build({ entryPoints: [new URL(source, root).pathname], outfile: new URL(target, output).pathname, bundle: true, platform: "node", packages: "external", format: target.endsWith(".mjs") ? "esm" : "cjs", target: "node22", sourcemap: false });
 }
 await build({ entryPoints: [new URL("ui/renderer.ts", root).pathname], outfile: new URL("renderer.js", output).pathname, bundle: true, platform: "browser", format: "iife", target: "chrome130" });

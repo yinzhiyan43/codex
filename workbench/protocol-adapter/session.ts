@@ -1,3 +1,4 @@
+import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "./contracts.ts";
 import type { ConfigReadParams, ConfigReadResponse, GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "./contracts.ts";
 import { JsonlDecoder } from "./jsonl.ts";
 import { validate, contractManifest } from "./contracts.ts";
@@ -158,6 +159,9 @@ export class ProtocolSession {
   }
   listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse> { return this.request("thread/turns/list", params) as Promise<ThreadTurnsListResponse>; }
   listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse> { return this.request("thread/items/list", params) as Promise<ThreadItemsListResponse>; }
+  startThread(params: ThreadStartParams): Promise<ThreadStartResponse> { return this.request("thread/start", params) as Promise<ThreadStartResponse>; }
+  startTurn(params: TurnStartParams): Promise<TurnStartResponse> { return this.request("turn/start", params) as Promise<TurnStartResponse>; }
+  interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse> { return this.request("turn/interrupt", params) as Promise<TurnInterruptResponse>; }
   readConfiguration(params: ConfigReadParams): Promise<ConfigReadResponse> { return this.request("config/read", params) as Promise<ConfigReadResponse>; }
   getAccount(params: GetAccountParams): Promise<GetAccountResponse> { return this.request("account/read", params) as Promise<GetAccountResponse>; }
   listModels(params: ModelListParams): Promise<ModelListResponse> { return this.request("model/list", params) as Promise<ModelListResponse>; }
@@ -172,8 +176,16 @@ export class ProtocolSession {
     validate(spec.params, params);
     const values = params as Record<string, unknown>;
     // The narrow M1 allowlist also rejects fields not yet reviewed, including experimental ones.
-    const fields: Record<string, string[]> = { "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
+    const fields: Record<string, string[]> = { "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
     if (Object.keys(values).some(field => !fields[method]!.includes(field))) throw new ProtocolSessionError("unsupported-field");
+    if (["turn/start", "turn/interrupt"].includes(method) && (typeof values.threadId !== "string" || !values.threadId.length || values.threadId.length > 64)) throw new ProtocolSessionError("invalid-turn-scope");
+    if (method === "thread/start" && (values.modelProvider !== "openai" || values.ephemeral !== true || values.sandbox !== "read-only" || values.approvalPolicy !== "never" || typeof values.cwd !== "string" || !values.cwd.startsWith("/") || values.cwd.length > 4096 || typeof values.model !== "string" || !/^gpt-[a-z0-9.-]{1,100}$/.test(values.model))) throw new ProtocolSessionError("invalid-chat-thread");
+    if (method === "turn/start") {
+      const policy = values.sandboxPolicy as Record<string, unknown> | undefined;
+      const input = values.input as { type?: string; text?: string; text_elements?: unknown[] }[];
+      if (values.approvalPolicy !== "never" || policy?.type !== "readOnly" || policy.networkAccess !== false || Object.keys(policy).sort().join() !== "networkAccess,type" || typeof values.model !== "string" || !/^gpt-[a-z0-9.-]{1,100}$/.test(values.model) || input.length !== 1 || input[0]?.type !== "text" || typeof input[0].text !== "string" || !input[0].text.trim() || input[0].text.length > 4000 || input[0].text.includes("\0") || Object.keys(input[0]).sort().join() !== "text,text_elements,type" || input[0].text_elements?.length !== 0) throw new ProtocolSessionError("invalid-chat-input");
+    }
+    if (method === "turn/interrupt" && (typeof values.turnId !== "string" || !values.turnId.length || values.turnId.length > 64)) throw new ProtocolSessionError("invalid-turn-scope");
     if (method === "config/read" && values.includeLayers !== false) throw new ProtocolSessionError("config-layers-disabled");
     if (method === "account/read" && values.refreshToken !== undefined && values.refreshToken !== false) throw new ProtocolSessionError("explicit-refresh-disabled");
     if (method === "model/list") {
@@ -289,6 +301,15 @@ export class ProtocolSession {
       if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || [result.nextCursor, result.backwardsCursor].some(cursor => cursor !== null && cursor.length > 4096)) throw new Error("Invalid bounded history page");
       if (pending.method === "thread/items/list" && typeof pending.params.turnId === "string" && (result as ThreadItemsListResponse).data.some(entry => entry.turnId !== pending.params.turnId)) throw new Error("Item page turn mismatch");
       this.#event({ type: "history-page", method: pending.method, id });
+    }
+    if (pending.method === "thread/start") {
+      const result = message.result as ThreadStartResponse;
+      if (result.modelProvider !== "openai" || result.model !== pending.params.model || result.cwd !== pending.params.cwd || result.thread.cwd !== pending.params.cwd || result.sandbox.type !== "readOnly" || result.sandbox.networkAccess !== false || result.thread.modelProvider !== "openai" || result.approvalPolicy !== "never" || result.thread.ephemeral !== true) throw new Error("Thread start configuration mismatch");
+      this.#projection.apply("thread/started", { thread: result.thread }); this.#event({ type: "notification", method: pending.method });
+    }
+    if (pending.method === "turn/start") {
+      const result = message.result as TurnStartResponse;
+      this.#projection.apply(result.turn.status === "inProgress" ? "turn/started" : "turn/completed", { threadId: pending.params.threadId, turn: result.turn }); this.#event({ type: "notification", method: pending.method });
     }
     if (pending.method === "model/list") { const result = message.result as ModelListResponse; if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || (result.nextCursor !== null && result.nextCursor.length > 4096)) throw new Error("Invalid bounded model page"); }
     this.#pending.delete(key(id)); clearTimeout(pending.timer); pending.resolve(structuredClone(message.result));

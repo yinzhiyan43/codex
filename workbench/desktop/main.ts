@@ -7,21 +7,28 @@ import { spawn } from "node:child_process";
 import { StdioWorkbenchHost } from "../desktop-host/stdio-host.ts";
 import { DemoController } from "../desktop-host/demo-controller.ts";
 import { CoreController } from "../desktop-host/core-controller.ts";
-import { prepareIsolatedCore, prepareOfficialAccountCore } from "../desktop-host/isolated-core.ts";
+import { prepareIsolatedCore, prepareOfficialAccountCore, prepareOfficialChatCore } from "../desktop-host/isolated-core.ts";
 import { HostOperationError } from "../desktop-host/client.ts";
+import { OfficialChatController } from "../desktop-host/official-chat-controller.ts";
+import { runChatSmoke } from "./chat-smoke.ts";
 import { runCoreSmoke } from "./core-smoke.ts";
 import { IpcBudget, validateDesktopSender } from "../desktop-host/ipc-contract.ts";
 import { runDesktopSmoke } from "./smoke.ts";
 const directory = dirname(fileURLToPath(import.meta.url));
 const profile = mkdtempSync(join(tmpdir(), "codex-workbench-synthetic-"));
-app.setPath("userData", profile); app.setName(process.argv.includes("--official-account") ? "Codex Workbench — 官方核心原生账户状态" : process.argv.includes("--official-core") ? "Codex Workbench — 官方核心隔离连接" : "Codex Workbench — 合成演示");
+const offlineChat = process.argv.includes("--official-chat-offline");
+const chatMode = process.argv.includes("--official-chat") || offlineChat;
+app.setPath("userData", profile); app.setName(chatMode ? "Codex Workbench — " + (offlineChat ? "官方聊天协议离线验证" : "官方ChatGPT聊天") : process.argv.includes("--official-account") ? "Codex Workbench — 官方核心原生账户状态" : process.argv.includes("--official-core") ? "Codex Workbench — 官方核心隔离连接" : "Codex Workbench — 合成演示");
 const accountMode = process.argv.includes("--official-account");
-const official = process.argv.includes("--official-core") || accountMode;
+const official = process.argv.includes("--official-core") || accountMode || chatMode;
+let chatCwd = "/synthetic/chat";
 const isSmoke = process.argv.includes("--smoke-output");
+if (chatMode && process.argv.includes("--core-binary")) throw new Error("official-chat-binary-is-fixed");
+if (isSmoke && chatMode && !offlineChat) throw new Error("chat-smoke-requires-explicit-offline-mode");
 let isolatedDirectory: string | null = null;
 if (isSmoke) { app.setActivationPolicy("accessory"); void app.dock?.hide(); }
 protocol.registerSchemesAsPrivileged([{ scheme: "workbench", privileges: { standard: true, secure: true, supportFetchAPI: false } }]);
-let controller: DemoController | CoreController | null = null;
+let controller: DemoController | CoreController | OfficialChatController | null = null;
 let closing = false;
 const cleanupProfiles = () => { rmSync(profile, { recursive: true, force: true }); if (isolatedDirectory) rmSync(isolatedDirectory, { recursive: true, force: true }); };
 app.on("will-quit", cleanupProfiles);
@@ -50,18 +57,20 @@ isolated.protocol.handle("workbench", request => {
 let launch = () => spawn(process.execPath, [join(directory, "peer.cjs")], {
   cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"],
 });
-if (official) {
+if (offlineChat) launch = () => spawn(process.execPath, [join(directory, "chat-peer.cjs")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+if (official && !offlineChat) {
   try {
     const binaryIndex = process.argv.indexOf("--core-binary");
-    const prepared = await (accountMode ? prepareOfficialAccountCore : prepareIsolatedCore)(join(dirname(directory), "tests", "real-core", ".runs"), binaryIndex < 0 ? undefined : process.argv[binaryIndex + 1]);
-    isolatedDirectory = prepared.directory; launch = prepared.launcher;
+    const runs = join(dirname(directory), "tests", "real-core", ".runs");
+    const prepared = chatMode ? await prepareOfficialChatCore(runs) : await (accountMode ? prepareOfficialAccountCore : prepareIsolatedCore)(runs, binaryIndex < 0 ? undefined : process.argv[binaryIndex + 1]);
+    isolatedDirectory = prepared.directory; launch = prepared.launcher; chatCwd = prepared.cwd;
   } catch (error) { const code = error instanceof Error && ["core-version-mismatch", "core-version-or-provenance-mismatch", "core-chatgpt-login-required"].includes(error.message) ? error.message : "core-preflight-failed"; launch = () => { throw new HostOperationError(code); }; }
 }
-const host = new StdioWorkbenchHost(launch, { requestTimeoutMs: 5000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
-controller = official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
+const host = new StdioWorkbenchHost(launch, { requestTimeoutMs: chatMode ? 30000 : 5000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
+controller = chatMode ? new OfficialChatController(host.client(), chatCwd, offlineChat) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
 const window = new BrowserWindow({ width: 1536, height: 894, minWidth: 900, minHeight: 650,
   icon: applicationIcon,
-  backgroundColor: "#181818", title: official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
+  backgroundColor: "#181818", title: chatMode ? "Codex Workbench — " + (offlineChat ? "官方聊天协议离线验证" : "官方ChatGPT聊天") : official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
   trafficLightPosition: { x: 14, y: 12 }, show: false,
   webPreferences: { preload: join(directory, "preload.cjs"), session: isolated,
     offscreen: isSmoke, backgroundThrottling: !isSmoke,
@@ -105,7 +114,7 @@ if (smokeIndex >= 0) {
   if (!output?.startsWith("/")) throw new Error("smoke-output-must-be-absolute");
   mkdirSync(output, { recursive: true });
   const smokeTimeout = setTimeout(() => { console.error("Desktop smoke timed out"); void controller!.dispose().finally(() => app.exit(1)); }, 30000);
-  try { await (official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize())); console.log("Desktop smoke passed"); window.close(); }
+  try { await (chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize())); console.log("Desktop smoke passed"); window.close(); }
   catch (error) { console.error(error); await controller.dispose(); cleanupProfiles(); app.exit(1); }
   finally { clearTimeout(smokeTimeout); }
 }
