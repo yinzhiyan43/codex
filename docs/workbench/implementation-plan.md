@@ -1,12 +1,12 @@
 # 本地重建实施计划
 
-状态：总体设计提案；M1.a 纯协议单元已实现并通过合成测试，见 [阶段证据](protocol-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
+状态：总体设计提案；M1.a 纯协议单元及 M1.b stdio host 已实现并通过合成测试，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
 
 ## 1. 官方核心与工作台边界
 
 保持官方 CLI、app-server、Harness、工具执行、安全策略、上下文管理、认证和历史存储实现不变。工作台通过公开协议使用它们；产品 UI 需求不能成为改写核心执行语义的理由。
 
-已新增独立 `workbench/` 顶层目录，未加入上游 Rust workspace、未修改上游依赖锁文件。以下是完整模块规划；当前只实现 contracts、protocol-adapter 和合成 tests，其余待实现：
+已新增独立 `workbench/` 顶层目录，未加入上游 Rust workspace、未修改上游依赖锁文件。以下是完整模块规划；当前已实现 contracts、protocol-adapter、desktop-host 的 stdio 生命周期和合成 tests；窗口/IPC 等其他能力仍待实现：
 
 ```text
 workbench/
@@ -35,7 +35,7 @@ workbench/
 
 外部桌面采用独立 `codex app-server` 子进程的 stdio 通道：每次连接一次 `initialize`，成功后发送 `initialized`；使用相同核心版本的生成 schema。Rust 进程内 app-server-client 为 TUI/exec 共享路径，不需要把桌面 UI 塞进这条路径（S-02、S-05）。
 
-连接状态为 stopped → starting → initializing → ready；异常进入 disconnected/failed，允许显式重连。请求以 ID 关联响应，服务端请求另设审批/输入处理队列；stdout 仅解协议，stderr 是诊断。不能把进程退出推断为任务成功。
+连接状态为 stopped → starting → initializing → ready；进程退出后进入有界 draining；主动关闭进入 stopping/disposed；异常进入 disconnected/failed，允许显式重连。请求以 ID 关联响应，服务端请求另设审批/输入处理队列；stdout 仅解协议，stderr 是诊断。不能把进程退出推断为任务成功。
 
 运行状态由官方 thread/turn/item 事件更新。`turn/start` 的返回不等于完成；等待终态通知并核对历史。断线后重新读取 thread/turn/item、未决请求和已知运行状态；不要自动重放可能已执行的 turn、命令、审批或文件写入。传输序列号只是本地记录，不假定协议提供全局事件序列；对重复与延迟事件按实体 ID 和协议语义处理。
 
@@ -76,7 +76,7 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 ## 5. 里程碑与退出条件
 
-以下仍是总体实施阶段；当前仅完成 M1.a 纯协议单元，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
+以下仍是总体实施阶段；当前完成 M1.a 纯协议单元和 M1.b stdio host，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
 
 | 阶段 | 交付 | 可验证退出条件 | 依赖 |
 | --- | --- | --- | --- |
@@ -105,4 +105,4 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 M1.a 已在独立 `workbench/` 内建立版本 manifest、adapter 接口和合成 JSONL 测试夹具，实现初始化、请求关联、通知分发、命令/文件审批及断线恢复状态。它的验收交付是模拟会话可确定地重放，异常不会自动重复触发动作。
 
-后续先补齐分页及其合成恢复契约，再实现固定版本 app-server 的生产 transport/host，验证初始化与只读状态。登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。
+M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。后续补齐分页及其恢复契约、桌面容器 ADR 与受限 IPC。真实核心兼容性、登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。

@@ -54,6 +54,7 @@ export class ProtocolSession {
   #maxRecoveryBytes: number;
   #maxRecoveryEntries: number;
   #serverBytes = 0;
+  #observers = new Set<() => void>();
 
   constructor(options: { timeoutMs?: number; maxPending?: number; maxServerRequests?: number; maxFrameBytes?: number; maxOutboundBytes?: number; maxProjectionBytes?: number; maxServerRequestBytes?: number; maxRecoveryBytes?: number; maxRecoveryEntries?: number } = {}) {
     for (const limit of Object.values(options)) {
@@ -85,11 +86,27 @@ export class ProtocolSession {
   }
   takeEvents(): SessionEvent[] { const events = this.#events; this.#events = []; return events; }
   takeOutbound(): string[] { const frames = this.#outbound.map(entry => entry.frame); this.#outbound = []; this.#outboundBytes = 0; return frames; }
+  peekOutbound(): string | undefined { return this.#outbound[0]?.frame; }
+  /** The transport calls this immediately before handing one frame to stdin. */
+  takeNextOutbound(): string | undefined {
+    const entry = this.#outbound.shift();
+    if (entry) this.#outboundBytes -= entry.bytes;
+    return entry?.frame;
+  }
+  subscribe(observer: () => void): () => void {
+    if (this.#observers.size >= 128) throw new ProtocolSessionError("observer-limit");
+    this.#observers.add(observer);
+    return () => { this.#observers.delete(observer); };
+  }
   /** Dismiss only old local recovery notices; does not approve, replay, or mark facts fresh. */
   acknowledgeRecovery(): void { this.#uncertain = []; this.#staleApprovals = []; }
   #event(event: SessionEvent): void {
     if (this.#events.length === 256) { this.#events.shift(); this.#eventsDropped++; }
     this.#events.push(event);
+    for (const observer of this.#observers) {
+      // Observers cannot change protocol correctness by throwing.
+      try { observer(); } catch { /* Diagnostic consumers are isolated. */ }
+    }
   }
   #setState(state: ConnectionState): void { this.#state = state; this.#event({ type: "state", state }); }
   #enqueue(message: object): void {

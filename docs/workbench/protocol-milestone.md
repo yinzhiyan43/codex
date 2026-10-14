@@ -45,6 +45,6 @@
 
 修复后45项测试通过；定向复核新增两项边界问题，修复后47项通过。最后 Sol xhigh 定向复核确认合法大批次、已发/未发断线路径通过，未发现相关修改的直接回归。审查没有覆盖真实 transport、生产 host 或完整工作台。
 
-待实现：生产 stdio host、完整协议分页、模型/配置/登录、turn/start 等会话操作、其他审批/用户输入、实验功能、持久化及 UI。桌面容器 ADR 尚未决定；M1.a 只决定采用与本地现有工具匹配的 TypeScript/Node 纯协议模块。
+后续进展：M1.b stdio host 已实现，见 [host 阶段报告](transport-milestone.md)。本报告的 47 项结果为 M1.a 历史验证。待实现：完整协议分页、模型/配置/登录、turn/start 等会话操作、其他审批/用户输入、实验功能、持久化及 UI。桌面容器 ADR 尚未决定；M1.a 只决定采用与本地现有工具匹配的 TypeScript/Node 纯协议模块。
 
-应用观察拒绝继续有效，没有再次尝试或使用替代手段。用户随后主动提供的10张截图按 [参考记录](reference-observations.md) 登记可见状态；其他视觉与跨 Chat/Work/Codex 范围仍待证据。
+应用观察拒绝继续有效，没有再次尝试或使用替代手段。用户随后主动提供的截图按 [参考记录](reference-observations.md) 登记可见状态；其他视觉与跨 Chat/Work/Codex 范围仍待证据。

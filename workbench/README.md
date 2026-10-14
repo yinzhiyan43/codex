@@ -1,6 +1,6 @@
-# Workbench protocol unit — M1.a
+# Workbench protocol and stdio host — M1.a/M1.b
 
-This package is a pure, local protocol engine. It does not launch Codex, access credentials, open user files, use the network, or start a model turn. All emitted frames stay in a memory queue until a future host explicitly consumes them.
+This package contains a local protocol engine and a stdio process host. Tests launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. The production launcher has not been run or verified against a real binary. See [the M1.b report](../docs/workbench/transport-milestone.md).
 
 The core is pinned to `rust-v0.162.1` / `092d3acd6bec3e3a14bdc7e7a2810ab628ab759d`. UI reference `26.1007.30912` / build `20156` has partial user-supplied screenshot evidence. See [the full plan](../docs/workbench/implementation-plan.md) and [all 92 goals](../docs/workbench/acceptance-checklist.md). This unit does not complete M1, the UI, or the application.
 
@@ -18,7 +18,7 @@ npm run check
 
 ## Implemented contract
 
-- `connect()` queues one initialize request, using a distinct client name and `experimentalApi: false`. It returns an epoch and handshake promise. A valid response queues `initialized` and moves the protocol state to ready. Process starting/stopping is a future host responsibility.
+- `connect()` queues one initialize request, using a distinct client name and `experimentalApi: false`. It returns an epoch and handshake promise. A valid response queues `initialized` and moves the protocol state to ready. Process starting/stopping is owned by `desktop-host/stdio-host.ts`.
 - `readThread(params)` is the typed read-only API. Generic `request` applies the same allowlist: only `thread/read` is supported. Invalid or unreviewed fields, unimplemented methods and all experimental methods are rejected before enqueue.
 - `receive(bytes, epoch)` processes bounded JSONL data, including fragmented UTF-8. It separates client responses, server requests and notifications; numeric/string IDs and the two request directions are independent. Unsafe numeric IDs and ambiguous envelopes fail the connection.
 - `snapshot()` projects thread/turn/item state. Final item text replaces streaming text; terminal turn state does not regress because of late starts/deltas. Identical text chunks are not deduplicated, because the protocol lacks delta sequence IDs. Exactly-once transport delivery is **not** assumed.
@@ -27,12 +27,12 @@ npm run check
 - Recovery is explicit and bounded. A `thread/read` response cannot overwrite later notifications that arrived while the read was in flight. Metadata-only reads do not refresh stale items; only full item views refresh their returned turns. Missing turns remain visible/stale. Full-history hydration is deprecated upstream; pagination support is deferred.
 - Diagnostic events are a bounded observation ring, not a durable event log; `eventsDropped` reports truncation. A caller must use snapshots rather than assuming that every diagnostic was retained. Diagnostics exclude raw payloads. Snapshot/approval values are cloned for callers.
 
-Minimal synthetic use (no transport or model task):
+Minimal protocol-only synthetic use (no transport or model task):
 
 ```ts
 const session = new ProtocolSession();
 const { epoch, initialized } = session.connect();
-const frames = session.takeOutbound(); // feed only to a synthetic peer in M1.a
+const frames = session.takeOutbound(); // feed to a synthetic peer
 // Synthetic peer replies via session.receive(bytes, epoch).
 await initialized;
 ```
@@ -41,4 +41,4 @@ await initialized;
 
 Inbound/outbound frames, pending calls, server request IDs/bytes, recovery records/bytes, projection entities/bytes and diagnostic history have limits. Large valid batches are decoded incrementally, independent of host chunk boundaries. Resolved approvals clear their full parameters; bounded request hash tombstones remain until reconnect so duplicates cannot reopen an approval. The default 4096 server-ID budget is per connection; exhausting it fails closed and requires explicit reconnect. Recovery budgets are reserved before admitting work; if unresolved old notices exhaust them, explicit local acknowledgement is required before further requests. Over-budget or invalid known messages fail the connection; callers must inspect the diagnostic/state, then recover explicitly. Snapshots are display caches, not a complete persisted history or proof that an execution succeeded.
 
-No production stdio/PTY bridge, desktop container, login, model catalog, turn/start, settings, full pagination, durable data store or UI is present. Server-side user input, MCP/permissions and experiment support need separate reviewed contracts and tests. Native formats that JSON Schema describes only as strings (such as paths) are not semantically validated for OS access by this unit; a future host must validate before using them. Framework ADR, real binary compatibility, native integration, performance budgets, visual verification and the remaining milestones remain open.
+A production stdio launcher and lifecycle host are implemented with synthetic verification. No PTY bridge, desktop container/IPC, login, model catalog, turn/start, settings, full pagination, durable data store or UI is present. Server-side user input, MCP/permissions and experiment support need separate reviewed contracts and tests. Native formats that JSON Schema describes only as strings (such as paths) are not semantically validated for OS access by this unit; a future host must validate before using them. Framework ADR, real binary compatibility, native integration, performance budgets, visual verification and the remaining milestones remain open.
