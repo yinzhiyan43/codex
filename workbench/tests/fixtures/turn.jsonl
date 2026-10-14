@@ -1,0 +1,7 @@
+{"method":"thread/started","params":{"thread":{"id":"thread-demo","sessionId":"session-demo","projectId":null,"preview":"合成测试","ephemeral":false,"modelProvider":"synthetic","createdAt":1,"updatedAt":1,"status":{"type":"idle"},"cwd":"/synthetic/project","cliVersion":"0.162.1","source":"cli","turns":[]}}}
+{"method":"turn/started","params":{"threadId":"thread-demo","turn":{"id":"turn-demo","items":[],"itemsView":"full","status":"inProgress"}}}
+{"method":"item/started","params":{"threadId":"thread-demo","turnId":"turn-demo","startedAtMs":1000,"item":{"type":"agentMessage","id":"message-demo","text":""}}}
+{"method":"item/agentMessage/delta","params":{"threadId":"thread-demo","turnId":"turn-demo","itemId":"message-demo","delta":"合成"}}
+{"method":"item/agentMessage/delta","params":{"threadId":"thread-demo","turnId":"turn-demo","itemId":"message-demo","delta":"输出"}}
+{"method":"item/completed","params":{"threadId":"thread-demo","turnId":"turn-demo","completedAtMs":2000,"item":{"type":"agentMessage","id":"message-demo","text":"合成输出"}}}
+{"method":"turn/completed","params":{"threadId":"thread-demo","turn":{"id":"turn-demo","items":[],"itemsView":"notLoaded","status":"completed"}}}

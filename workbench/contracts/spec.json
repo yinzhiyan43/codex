@@ -1,0 +1,41 @@
+{
+  "core": {
+    "repository": "openai/codex",
+    "tag": "rust-v0.162.1",
+    "commit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
+  },
+  "uiReference": { "version": "26.1007.30912", "build": "20156", "visualEvidence": "pending" },
+  "client": { "name": "yinzhiyan43_codex_workbench", "title": "Local Codex Workbench", "version": "0.1.0" },
+  "schemas": {
+    "initializeParams": "v1/InitializeParams.json",
+    "initializeResult": "v1/InitializeResponse.json",
+    "threadReadParams": "v2/ThreadReadParams.json",
+    "threadReadResult": "v2/ThreadReadResponse.json",
+    "threadStarted": "v2/ThreadStartedNotification.json",
+    "turnStarted": "v2/TurnStartedNotification.json",
+    "turnCompleted": "v2/TurnCompletedNotification.json",
+    "itemStarted": "v2/ItemStartedNotification.json",
+    "itemCompleted": "v2/ItemCompletedNotification.json",
+    "agentMessageDelta": "v2/AgentMessageDeltaNotification.json",
+    "serverRequestResolved": "v2/ServerRequestResolvedNotification.json",
+    "commandApprovalParams": "CommandExecutionRequestApprovalParams.json",
+    "commandApprovalResult": "CommandExecutionRequestApprovalResponse.json",
+    "fileApprovalParams": "FileChangeRequestApprovalParams.json",
+    "fileApprovalResult": "FileChangeRequestApprovalResponse.json"
+  },
+  "requests": { "thread/read": { "params": "threadReadParams", "result": "threadReadResult", "experimental": false } },
+  "notifications": {
+    "thread/started": "threadStarted",
+    "turn/started": "turnStarted",
+    "turn/completed": "turnCompleted",
+    "item/started": "itemStarted",
+    "item/completed": "itemCompleted",
+    "item/agentMessage/delta": "agentMessageDelta",
+    "serverRequest/resolved": "serverRequestResolved"
+  },
+  "serverRequests": {
+    "item/commandExecution/requestApproval": { "params": "commandApprovalParams", "result": "commandApprovalResult" },
+    "item/fileChange/requestApproval": { "params": "fileApprovalParams", "result": "fileApprovalResult" }
+  },
+  "experimental": { "enabled": false, "implementedMethods": [], "deferredFamilies": ["project/", "thread/queue/", "thread/search", "process/", "thread/realtime/", "remoteControl/"] }
+}

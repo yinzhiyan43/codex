@@ -1,0 +1,46 @@
+// Copy the pinned upstream's existing exports; do not run or modify the core.
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, join } from "node:path";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+const repo = resolve(root, "..");
+const specBytes = readFileSync(join(root, "contracts/spec.json"));
+const spec = JSON.parse(specBytes);
+const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
+execFileSync("git", ["merge-base", "--is-ancestor", spec.core.commit, head], { cwd: repo });
+const changed = execFileSync("git", ["diff", "--name-only", spec.core.commit], { cwd: repo, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+if (changed.some(path => !path.startsWith("workbench/") && !path.startsWith("docs/workbench/"))) {
+  throw new Error("Upstream files differ from the pinned core; upgrade explicitly first");
+}
+const check = process.argv.slice(2).includes("--check");
+if (process.argv.slice(2).some(arg => arg !== "--check")) throw new Error("Unknown argument");
+const hash = bytes => createHash("sha256").update(bytes).digest("hex");
+const schemas = {};
+const schemaDir = join(root, "contracts/schemas");
+if (!check) mkdirSync(schemaDir, { recursive: true });
+for (const [key, upstreamPath] of Object.entries(spec.schemas)) {
+  const source = `codex-rs/app-server-protocol/schema/json/${upstreamPath}`;
+  const sourceBytes = readFileSync(join(repo, source));
+  const committedBytes = execFileSync("git", ["show", `${spec.core.commit}:${source}`], { cwd: repo });
+  if (!sourceBytes.equals(committedBytes)) throw new Error(`Upstream schema modified: ${source}`);
+  const localPath = `contracts/schemas/${key}.json`;
+  schemas[key] = { upstreamPath: source, path: localPath, sha256: hash(sourceBytes) };
+  if (check) {
+    if (!sourceBytes.equals(readFileSync(join(root, localPath)))) throw new Error(`Contract drift: ${localPath}`);
+  } else {
+    writeFileSync(join(root, localPath), sourceBytes);
+  }
+}
+const manifestBytes = Buffer.from(JSON.stringify({ ...spec, schemas, specSha256: hash(specBytes) }, null, 2) + "\n");
+const manifestPath = join(root, "contracts/manifest.json");
+if (check) {
+  if (!manifestBytes.equals(readFileSync(manifestPath))) throw new Error("Manifest drift");
+  const expected = Object.keys(spec.schemas).map(key => `${key}.json`).sort();
+  if (JSON.stringify(readdirSync(schemaDir).sort()) !== JSON.stringify(expected)) throw new Error("Unexpected contract files");
+} else {
+  writeFileSync(manifestPath, manifestBytes);
+}
+console.log(`${check ? "Verified" : "Copied"} ${Object.keys(schemas).length} upstream schemas at ${spec.core.commit}`);
