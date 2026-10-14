@@ -1,4 +1,4 @@
-import type { ThreadReadParams, ThreadReadResponse } from "../protocol-adapter/contracts.ts";
+import type { ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
 import type { ApprovalHandle, ApprovalDecision, ApprovalView, ConnectionState, ProtocolSession } from "../protocol-adapter/session.ts";
 import type { ThreadView } from "../protocol-adapter/projection.ts";
 
@@ -25,6 +25,8 @@ export interface WorkbenchClient {
   takeDiagnostics(): HostDiagnostic[];
   subscribe(listener: () => void): () => void;
   readThread(params: ThreadReadParams): Promise<ThreadReadResponse>;
+  listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse>;
+  listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse>;
   respondApproval(handle: ApprovalHandle, decision: ApprovalDecision): void;
   acknowledgeRecovery(): void;
 }

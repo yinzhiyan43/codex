@@ -1,12 +1,12 @@
 # 本地重建实施计划
 
-状态：总体设计提案；M1.a 纯协议单元、M1.b stdio host 及 M1.c 桌面壳/受限 IPC 已实现并通过合成测试，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)、[桌面证据](desktop-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
+状态：总体设计提案；M1.a 纯协议单元、M1.b stdio host、M1.c 桌面壳/受限 IPC 及 M1.d 分页/审批交互已实现并通过合成测试，见 [协议证据](protocol-milestone.md) 与 [host 证据](transport-milestone.md)、[桌面证据](desktop-milestone.md)、[分页与审批证据](pagination-milestone.md)。版本与范围见 [README](README.md)，证据及缺口见 [参考记录](reference-observations.md)，逐项验收见 [清单](acceptance-checklist.md)。
 
 ## 1. 官方核心与工作台边界
 
 保持官方 CLI、app-server、Harness、工具执行、安全策略、上下文管理、认证和历史存储实现不变。工作台通过公开协议使用它们；产品 UI 需求不能成为改写核心执行语义的理由。
 
-已新增独立 `workbench/` 顶层目录，未加入上游 Rust workspace、未修改上游依赖锁文件。以下是完整模块规划；当前已实现 contracts、protocol-adapter、desktop-host 的 stdio 生命周期和合成 tests；并实现首个 Electron 窗口、受限 IPC 和合成 UI；其他能力仍待实现：
+已新增独立 `workbench/` 顶层目录，未加入上游 Rust workspace、未修改上游依赖锁文件。以下是完整模块规划；当前已实现 contracts、protocol-adapter、desktop-host 的 stdio 生命周期和合成 tests；并实现首个 Electron 窗口、受限 IPC、合成 UI 及 domain 历史/审批状态；其他能力仍待实现：
 
 ```text
 workbench/
@@ -76,7 +76,7 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 ## 5. 里程碑与退出条件
 
-以下仍是总体实施阶段；当前完成 M1.a 协议单元、M1.b stdio host 和 M1.c 合成桌面壳/IPC，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
+以下仍是总体实施阶段；当前完成 M1.a 协议单元、M1.b stdio host、M1.c 合成桌面壳/IPC 和 M1.d 分页/审批交互，不能代替 M1 全部内容。每阶段完成都要更新清单中的证据，失败或接口未知不能记为完成。
 
 | 阶段 | 交付 | 可验证退出条件 | 依赖 |
 | --- | --- | --- | --- |
@@ -105,4 +105,4 @@ Chat、Work、Codex 使用独立视图与后端能力映射；共享外壳与组
 
 M1.a 已在独立 `workbench/` 内建立版本 manifest、adapter 接口和合成 JSONL 测试夹具，实现初始化、请求关联、通知分发、命令/文件审批及断线恢复状态。它的验收交付是模拟会话可确定地重放，异常不会自动重复触发动作。
 
-M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。M1.c 已补桌面 ADR、受限 IPC 及首个合成界面，85项测试和14组后台窗口交互检查通过；后续补分页/审批 UI 合成契约和原生输入验收。真实核心兼容性、登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。
+M1.b 已实现 stdio host，使用合成 Node peer 验证初始化、只读状态、背压、退出和显式重连；应用重启后 75 项测试复验通过。M1.c 已补桌面 ADR、受限 IPC 及首个合成界面。M1.d 已补 turns/items 分页、稳定消息 ID、重叠页去重、取消/迟到结果隔离、跨代重读及审批单次答复；最终100项测试、19份 schema 核验及23组后台界面检查通过，独立 Sol xhigh 复审问题已修复。原生输入验收仍待进行。真实核心兼容性、登录与真实会话测试仍需相应实施授权；本阶段没有进行。UI 可使用用户主动提供的截图作为已见状态参考，未拍摄页面及实际交互仍待证据。

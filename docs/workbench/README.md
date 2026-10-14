@@ -1,6 +1,6 @@
 # 本地工作台重建计划
 
-编写日期：2026-10-14。状态：架构与验收规划、M1.a 协议单元、M1.b stdio host 及 M1.c 合成桌面壳已落地；完整工作台尚未实现或验收。
+编写日期：2026-10-14。状态：架构与验收规划、M1.a 协议单元、M1.b stdio host、M1.c 合成桌面壳及 M1.d 分页/审批交互已落地；完整工作台尚未实现或验收。
 
 ## 固定基线
 
@@ -24,6 +24,7 @@
 - [M1.a 实现与验证证据](protocol-milestone.md)：独立协议模块、合成测试和 Sol xhigh 审查结果。
 - [M1.b 实现与验证证据](transport-milestone.md)：进程生命周期、stdio 背压、恢复后复验及 Sol xhigh 审查结果。
 - [M1.c 桌面壳与合成界面](desktop-milestone.md)：启动方式、IPC、实际截图和验收限制。
+- [M1.d 分页与审批交互](pagination-milestone.md)：有界历史、取消/恢复、审批状态及最终复审证据。
 - [桌面容器 ADR](desktop-adr.md)：Electron 与主进程/界面边界。
 
 ## 目标与完成标准

@@ -89,12 +89,42 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/FileChangeRequestApprovalResponse.json",
       "path": "contracts/schemas/fileApprovalResult.json",
       "sha256": "b95b03ee6be674e25cee2e863cc135a28620e1070addd2f34685aadee27cde08"
+    },
+    "turnsListParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadTurnsListParams.json",
+      "path": "contracts/schemas/turnsListParams.json",
+      "sha256": "2a8b93d7d4437cc25e16a1dde16d8db3c338d39e16c5eece2a56e943a21577d7"
+    },
+    "turnsListResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadTurnsListResponse.json",
+      "path": "contracts/schemas/turnsListResult.json",
+      "sha256": "eba82395d4479bb28091bbe6f39c929c7c66a30d7b0eeabedac39057ce72aceb"
+    },
+    "itemsListParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadItemsListParams.json",
+      "path": "contracts/schemas/itemsListParams.json",
+      "sha256": "d5cf9784413f1d1abba756e04e48b273a9d12ab2c5675442e91b6a4ee55e19f0"
+    },
+    "itemsListResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadItemsListResponse.json",
+      "path": "contracts/schemas/itemsListResult.json",
+      "sha256": "0ecf37ff62571c8411aab271ea65d22be4da1108cc2fd2dffb15a7034bfedb28"
     }
   },
   "requests": {
     "thread/read": {
       "params": "threadReadParams",
       "result": "threadReadResult",
+      "experimental": false
+    },
+    "thread/turns/list": {
+      "params": "turnsListParams",
+      "result": "turnsListResult",
+      "experimental": false
+    },
+    "thread/items/list": {
+      "params": "itemsListParams",
+      "result": "itemsListResult",
       "experimental": false
     }
   },
@@ -129,5 +159,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "e29ab30fcafa3a4107b7911b75921064bddf753c1a5c557c11a3404a7013783e"
+  "specSha256": "c2357eb58168dd8a24b59cef833507e518f738603d336b433f3997979a208b7e"
 }

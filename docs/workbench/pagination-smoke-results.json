@@ -1,0 +1,45 @@
+{
+  "result": "passed",
+  "checks": [
+    "selected-app-icon",
+    "ready-synthetic-peer",
+    "renderer-isolation",
+    "project-thread-navigation",
+    "draft-preservation",
+    "repeated-clicks",
+    "confirm-return",
+    "cancel-running",
+    "complete-synthetic-response",
+    "disconnect-stale",
+    "explicit-reconnect",
+    "new-back",
+    "search-empty",
+    "narrow-controls",
+    "console-errors",
+    "history-overlap-and-order",
+    "stable-message-dom",
+    "history-cancel",
+    "approval-once",
+    "approval-decline",
+    "approval-cancel",
+    "approval-expiry",
+    "approval-disconnect"
+  ],
+  "selectedIcon": {
+    "width": 1254,
+    "height": 1254
+  },
+  "screenshots": [
+    "empty",
+    "conversation",
+    "submitted",
+    "disconnected",
+    "narrow",
+    "empty-final",
+    "approvals-pending",
+    "approvals-processed",
+    "history-cancelled",
+    "history-paged"
+  ],
+  "consoleErrors": []
+}

@@ -9,6 +9,12 @@ export type { Thread } from "../../codex-rs/app-server-protocol/schema/typescrip
 export type { Turn } from "../../codex-rs/app-server-protocol/schema/typescript/v2/Turn.ts";
 export type { ThreadItem } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadItem.ts";
 
+export type { ThreadTurnsListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadTurnsListParams.ts";
+export type { ThreadTurnsListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadTurnsListResponse.ts";
+export type { ThreadItemsListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadItemsListParams.ts";
+export type { ThreadItemsListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadItemsListResponse.ts";
+export type { ThreadItemEntry } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadItemEntry.ts";
+
 type MethodSpec = { params: string; result: string; experimental?: boolean };
 type Manifest = {
   core: { repository: string; tag: string; commit: string };

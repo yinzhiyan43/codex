@@ -1,32 +1,40 @@
 import type { WorkbenchClient, HostState } from "./client.ts";
+import { HistoryWindow } from "../domain/history-window.ts";
+import { ApprovalCards } from "../domain/approval-cards.ts";
+import type { ApprovalCard } from "../domain/approval-cards.ts";
 import { validateDesktopCommand } from "./ipc-contract.ts";
 export const demoProjects = [
   { id: "project-garden", name: "garden-lab", threads: [{ id: "thread-garden", title: "整理花园计划" }] },
   { id: "project-studio", name: "studio-demo", threads: [{ id: "thread-welcome", title: "了解项目与未完成事项" }, { id: "thread-layout", title: "检查工作台布局" }] },
 ];
-export type DemoMessage = { role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" };
+export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" };
 export type DesktopView = {
   mode: "synthetic"; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
   route: { projectId: string; threadId: string | null }; title: string; messages: DemoMessage[];
   draft: string; search: string; loading: boolean; pending: string | null; running: boolean;
   error: string | null;
+  history: { turnCount: number; itemCount: number; hasMore: boolean; busy: boolean; loading: boolean; stale: boolean; notice: string | null };
+  approvals: ApprovalCard[];
 };
 /** Synthetic workspace state only. Does not map UI submission to turn/start. */
 export class DemoController {
   #client: WorkbenchClient;
   #projects = structuredClone(demoProjects); #localThreadCount = 0;
   #route = { projectId: "project-studio", threadId: null as string | null };
-  #drafts = new Map<string, string>(); #cache = new Map<string, DemoMessage[]>();
+  #drafts = new Map<string, string>();
+  #windows = new Map<string, HistoryWindow>(); #pagesActive = new Map<string, number>(); #readOwners = new Set<number>();
+  #approvals = new ApprovalCards(); #historyNotice: string | null = null; #localMessageCount = 0;
   #localMessages = new Map<string, DemoMessage[]>();
   #history: { projectId: string; threadId: string | null }[] = [];
   #search = ""; #loading = false; #pending: string | null = null; #running = false; #error: string | null = null;
-  #sequence = 0; #version = 0; #timer: ReturnType<typeof setTimeout> | null = null;
+  #sequence = 0; #historySequence = 0; #version = 0; #timer: ReturnType<typeof setTimeout> | null = null;
   #activePrompt = ""; #listeners = new Set<() => void>(); #unsubscribe: () => void;
   #disposed = false; #connectPromise: Promise<void> | null = null;
   constructor(client: WorkbenchClient) {
     this.#client = client;
     this.#unsubscribe = client.subscribe(() => {
-      if (client.getView().state !== "ready" && (this.#running || this.#pending)) this.#cancel("连接已断开，演示已停止。草稿已保留。");
+      try { this.#approvals.sync(client.getView()); } catch { this.#error = "审批展示已达到安全上限，连接已停止。"; void client.stop().catch(() => {}); }
+      if (client.getView().state !== "ready" && (this.#running || this.#pending || this.#loading)) this.#cancel("连接已断开，演示已停止。草稿已保留。");
       this.#publish();
     });
   }
@@ -37,11 +45,14 @@ export class DemoController {
     const host = this.#client.getView();
     const project = this.#projects.find(p => p.id === this.#route.projectId)!;
     const thread = project.threads.find(t => t.id === this.#route.threadId);
+    const history = this.#windows.get(this.#key())?.snapshot();
     return structuredClone({ mode: "synthetic", version: this.#version, connection: host.state,
       stale: host.state !== "ready", projects: this.#projects, route: this.#route,
-      title: thread?.title ?? project.name, messages: [...(this.#cache.get(this.#key()) ?? []), ...(this.#localMessages.get(this.#key()) ?? [])].slice(-24),
+      title: thread?.title ?? project.name, messages: [...(history?.messages ?? []).map(message => ({ ...message, stale: message.stale || host.state !== "ready" })), ...(this.#localMessages.get(this.#key()) ?? [])],
       draft: this.#drafts.get(this.#key()) ?? "", search: this.#search, loading: this.#loading,
-      pending: this.#pending, running: this.#running, error: this.#error });
+      pending: this.#pending, running: this.#running, error: this.#error,
+      history: { turnCount: history?.turnCount ?? 0, itemCount: history?.itemCount ?? 0, hasMore: history?.hasMore ?? false, busy: this.#pagesActive.get(this.#key()) === this.#historySequence, loading: this.#loading, stale: host.state !== "ready" || (history?.stale ?? false), notice: this.#historyNotice },
+      approvals: this.#approvals.snapshot(this.#route.threadId) });
   }
   #cancel(error: string | null = null): void {
     if (this.#timer) clearTimeout(this.#timer); this.#timer = null;
@@ -51,28 +62,50 @@ export class DemoController {
       if (!this.#drafts.get(this.#key())) this.#drafts.set(this.#key(), this.#activePrompt);
     }
     this.#pending = null; this.#running = false; this.#activePrompt = "";
-    this.#sequence++; this.#loading = false; if (error) this.#error = error;
+    this.#sequence++; this.#historySequence++; this.#loading = false; if (error) this.#error = error;
   }
   #navigate(route: { projectId: string; threadId: string | null }, remember = true): boolean {
     if (route.projectId === this.#route.projectId && route.threadId === this.#route.threadId) return false;
     this.#cancel();
     if (remember) { this.#history.push({ ...this.#route }); if (this.#history.length > 32) this.#history.shift(); }
-    this.#route = route; this.#error = null; this.#publish(); return true;
+    this.#route = route; this.#error = null; this.#historyNotice = null; this.#publish(); return true;
   }
   async #loadThread(id: string): Promise<void> {
-    if (id.startsWith("local-")) return; // Local synthetic messages never become a core RPC.
-    const sequence = ++this.#sequence; this.#loading = true; this.#publish();
+    if (id.startsWith("local-")) return;
+    const cached = this.#windows.get(id);
+    if (cached?.generation === this.#client.getView().generation && cached.initialized) return;
+    await this.#loadHistory(id, true);
+  }
+  async #loadHistory(id: string, first: boolean): Promise<void> {
+    if (this.#pagesActive.get(id) === this.#historySequence) return;
+    if (this.#readOwners.size >= 16) { this.#error = "历史读取仍在返回，请稍后重试。"; this.#publish(); return; }
+    const sequence = ++this.#historySequence, generation = this.#client.getView().generation;
+    let window = this.#windows.get(id);
+    if (!window) { window = new HistoryWindow(id); this.#windows.set(id, window); }
+    window.beginGeneration(generation);
+    this.#pagesActive.set(id, sequence); this.#readOwners.add(sequence); this.#loading = true; this.#historyNotice = null; this.#publish();
+    const current = () => !this.#disposed && sequence === this.#historySequence && this.#route.threadId === id && generation === this.#client.getView().generation && this.#client.getView().state === "ready";
     try {
-      const { thread } = await this.#client.readThread({ threadId: id, includeTurns: true });
-      if (this.#disposed || sequence !== this.#sequence) return;
-      const messages: DemoMessage[] = [];
-      for (const turn of thread.turns) for (const item of turn.items) {
-        if (item.type === "agentMessage") messages.push({ role: "assistant", text: item.text, status: "completed" });
-        if (item.type === "userMessage") messages.push({ role: "user", text: item.content.filter(i => i.type === "text").map(i => i.text).join("\n") });
-      }
-      this.#cache.set(id, messages.slice(-16));
-    } catch { if (sequence === this.#sequence) this.#error = "无法读取演示会话。连接恢复后可重试。"; }
-    finally { if (sequence === this.#sequence) { this.#loading = false; this.#publish(); } }
+      if (first) await this.#client.readThread({ threadId: id, includeTurns: false });
+      if (!current()) return;
+      // The cursor belongs to this retained window and generation, never to the renderer.
+      const revision = this.#client.getView().threads.find(thread => thread.id === id)?.revision ?? 0;
+      const [turns, items] = await Promise.all([
+        window.hasMore("turns") ? this.#client.listTurns({ threadId: id, cursor: window.cursor("turns"), limit: 2, sortDirection: "desc", itemsView: "summary" }) : Promise.resolve(undefined),
+        window.hasMore("items") ? this.#client.listItems({ threadId: id, cursor: window.cursor("items"), limit: 4, sortDirection: "desc" }) : Promise.resolve(undefined),
+      ]);
+      if (!current()) return;
+      if (revision !== (this.#client.getView().threads.find(thread => thread.id === id)?.revision ?? 0)) throw new Error("history-changed-during-read");
+      window.commit({ turns, items }, generation);
+      this.#historyNotice = window.snapshot().hasMore ? null : "已加载全部合成历史";
+    } catch {
+      if (current()) { this.#error = "历史读取未完成，已保留缓存。可以重试。"; this.#historyNotice = "加载失败，游标未前移"; }
+    } finally {
+      if (this.#pagesActive.get(id) === sequence) this.#pagesActive.delete(id);
+      this.#readOwners.delete(sequence);
+      if (sequence === this.#historySequence) this.#loading = false;
+      this.#publish();
+    }
   }
   async #connect(reconnect: boolean): Promise<void> {
     if (this.#connectPromise) return this.#connectPromise;
@@ -114,6 +147,19 @@ export class DemoController {
       }
       case "search": this.#search = command.text; break;
       case "clearError": this.#error = null; break;
+      case "history": {
+        if (command.threadId !== this.#route.threadId || !this.#projects.some(p => p.threads.some(t => t.id === command.threadId)) || command.threadId.startsWith("local-")) throw new Error("invalid-history-route");
+        if (this.#client.getView().state !== "ready") { this.#error = "连接已断开，无法继续加载历史。"; break; }
+        this.#error = null; await this.#loadHistory(command.threadId, false); break;
+      }
+      case "cancelHistory": this.#historySequence++; this.#loading = false; this.#historyNotice = "已取消本次加载，迟到结果会忽略"; break;
+      case "approval": {
+        const card = this.#approvals.snapshot(this.#route.threadId).find(card => card.key === command.key);
+        if (!card) throw new Error("approval-outside-route");
+        try { this.#approvals.respond(command.key, command.decision, this.#client); this.#error = null; }
+        catch { this.#error = "审批已结束或连接已变化，未提交新决定。"; }
+        break;
+      }
       case "submit": {
         if (this.#running || this.#pending) break;
         if (this.#client.getView().state !== "ready") { this.#error = "连接已断开。请先重连，草稿会保留。"; break; }
@@ -136,7 +182,7 @@ export class DemoController {
         }
         const text = this.#pending; this.#pending = null; this.#running = true; this.#activePrompt = text;
         this.#drafts.set(this.#key(), "");
-        const messages: DemoMessage[] = [...(this.#localMessages.get(this.#key()) ?? []).slice(-12), { role: "user", text }, { role: "assistant", text: "正在整理演示回应…", status: "running" }];
+        const messages: DemoMessage[] = [...(this.#localMessages.get(this.#key()) ?? []).slice(-12), { id: `local-message-${++this.#localMessageCount}`, role: "user", text }, { id: `local-message-${++this.#localMessageCount}`, role: "assistant", text: "正在整理演示回应…", status: "running" }];
         this.#localMessages.set(this.#key(), messages);
         const sequence = ++this.#sequence;
         this.#timer = setTimeout(() => {

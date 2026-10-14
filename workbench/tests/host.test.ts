@@ -45,7 +45,7 @@ test("fragmented peer writes preserve Chinese and coalesce change notifications"
 test("renderer client excludes executable settings, raw RPC and streams", async t => {
   const { host } = peer(); t.after(() => host.dispose()); const client = host.client();
   assert.equal(Object.isFrozen(client), true);
-  assert.deepEqual(Object.keys(client).sort(), ["acknowledgeRecovery", "dispose", "getView", "readThread", "reconnect", "respondApproval", "start", "stop", "subscribe", "takeDiagnostics"].sort());
+  assert.deepEqual(Object.keys(client).sort(), ["acknowledgeRecovery", "dispose", "getView", "listTurns", "listItems", "readThread", "reconnect", "respondApproval", "start", "stop", "subscribe", "takeDiagnostics"].sort());
   await assert.rejects(client.readThread({ threadId: "thread-demo" }), /not-ready/);
   await client.start(); await assert.rejects(client.readThread({ threadId: 1 } as any), /invalid-client-operation/);
 });

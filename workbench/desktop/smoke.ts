@@ -13,8 +13,18 @@ export async function runDesktopSmoke(window: BrowserWindow, output: string, err
   };
   const click = async (selector: string) => { await js(`document.querySelector(${JSON.stringify(selector)}).click()`); };
   const screenshot = async (name: string) => {
-    await js("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
-    await writeFile(join(output, name + ".png"), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
+    // Resizing an offscreen surface can briefly make Chromium capture unavailable.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await js("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+      try {
+        const captured = await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true });
+        await writeFile(join(output, name + ".png"), captured.toPNG()); return;
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== "UnknownVizError" || attempt === 2) throw error;
+        console.warn(`Offscreen capture retry: ${name}`);
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
   };
   await wait("document.getElementById('project-context').textContent === 'studio-demo'");
   assert.equal((await snapshot()).connection, "ready");
@@ -24,6 +34,44 @@ export async function runDesktopSmoke(window: BrowserWindow, output: string, err
   await screenshot("empty");
   await click('[data-thread="thread-welcome"]');
   await wait("document.querySelectorAll('.message').length === 4");
+
+  await wait("document.querySelectorAll('.approval-card').length === 5");
+  assert.equal((await snapshot()).approvals.some((card: object) => "epoch" in card || "params" in card || "handle" in card), false);
+  await screenshot("approvals-pending");
+  const acceptKey = (await snapshot()).approvals.find((card: { detail: string }) => card.detail.includes("accept-demo")).key;
+  const approvalButton = (key: string, decision: string) => 'article[data-approval-key="' + key + '"] button[data-decision="' + decision + '"]';
+  await js("document.querySelector(" + JSON.stringify(approvalButton(acceptKey, "accept")) + ").focus(); window.workbench.dispatch({type:'search',text:''})");
+  assert.equal(await js("document.activeElement.dataset.approvalKey"), acceptKey);
+  await click(approvalButton(acceptKey, "accept")); await click(approvalButton(acceptKey, "accept"));
+  await wait("document.querySelector('article[data-approval-key=\"" + acceptKey + "\"]').dataset.approvalStatus === 'resolved'");
+  const declineKey = (await snapshot()).approvals.find((card: { detail: string }) => card.detail.includes("decline-demo")).key;
+  await click(approvalButton(declineKey, "decline"));
+  await wait("document.querySelector('article[data-approval-key=\"" + declineKey + "\"]').dataset.approvalStatus === 'resolved'");
+  const cancelKey = (await snapshot()).approvals.find((card: { kind: string; status: string }) => card.kind === "file" && card.status === "pending").key;
+  await click(approvalButton(cancelKey, "cancel"));
+  await wait("document.querySelector('article[data-approval-key=\"" + cancelKey + "\"]').dataset.approvalStatus === 'resolved'");
+  await wait("document.querySelector('[data-approval-status=\"expired\"]') !== null");
+  assert.equal(await js("[...document.querySelectorAll('[data-approval-status=\"expired\"] button')].every(button=>button.disabled)"), true);
+  await screenshot("approvals-processed");
+  const originalMessageIds = (await snapshot()).messages.map((message: { id: string }) => message.id);
+  await js("window.__originalMessageNode = document.querySelector('#messages article')");
+  await click("#load-history"); await wait("!document.getElementById('cancel-history').hidden"); await click("#cancel-history");
+  await wait("!document.getElementById('load-history').disabled");
+  assert.equal((await snapshot()).history.itemCount, 4);
+  await screenshot("history-cancelled");
+  const loadPage = async () => {
+    await click("#load-history");
+    await wait("window.workbench.snapshot().then(value=>value.history.busy)");
+    await wait("window.workbench.snapshot().then(value=>!value.history.busy)");
+  };
+  for (let page = 0; page < 5 && (await snapshot()).history.hasMore; page++) await loadPage();
+  const fullHistory = await snapshot();
+  assert.equal(fullHistory.history.hasMore, false); assert.equal(fullHistory.messages.length, 10);
+  assert.equal(new Set(fullHistory.messages.map((message: { id: string }) => message.id)).size, 10);
+  assert.deepEqual(fullHistory.messages.slice(-4).map((message: { id: string }) => message.id), originalMessageIds);
+  assert.equal(await js("window.__originalMessageNode.isConnected && [...document.querySelectorAll('#messages article')].includes(window.__originalMessageNode)"), true);
+  await screenshot("history-paged");
+
   await click('#toggle-details'); await click('#account');
   await wait("!document.getElementById('details').hidden && !document.getElementById('account-menu').hidden");
   await screenshot("conversation");
@@ -51,8 +99,11 @@ export async function runDesktopSmoke(window: BrowserWindow, output: string, err
   await click('#connection-menu'); await click('#disconnect');
   await wait("!document.getElementById('notice').hidden && document.getElementById('send').disabled");
   assert.equal((await snapshot()).stale, true);
+  assert.equal(await js("document.querySelectorAll('[data-approval-status=\"disconnected\"] button').length > 0 && [...document.querySelectorAll('[data-approval-status=\"disconnected\"] button')].every(button=>button.disabled)"), true);
   await screenshot("disconnected");
   await click('#retry'); await click('#retry');
+  await wait("window.workbench.snapshot().then(value=>value.connection==='ready' && !value.history.busy)");
+  for (let page = 0; page < 5 && (await snapshot()).history.hasMore; page++) await loadPage();
   await wait("document.getElementById('notice').hidden");
   assert.equal((await snapshot()).connection, "ready");
   await click('#new'); await wait("!document.getElementById('empty').hidden");
@@ -74,5 +125,5 @@ export async function runDesktopSmoke(window: BrowserWindow, output: string, err
   await wait("!document.getElementById('empty').hidden");
   await screenshot("empty-final");
   assert.deepEqual(errors, []);
-  await writeFile(join(output, "smoke-results.json"), JSON.stringify({ result: "passed", checks: ["selected-app-icon", "ready-synthetic-peer", "renderer-isolation", "project-thread-navigation", "draft-preservation", "repeated-clicks", "confirm-return", "cancel-running", "complete-synthetic-response", "disconnect-stale", "explicit-reconnect", "new-back", "search-empty", "narrow-controls", "console-errors"], selectedIcon: iconSize, screenshots: ["empty", "conversation", "submitted", "disconnected", "narrow", "empty-final"], consoleErrors: errors }, null, 2));
+  await writeFile(join(output, "smoke-results.json"), JSON.stringify({ result: "passed", checks: ["selected-app-icon", "ready-synthetic-peer", "renderer-isolation", "project-thread-navigation", "draft-preservation", "repeated-clicks", "confirm-return", "cancel-running", "complete-synthetic-response", "disconnect-stale", "explicit-reconnect", "new-back", "search-empty", "narrow-controls", "console-errors", "history-overlap-and-order", "stable-message-dom", "history-cancel", "approval-once", "approval-decline", "approval-cancel", "approval-expiry", "approval-disconnect"], selectedIcon: iconSize, screenshots: ["empty", "conversation", "submitted", "disconnected", "narrow", "empty-final", "approvals-pending", "approvals-processed", "history-cancelled", "history-paged"], consoleErrors: errors }, null, 2));
 }

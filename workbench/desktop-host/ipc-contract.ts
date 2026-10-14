@@ -1,9 +1,11 @@
 export type DesktopCommand =
-  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" }
+  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" }
   | { type: "project" | "thread"; id: string }
   | { type: "draft"; routeId: string; text: string }
-  | { type: "search"; text: string };
-const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError"]);
+  | { type: "search"; text: string }
+  | { type: "history"; threadId: string }
+  | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
+const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-command");
   const v = value as Record<string, unknown>;
@@ -13,6 +15,8 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   if ((v.type === "project" || v.type === "thread") && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if (v.type === "draft" && keys === "routeId,text,type" && typeof v.routeId === "string" && /^[a-z0-9-]{1,64}$/.test(v.routeId) && typeof v.text === "string" && v.text.length <= 4000 && !v.text.includes("\0")) return v as DesktopCommand;
   if (v.type === "search" && keys === "text,type" && typeof v.text === "string" && v.text.length <= 128 && !v.text.includes("\0")) return v as DesktopCommand;
+  if (v.type === "history" && keys === "threadId,type" && typeof v.threadId === "string" && /^[a-z0-9-]{1,64}$/.test(v.threadId)) return v as DesktopCommand;
+  if (v.type === "approval" && keys === "decision,key,type" && typeof v.key === "string" && /^approval-[a-f0-9]{24}$/.test(v.key) && ["accept", "decline", "cancel"].includes(v.decision as string)) return v as DesktopCommand;
   throw new Error("invalid-command");
 }
 export type SenderIdentity = { owner: boolean; mainFrame: boolean; url: string };

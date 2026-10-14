@@ -4,8 +4,16 @@
     "tag": "rust-v0.162.1",
     "commit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
   },
-  "uiReference": { "version": "26.1007.30912", "build": "20156", "visualEvidence": "pending" },
-  "client": { "name": "yinzhiyan43_codex_workbench", "title": "Local Codex Workbench", "version": "0.1.0" },
+  "uiReference": {
+    "version": "26.1007.30912",
+    "build": "20156",
+    "visualEvidence": "pending"
+  },
+  "client": {
+    "name": "yinzhiyan43_codex_workbench",
+    "title": "Local Codex Workbench",
+    "version": "0.1.0"
+  },
   "schemas": {
     "initializeParams": "v1/InitializeParams.json",
     "initializeResult": "v1/InitializeResponse.json",
@@ -21,9 +29,29 @@
     "commandApprovalParams": "CommandExecutionRequestApprovalParams.json",
     "commandApprovalResult": "CommandExecutionRequestApprovalResponse.json",
     "fileApprovalParams": "FileChangeRequestApprovalParams.json",
-    "fileApprovalResult": "FileChangeRequestApprovalResponse.json"
+    "fileApprovalResult": "FileChangeRequestApprovalResponse.json",
+    "turnsListParams": "v2/ThreadTurnsListParams.json",
+    "turnsListResult": "v2/ThreadTurnsListResponse.json",
+    "itemsListParams": "v2/ThreadItemsListParams.json",
+    "itemsListResult": "v2/ThreadItemsListResponse.json"
   },
-  "requests": { "thread/read": { "params": "threadReadParams", "result": "threadReadResult", "experimental": false } },
+  "requests": {
+    "thread/read": {
+      "params": "threadReadParams",
+      "result": "threadReadResult",
+      "experimental": false
+    },
+    "thread/turns/list": {
+      "params": "turnsListParams",
+      "result": "turnsListResult",
+      "experimental": false
+    },
+    "thread/items/list": {
+      "params": "itemsListParams",
+      "result": "itemsListResult",
+      "experimental": false
+    }
+  },
   "notifications": {
     "thread/started": "threadStarted",
     "turn/started": "turnStarted",
@@ -34,8 +62,25 @@
     "serverRequest/resolved": "serverRequestResolved"
   },
   "serverRequests": {
-    "item/commandExecution/requestApproval": { "params": "commandApprovalParams", "result": "commandApprovalResult" },
-    "item/fileChange/requestApproval": { "params": "fileApprovalParams", "result": "fileApprovalResult" }
+    "item/commandExecution/requestApproval": {
+      "params": "commandApprovalParams",
+      "result": "commandApprovalResult"
+    },
+    "item/fileChange/requestApproval": {
+      "params": "fileApprovalParams",
+      "result": "fileApprovalResult"
+    }
   },
-  "experimental": { "enabled": false, "implementedMethods": [], "deferredFamilies": ["project/", "thread/queue/", "thread/search", "process/", "thread/realtime/", "remoteControl/"] }
+  "experimental": {
+    "enabled": false,
+    "implementedMethods": [],
+    "deferredFamilies": [
+      "project/",
+      "thread/queue/",
+      "thread/search",
+      "process/",
+      "thread/realtime/",
+      "remoteControl/"
+    ]
+  }
 }

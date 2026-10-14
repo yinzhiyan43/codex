@@ -1,7 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { ProtocolSession, ProtocolSessionError } from "../protocol-adapter/session.ts";
 import type { ApprovalHandle, ApprovalDecision } from "../protocol-adapter/session.ts";
-import type { ThreadReadParams, ThreadReadResponse } from "../protocol-adapter/contracts.ts";
+import type { ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
 import type { ProcessLauncher } from "./launch.ts";
 import { HostOperationError } from "./client.ts";
 import type { WorkbenchClient, HostView, HostState, HostDiagnostic } from "./client.ts";
@@ -49,6 +49,7 @@ export class StdioWorkbenchHost implements WorkbenchClient {
     return Object.freeze({ start: () => this.start(), reconnect: () => this.reconnect(), stop: () => this.stop(), dispose: () => this.dispose(),
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
       readThread: (params: ThreadReadParams) => this.readThread(params),
+      listTurns: (params: ThreadTurnsListParams) => this.listTurns(params), listItems: (params: ThreadItemsListParams) => this.listItems(params),
       respondApproval: (handle: ApprovalHandle, decision: ApprovalDecision) => this.respondApproval(handle, decision),
       acknowledgeRecovery: () => this.acknowledgeRecovery() });
   }
@@ -272,6 +273,14 @@ export class StdioWorkbenchHost implements WorkbenchClient {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     try { const result = this.#session.readThread(params); this.#pump(this.#context); return await result; }
     catch (error) { throw this.#error(error); }
+  }
+  async listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.listTurns(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  async listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const result = this.#session.listItems(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
   }
   respondApproval(handle: ApprovalHandle, decision: ApprovalDecision): void {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

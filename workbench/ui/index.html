@@ -39,6 +39,8 @@
   </aside>
   <main class="main">
     <div id="notice" class="notice" role="status" hidden><span id="notice-text"></span><button id="retry">重连</button><button id="dismiss" aria-label="关闭提示"><i class="ph ph-x" aria-hidden="true"></i></button></div>
+    <section id="history-toolbar" class="history-toolbar" aria-label="历史分页" hidden><span id="history-count"></span><span id="history-status" role="status"></span><button id="load-history">加载更早历史</button><button id="cancel-history" hidden>取消加载</button></section>
+    <section id="approval-list" class="approval-list" aria-label="审批请求" hidden></section>
     <section id="empty" class="empty"><i class="ph ph-terminal-window" aria-hidden="true"></i><h1 id="empty-title"></h1></section>
     <section id="conversation" class="conversation" aria-label="演示会话" hidden><div id="messages" class="messages"></div></section>
     <form id="composer" class="composer">

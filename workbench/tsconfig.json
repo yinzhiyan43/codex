@@ -18,6 +18,7 @@
     "desktop-host/**/*.ts",
     "tests/**/*.ts",
     "desktop/**/*.ts",
-    "ui/**/*.ts"
+    "ui/**/*.ts",
+    "domain/**/*.ts"
   ]
 }
