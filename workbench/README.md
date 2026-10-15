@@ -1,4 +1,4 @@
-# Workbench protocol, host and desktop — through M2.e
+# Workbench protocol, host and desktop — through M2.f
 
 This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Default npm test checks are offline and launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. An explicit isolated mode has now verified the installed official 0.162.1 binary for handshake, read errors and lifecycle; it does not log in or send model requests. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md), plus [the M1.e real connection report](../docs/workbench/core-connection-milestone.md).
 
@@ -128,3 +128,11 @@ Loaded terminal saved turns offer an inclusive fork confirmation using standard 
 Local project labels can be renamed across every matching record, including archived records, with collision refusal and atomic rollback. These labels do not create official projects or change cwd.
 
 Current validation: 51 schemas, 211 offline tests; editing hidden-App restart checks 14 + 10, management regression 18 + 13, isolated native two-process synthetic proof, zero new real model requests. `npm run desktop:editing:smoke -- /absolute/private/output` and `npm run editing:core:check -- --result /absolute/result.json` reproduce the explicit checks. See [M2.e report](../docs/workbench/session-editing-milestone.md) and [machine results](../docs/workbench/session-editing-results.json). The sanitized M2.d base b15bd57 was pushed as authorized; M2.e changes remain a local commit.
+
+## Concurrent edits and saved-text copy — M2.f
+
+Observed section names, membership and full destination order are checked again before edits; stale changes abort without replacement RPCs. Conversation rename also rejects an externally changed visible name. Post-write reads verify observed results, and obsolete operations cannot clear a newer generation’s state. The official APIs have no CAS or cross-page snapshot: an external update after final validation cannot be atomically excluded.
+
+“复制已保存文字” confirms the selected known persistent ID, reads all bounded saved text twice, validates terminal state and matching fingerprints, then invokes the main-process clipboard writer once. It preserves source drafts/history/paging, aborts rather than copying partial text, and never replays on restart. Limits remain 256 turns/64 pages/2 MiB. Attachments, tools and unsent drafts are excluded. Tests use a memory clipboard and never inspect the system clipboard.
+
+Validation: 51 schemas, 225 offline tests; new hidden-App checks 14+9, editing regression 14+10, management 18+13; two concurrent isolated native clients plus reconnect, zero model requests, and independent Sol xhigh final 25/25. Use `npm run desktop:copy:smoke -- /absolute/private/output` and explicit `npm run concurrency:core:check -- --result /absolute/result.json`. See [M2.f report](../docs/workbench/concurrency-copy-milestone.md) and [machine results](../docs/workbench/concurrency-copy-results.json). This increment is a local commit only; new-window opening remains deferred.

@@ -1,8 +1,9 @@
+import { runCopySmoke } from "./copy-smoke.ts";
 import { runEditingSmoke } from "./editing-smoke.ts";
 import { runManagementSmoke } from "./management-smoke.ts";
 import { runPersistenceSmoke } from "./persistence-smoke.ts";
 import { SessionStore } from "../desktop-host/session-store.ts";
-import { app, BrowserWindow, ipcMain, protocol, session, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, protocol, session, nativeImage, clipboard } from "electron";
 import { readFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -28,6 +29,7 @@ const chatMode = process.argv.includes("--official-chat") || offlineChat;
 const durableProfile = chatMode && !offlineChat;
 const profile = durableProfile ? join(app.getPath("appData"),"Codex Workbench") : mkdtempSync(join(tmpdir(),"codex-workbench-synthetic-"));
 if(durableProfile){mkdirSync(profile,{recursive:true,mode:0o700});if(!app.requestSingleInstanceLock())app.exit(0);}
+const copySmoke=process.argv.includes("--copy-smoke");if(copySmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("copy-smoke-is-offline-only");
 const editingSmoke=process.argv.includes("--editing-smoke");if(editingSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("editing-smoke-is-offline-only");
 const managementSmoke=process.argv.includes("--management-smoke");if(managementSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("management-smoke-is-offline-only");
 const persistenceIndex=process.argv.indexOf("--persistence-root");
@@ -49,7 +51,7 @@ let isolatedDirectory: string | null = null;
 if (isSmoke) { app.setActivationPolicy("accessory"); void app.dock?.hide(); }
 protocol.registerSchemesAsPrivileged([{ scheme: "workbench", privileges: { standard: true, secure: true, supportFetchAPI: false } }]);
 let controller: DemoController | CoreController | OfficialChatController | null = null;
-let closing = false;
+let closing = false;const copyProbe={writes:0,text:""};
 const cleanupProfiles = () => { if(!durableProfile)rmSync(profile, { recursive: true, force: true }); if (isolatedDirectory) rmSync(isolatedDirectory, { recursive: true, force: true }); };
 app.on("will-quit", cleanupProfiles);
 const startupTimeout = setTimeout(() => { console.error("Desktop startup timed out"); app.exit(1); }, 15000);
@@ -78,7 +80,7 @@ let launch = () => spawn(process.execPath, [join(directory, "peer.cjs")], {
   cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"],
 });
 if (offlineChat) launch = () => {
-  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
   if (historySmoke || persistencePhase) {
     const write = child.stdin.write.bind(child.stdin);
     child.stdin.write = ((data: string | Uint8Array, ...args: unknown[]) => { for (const line of String(data).trim().split("\n")) { if (offlineFrames.length >= 512) throw new Error("offline-frame-budget"); offlineFrames.push(JSON.parse(line)); } return Reflect.apply(write, child.stdin, [data, ...args]); }) as typeof child.stdin.write;
@@ -94,7 +96,7 @@ if (official && !offlineChat) {
   } catch (error) { const code = error instanceof Error && ["core-version-mismatch", "core-version-or-provenance-mismatch", "core-chatgpt-login-required"].includes(error.message) ? error.message : "core-preflight-failed"; launch = () => { throw new HostOperationError(code); }; }
 }
 const host = new StdioWorkbenchHost(launch, { requestTimeoutMs: chatMode ? 30000 : 5000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
-controller = chatMode ? new OfficialChatController(host.client(), chatCwd, offlineChat,15000,new SessionStore(join(stateRoot,"sessions.json"))) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
+controller = chatMode ? new OfficialChatController(host.client(), chatCwd, offlineChat,15000,new SessionStore(join(stateRoot,"sessions.json")),text=>{if(isSmoke){copyProbe.writes++;copyProbe.text=text;}else clipboard.writeText(text);}) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
 const window = new BrowserWindow({ width: 1536, height: 894, minWidth: 900, minHeight: 650,
   icon: applicationIcon,
   backgroundColor: "#181818", title: chatMode ? "Codex Workbench — " + (offlineChat ? "官方聊天协议离线验证" : "官方ChatGPT聊天") : official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
@@ -140,9 +142,13 @@ if (smokeIndex >= 0) {
   const output = process.argv[smokeIndex + 1];
   if (!output?.startsWith("/")) throw new Error("smoke-output-must-be-absolute");
   mkdirSync(output, { recursive: true });
-  const smokeTimeout = setTimeout(() => { console.error("Desktop smoke timed out"); void controller!.dispose().finally(() => app.exit(1)); }, 30000);
-  try { await (editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize())); console.log("Desktop smoke passed"); window.close(); }
-  catch (error) { console.error(error); await controller.dispose(); cleanupProfiles(); app.exit(1); }
-  finally { clearTimeout(smokeTimeout); }
+  const externalHost=copySmoke?new StdioWorkbenchHost(launch,{requestTimeoutMs:5000}):null;
+  const smokeTimeout = setTimeout(() => {console.error("Desktop smoke timed out");void Promise.allSettled([controller!.dispose(),externalHost?.dispose()]).finally(()=>app.exit(1));},30000);
+  let smokeFailure:unknown=null;
+  try {if(externalHost)await externalHost.start();await (copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
+  catch(error){smokeFailure=error;}
+  finally{clearTimeout(smokeTimeout);try{await externalHost?.dispose();}catch(error){smokeFailure??=error;}}
+  if(smokeFailure){console.error(smokeFailure);await controller.dispose();cleanupProfiles();app.exit(1);}else window.close();
+
 }
 }).catch(error => { clearTimeout(startupTimeout); console.error(error); cleanupProfiles(); app.exit(1); });

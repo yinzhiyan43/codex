@@ -31,7 +31,9 @@
     "management:core:check": "node scripts/session-management-core-check.mjs",
     "desktop:management:smoke": "npm run desktop:build && node scripts/session-management-ui-check.mjs",
     "editing:core:check": "node scripts/session-editing-core-check.mjs",
-    "desktop:editing:smoke": "npm run desktop:build && node scripts/session-editing-ui-check.mjs"
+    "desktop:editing:smoke": "npm run desktop:build && node scripts/session-editing-ui-check.mjs",
+    "concurrency:core:check": "node scripts/session-concurrency-core-check.mjs",
+    "desktop:copy:smoke": "npm run desktop:build && node scripts/session-copy-ui-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

@@ -24,6 +24,8 @@ for (const [id,title] of (["many-history","large-catalog","small-page-catalog","
 }
 if(mode==="large-section")sections.set("section-large",{id:"section-large",name:"Large synthetic section",appearance:null});
 if(statePath&&existsSync(statePath)){const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;sectionCount=v.sectionCount??0;sections=new Map((v.sections??[]).map(s=>[s.id,s]));threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));}
+const reloadShared=()=>{if(mode!=="shared-management"||!statePath||!existsSync(statePath))return;const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;sectionCount=v.sectionCount??0;sections=new Map((v.sections??[]).map(s=>[s.id,s]));threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));};
+if(mode==="shared-management"&&!existsSync(statePath))persist();
 function serverPage(values,cursor,prefix,limit=2) {
  const start=cursor===null||cursor===undefined?0:Number(String(cursor).slice(prefix.length));
  const end=Math.min(start+limit,values.length),data=values.slice(start,end);
@@ -31,6 +33,7 @@ function serverPage(values,cursor,prefix,limit=2) {
 }
 function finish(t,v,status) { if (v.status!=="inProgress") return; v.status=status; clearInterval(v.timer);persist(); notify("turn/completed",{threadId:t.id,turn:turn(v.id,v.items,status)}); }
 function handle(m) {
+  reloadShared();if(mode==="shared-management"&&m.method==="turn/start")return error(m.id,-32600);
   if(m.method==="initialize") return reply(m.id,{userAgent:"OFFLINE-chat-fixture",codexHome:"/synthetic/home",platformFamily:"unix",platformOs:"macos"});
   if(m.method==="initialized") return;
   if(m.method==="config/read") return reply(m.id,{config:{model_provider:mode==="unsafe-config"?"local":"openai",forced_login_method:"chatgpt",openai_base_url:"https://chatgpt.com/backend-api/codex",chatgpt_base_url:"https://chatgpt.com/backend-api/",notify:[],features:{background_paginated_rollout_migration:false,goals:mode==="unsafe-goals",daemon_auto_start:false,hooks:false,shell_tool:mode==="unsafe-tools",unified_exec:false,view_image:false,apps:false,plugins:false,code_mode:false,multi_agent:false,multi_agent_v2:mode==="unsafe-agents",image_generation:false,browser_use:false,browser_use_external:false,browser_use_full_cdp_access:false,computer_use:mode==="unsafe-computer"},agents:{enabled:mode==="unsafe-agents"},web_search:"disabled",mcp_servers:{disabled:{enabled:false}}},origins:{},layers:null});
@@ -74,7 +77,7 @@ function handle(m) {
     const page=serverPage(values,m.params.cursor,"turns:");
     if(m.params.cursor)page.data.unshift(values[1]);
     if(mode==="bad-history-cursor")page.nextCursor=m.params.cursor??"turns:0";
-    if((mode==="slow-history"&&t.id==="saved-z")||(mode==="slow-fork-open"&&t.parent))return setTimeout(()=>reply(m.id,page),400);
+    if(mode==="shared-management"||(mode==="slow-history"&&t.id==="saved-z")||(mode==="slow-fork-open"&&t.parent))return setTimeout(()=>reply(m.id,page),400);
     return reply(m.id,page);
   }
   if(m.method==="thread/items/list") return error(m.id,-32601);

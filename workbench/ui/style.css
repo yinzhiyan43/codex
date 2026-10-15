@@ -137,8 +137,10 @@ dialog p { line-height:1.55; overflow-wrap:anywhere; white-space:pre-wrap; max-h
 .session-menu .danger { color:#f69c9c; }
 #session-name { display:block; width:100%; margin-top:8px; padding:8px; }
 
-#section-dialog label{display:flex;flex-direction:column;gap:6px;margin:14px 0}#section-choice,#section-name,#section-order,#section-rename-name{font:inherit;background:#303030;color:inherit;padding:8px;border:1px solid #555;border-radius:6px}#cancel-management{position:absolute;top:120px;right:20px}#section-dialog{max-width:440px}
+#section-dialog label{display:flex;flex-direction:column;gap:6px;margin:14px 0}#section-choice,#section-name,#section-order,#section-rename-name{font:inherit;background:#303030;color:inherit;padding:8px;border:1px solid #555;border-radius:6px}#section-dialog{max-width:440px}
 
 .turn-fork{display:block;margin-top:8px;font-size:12px;color:var(--muted);padding:4px 8px}#section-dialog{max-height:85vh;overflow:auto}#section-dialog label{display:flex;flex-direction:column;gap:6px;margin:14px 0}#section-dialog select{max-width:100%}
 
 #section-dialog button:not(.dialog-actions button){padding:7px 10px;border:1px solid #4a4a4a;border-radius:7px;background:#333;text-align:left}#section-dialog button:disabled{opacity:.45}#section-dialog input,#section-dialog select{width:100%;min-width:0}#section-dialog form{display:flex;flex-direction:column}
+
+#management-status{display:flex;align-items:center;gap:12px;margin:8px 16px;flex-shrink:0}#copy-status{margin:0;color:var(--muted);font-size:12px;flex:1;line-height:1.5}#cancel-management{padding:7px 10px;border:1px solid #555;border-radius:7px;white-space:nowrap}

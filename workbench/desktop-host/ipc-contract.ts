@@ -1,12 +1,13 @@
 export type DesktopCommand =
-  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" | "browseHistory" | "returnToChat" | "refreshThreads" | "moreThreads" | "refreshHistory" | "toggleArchived" | "loadSections" }
+  | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" | "browseHistory" | "returnToChat" | "refreshThreads" | "moreThreads" | "refreshHistory" | "toggleArchived" }
   | { type: "selectModel"; model: string }
   | { type: "project" | "thread"; id: string }
   | { type: "draft"; routeId: string; text: string }
   | { type: "search"; text: string }
   | { type: "history"; threadId: string }
-  | { type: "continueSession" | "archiveSession" | "unarchiveSession" | "pinSession" | "unreadSession"; id: string }
+  | { type: "copySession" | "continueSession" | "archiveSession" | "unarchiveSession" | "pinSession" | "unreadSession"; id: string }
   | { type:"forkSession"; id:string; lastTurnId?:string }
+  | {type:"loadSections";id?:string}
   | { type:"loadSectionOrder"; sectionId:string }
   | { type:"renameSection"; sectionId:string; name:string }
   | { type:"renameProject"; id:string; name:string }
@@ -26,6 +27,7 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   const validId=(x:unknown)=>typeof x==="string"&&/^[a-z0-9-]{1,64}$/.test(x);
   const validName=(x:unknown)=>typeof x==="string"&&!!x.trim()&&x.length<=80&&!/[\x00-\x1f]/.test(x);
   if(v.type==="forkSession"&&["id,type","id,lastTurnId,type"].includes(keys)&&validId(v.id)&&(v.lastTurnId===undefined||validId(v.lastTurnId)))return v as DesktopCommand;
+  if(v.type==="loadSections"&&keys==="id,type"&&validId(v.id))return v as DesktopCommand;
   if(v.type==="loadSectionOrder"&&keys==="sectionId,type"&&validId(v.sectionId))return v as DesktopCommand;
   if(v.type==="renameSection"&&keys==="name,sectionId,type"&&validId(v.sectionId)&&validName(v.name))return v as DesktopCommand;
   if(v.type==="renameProject"&&keys==="id,name,type"&&validId(v.id)&&validName(v.name))return v as DesktopCommand;
@@ -33,7 +35,7 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   if(v.type==="createSection"&&keys==="name,type"&&typeof v.name==="string"&&v.name.trim().length>0&&v.name.length<=80&&!/[\x00-\x1f]/.test(v.name))return v as DesktopCommand;
   if(v.type==="assignSection"&&["id,sectionId,type","beforeThreadId,id,sectionId,type"].includes(keys)&&(v.beforeThreadId===undefined||validId(v.beforeThreadId)&&v.beforeThreadId!==v.id&&v.sectionId!==null)&&typeof v.id==="string"&&/^[a-z0-9-]{1,64}$/.test(v.id)&&(v.sectionId===null||typeof v.sectionId==="string"&&/^[a-z0-9-]{1,64}$/.test(v.sectionId)))return v as DesktopCommand;
   if (v.type === "renameSession" && keys === "id,name,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id) && typeof v.name === "string" && v.name.trim().length > 0 && v.name.length <= 100 && !/[\x00-\x1f]/.test(v.name)) return v as DesktopCommand;
-  if (["continueSession","forkSession","archiveSession","unarchiveSession","pinSession","unreadSession"].includes(v.type) && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
+  if (["copySession","continueSession","forkSession","archiveSession","unarchiveSession","pinSession","unreadSession"].includes(v.type) && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if ((v.type === "project" || v.type === "thread") && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if (v.type === "draft" && keys === "routeId,text,type" && typeof v.routeId === "string" && /^[a-z0-9-]{1,64}$/.test(v.routeId) && typeof v.text === "string" && v.text.length <= 4000 && !v.text.includes("\0")) return v as DesktopCommand;
   if (v.type === "search" && keys === "text,type" && typeof v.text === "string" && v.text.length <= 128 && !v.text.includes("\0")) return v as DesktopCommand;

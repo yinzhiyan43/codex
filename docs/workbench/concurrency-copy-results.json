@@ -1,0 +1,351 @@
+{
+  "milestone": "M2.f",
+  "date": "2026-10-15",
+  "baseCommit": "4bdf4b3f6385e813c0de20b56aff2df1b182eb57",
+  "trackedRemote": "b15bd57ee8ec5db4b93b36b42374bb2aa050c98b",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "core": {
+    "version": "0.162.1",
+    "commit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
+  },
+  "contracts": 51,
+  "offlineTests": 225,
+  "offlinePassed": 225,
+  "nativeSynthetic": {
+    "result": "passed",
+    "twoConcurrentClients": true,
+    "identity": {
+      "version": "0.162.1",
+      "target": "aarch64-apple-darwin",
+      "sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0"
+    },
+    "isolatedSyntheticData": true,
+    "networkDeniedByPolicy": true,
+    "modelRequests": 0,
+    "turnStartRequests": 0,
+    "processes": [
+      {
+        "phase": "client-A",
+        "exitCode": 0,
+        "signal": null
+      },
+      {
+        "phase": "client-A-reconnect",
+        "exitCode": 0,
+        "signal": null
+      },
+      {
+        "phase": "client-B",
+        "exitCode": 0,
+        "signal": null
+      }
+    ],
+    "methods": [
+      {
+        "phase": "client-A",
+        "method": "initialize"
+      },
+      {
+        "phase": "client-A",
+        "method": "initialized"
+      },
+      {
+        "phase": "client-A",
+        "method": "config/read"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/fork"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/fork"
+      },
+      {
+        "phase": "client-A",
+        "method": "threadSection/create"
+      },
+      {
+        "phase": "client-A",
+        "method": "threadSection/create"
+      },
+      {
+        "phase": "client-A",
+        "method": "threadSection/update"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/list"
+      },
+      {
+        "phase": "client-B",
+        "method": "initialize"
+      },
+      {
+        "phase": "client-B",
+        "method": "initialized"
+      },
+      {
+        "phase": "client-B",
+        "method": "config/read"
+      },
+      {
+        "phase": "client-B",
+        "method": "thread/list"
+      },
+      {
+        "phase": "client-B",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/list"
+      },
+      {
+        "phase": "client-B",
+        "method": "threadSection/update"
+      },
+      {
+        "phase": "client-A",
+        "method": "threadSection/list"
+      },
+      {
+        "phase": "client-B",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/read"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/list"
+      },
+      {
+        "phase": "client-B",
+        "method": "thread/name/set"
+      },
+      {
+        "phase": "client-A",
+        "method": "thread/read"
+      },
+      {
+        "phase": "client-B",
+        "method": "threadSection/update"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "initialize"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "initialized"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "config/read"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "threadSection/list"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "thread/read"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "thread/list"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "client-A-reconnect",
+        "method": "thread/turns/list"
+      }
+    ],
+    "sameStateAcrossClients": true,
+    "externalReorderObserved": true,
+    "externalRenameObserved": true,
+    "externalAppearancePreserved": true,
+    "externalMembershipObserved": true,
+    "externalThreadRenameObserved": true,
+    "otherClientSurvivesDisconnect": true,
+    "reconnectReadsExternalUpdates": true,
+    "completeSavedTextDoubleRead": true,
+    "sourceTurns": 3,
+    "sourceRolloutBytesUnchanged": true,
+    "cleanupConfirmed": true
+  },
+  "copyAndConflictUi": [
+    {
+      "result": "passed",
+      "phase": "write",
+      "runKind": "offline-two-client-copy-memory-clipboard",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "systemClipboardAccessed": false,
+      "checks": [
+        "offline-memory-clipboard-only",
+        "renderer-isolation",
+        "dismiss-no-copy",
+        "fixed-confirm-target",
+        "complete-three-turn-copy",
+        "double-confirm-one-write",
+        "no-draft-or-pagination-change",
+        "cancel-active-history-copy",
+        "external-rename-preserved-no-stale-write",
+        "external-reorder-preserved-no-stale-write",
+        "original-chat-draft-preserved",
+        "copy-status-visible-inside-viewport",
+        "no-model-share-delete-or-project-rpc",
+        "console-errors"
+      ],
+      "clipboardWrites": 1,
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "initialize",
+        "initialized",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/turns/list",
+        "thread/read",
+        "thread/read",
+        "thread/turns/list",
+        "threadSection/list",
+        "thread/read",
+        "threadSection/create",
+        "thread/read",
+        "thread/list",
+        "thread/section/move",
+        "thread/read",
+        "thread/list",
+        "threadSection/list",
+        "thread/read",
+        "thread/list",
+        "threadSection/update",
+        "threadSection/list",
+        "threadSection/list",
+        "thread/section/move",
+        "thread/section/move",
+        "threadSection/list",
+        "thread/read",
+        "thread/list",
+        "thread/list",
+        "thread/section/move",
+        "thread/read",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "consoleErrors": []
+    },
+    {
+      "result": "passed",
+      "phase": "restart",
+      "runKind": "offline-two-client-copy-memory-clipboard",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "systemClipboardAccessed": false,
+      "checks": [
+        "offline-memory-clipboard-only",
+        "renderer-isolation",
+        "restart-does-not-replay-clipboard",
+        "source-draft-restored",
+        "explicit-copy-after-restart",
+        "narrow-layout",
+        "copy-status-visible-inside-viewport",
+        "no-model-share-delete-or-project-rpc",
+        "console-errors"
+      ],
+      "clipboardWrites": 1,
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "initialize",
+        "initialized",
+        "thread/read",
+        "thread/turns/list",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/turns/list",
+        "thread/read"
+      ],
+      "consoleErrors": []
+    }
+  ],
+  "uiRegressions": {
+    "editing": [
+      14,
+      10
+    ],
+    "management": [
+      18,
+      13
+    ]
+  },
+  "independentReview": {
+    "model": "gpt-6-sol",
+    "effort": "xhigh",
+    "targetedTests": 25,
+    "passed": 25,
+    "remainingReproducibleP1P2": 0,
+    "fixes": [
+      "Old copy and fork cleanup is scoped to operation intent",
+      "Disconnect invalidates old operation state",
+      "Late section results cannot overwrite newer conflict notices or mirrors",
+      "Secondary smoke host startup is inside guaranteed cleanup"
+    ]
+  },
+  "sourceHistoryDraftsPreserved": true,
+  "realModelRequests": 0,
+  "systemClipboardAccessedByTests": false,
+  "newChangesPushed": false,
+  "limitations": [
+    "Official name/move APIs have no CAS or revision precondition",
+    "No server snapshot across history or section pages",
+    "An external change after the last validation and before the write cannot be atomically excluded",
+    "Two identical transcript reads validate observations, not an immutable snapshot",
+    "Production system clipboard adapter uses Electron writeText; tests use memory and do not inspect the real clipboard",
+    "Full copy aborts on missing text, active turns, unsupported history or 256 turns/64 pages/2 MiB limits",
+    "New windows, unknown reference copy submenus, attachments/tools and native accessibility remain unverified"
+  ]
+}

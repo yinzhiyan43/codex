@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { sessionGroups } from "../domain/session-groups.ts";
 import { SessionStore, type ManagedSession } from "./session-store.ts";
 import { FullTurnsWindow } from "../domain/full-turns-window.ts";
@@ -11,6 +12,8 @@ const historyNotice = "只显示当前临时会话；临时会话只核对元数
 type Phase = "disconnecting" | "connecting" | "idle" | "starting" | "running" | "cancelling" | "reading" | "restoring" | "managing" | "unknown";
 /** Durable official conversations; restart reads history and never replays model turns. */
 export class OfficialChatController {
+  #copying=false;#copyCancelled=false;#copyText:((text:string)=>void)|null;#copyStatus:NonNullable<DesktopView["copyStatus"]>={state:"idle",notice:""};
+  #sectionObservation:{id:string;sectionId:string|null;generation:number}|undefined;
   #sectionOrder:NonNullable<DesktopView["sectionOrder"]>|undefined;
   #forking=false; #forkCancelled=false; #sections: NonNullable<DesktopView["sessionSections"]>={status:"unknown",rows:[],notice:"官方分区尚未读取。",canCreate:false}; #sectionCreateBlockedGeneration:number|null=null;
   #store: SessionStore; #persistenceReady = false; #currentWindow: FullTurnsWindow | null = null; #resumeNeeded = false; #legacyId: string | null = null; #asyncReads = 0; #archiveBlockedId: string | null = null;
@@ -21,7 +24,8 @@ export class OfficialChatController {
   #turn: string | null = null; #cancelWanted = false; #interruptSent = false; #interruptAcknowledged = false; #guarded = false;
   #draft = ""; #pending: string | null = null; #submitted = ""; #error: string | null = null; #cached: DemoMessage[] = []; #cachedId: string | null = null;
   #prompts = new Map<string, string>(); #created = 0; #cancelTimer: ReturnType<typeof setTimeout> | null = null; #cancelTimeout: number;
-  constructor(client: WorkbenchClient, cwd: string, offline = false, cancelTimeoutMs = 15000, store = new SessionStore()) {
+  constructor(client: WorkbenchClient, cwd: string, offline = false, cancelTimeoutMs = 15000, store = new SessionStore(),copyText:((text:string)=>void)|null=null) {
+    this.#copyText=copyText;
     if (!Number.isSafeInteger(cancelTimeoutMs) || cancelTimeoutMs < 1 || cancelTimeoutMs > 60000) throw new Error("invalid-cancel-timeout"); this.#cancelTimeout = cancelTimeoutMs;
     this.#store = store; this.#client = client; this.#cwd = cwd; this.#offline = offline; this.#core = new CoreController(client, true);
     this.#browser = new HistoryBrowser(client); this.#browserUnsubscribe = this.#browser.subscribe(() => this.#publish());
@@ -53,6 +57,7 @@ export class OfficialChatController {
     const host = this.#client.getView();
     if (host.state !== "ready") {
       if(this.#sectionOrder)this.#sectionOrder.ready=false;
+      if(this.#copying){this.#copyCancelled=true;this.#copying=false;this.#copyStatus={state:"cancelled",notice:"连接已断开，复制停止；未写入剪贴板。"};}if(this.#forking){this.#forkCancelled=true;this.#forking=false;}
       if (["reading","restoring","managing"].includes(this.#phase)) this.#phase = "idle";
       this.#clearCancelTimer(); this.#guarded = false; this.#pending = null;
       if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#phase = "unknown"; this.#error = "连接已断开，执行结果未知；不会自动重发。重连先核对同一持久记录与上一轮状态。"; }
@@ -68,13 +73,13 @@ export class OfficialChatController {
   }
   snapshot(): DesktopView {
     const base = this.#core.snapshot(), messages = this.#messages(), saved = this.#browser.snapshot(),groups=sessionGroups(this.#store.snapshot().sessions);
-    if (this.#browsing) return { ...base, sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?saved.forkTurns:[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:"历史只读；选择继续聊后，下一次确认发送才恢复官方线程。", mode: "official-chat", version: this.#version,
-      chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", interruptAcknowledged: false, canRefresh: !!saved.selectedId && !saved.loading && base.connection === "ready", historyMode: true },
+    if (this.#browsing) return { ...base, copyAvailable:!!this.#copyText,copyStatus:{...this.#copyStatus},sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?saved.forkTurns:[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:"历史只读；选择继续聊后，下一次确认发送才恢复官方线程。", mode: "official-chat", version: this.#version,
+      chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled||this.#copying&&!this.#copyCancelled,managementAction:this.#copying?"copy":this.#forking?"fork":null, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", interruptAcknowledged: false, canRefresh: !!saved.selectedId && !saved.loading && base.connection === "ready", historyMode: true },
       historyBrowser: saved, projects: [{ id: "official-history", name: "只读历史会话", threads: saved.rows.map(row => ({ id: row.id, title: row.title })) },...(saved.managedRows.length?[{id:"registered-forks",name:"已登记分叉 · 本地索引",threads:saved.managedRows.map(row=>({id:row.id,title:row.title}))}]:[])], route: { projectId: "official-history", threadId: saved.selectedId }, title: saved.title,
       messages: saved.messages, draft: "", pending: null, running: false, loading: saved.loading || base.loading || this.#asyncReads>0 || this.#phase==="managing",
       error: this.#error ?? base.error, history: { turnCount: saved.turnCount, itemCount: saved.messages.length, hasMore: saved.moreTurns, busy: saved.loading, loading: saved.loading, stale: saved.stale, notice: saved.notice } };
-    return { ...base, sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?(this.#currentWindow?.snapshot().forkTurns??[]):[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:this.#legacyId ? "此前临时会话仅有观察缓存，不能恢复原上下文；发送会创建新的持久会话。" : "新会话默认由官方核心持久保存；重启保留记录与草稿，下一次确认发送才恢复线程。", mode: "official-chat", version: this.#version,
-      chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", persistent:!this.#legacyId, resumePending:this.#resumeNeeded, interruptAcknowledged: this.#interruptAcknowledged, canRefresh: !!this.#thread && this.#generation === this.#client.getView().generation && this.#phase === "idle" && base.connection === "ready" },
+    return { ...base, copyAvailable:!!this.#copyText,copyStatus:{...this.#copyStatus},sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?(this.#currentWindow?.snapshot().forkTurns??[]):[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:this.#legacyId ? "此前临时会话仅有观察缓存，不能恢复原上下文；发送会创建新的持久会话。" : "新会话默认由官方核心持久保存；重启保留记录与草稿，下一次确认发送才恢复线程。", mode: "official-chat", version: this.#version,
+      chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled||this.#copying&&!this.#copyCancelled,managementAction:this.#copying?"copy":this.#forking?"fork":null, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", persistent:!this.#legacyId, resumePending:this.#resumeNeeded, interruptAcknowledged: this.#interruptAcknowledged, canRefresh: !!this.#thread && this.#generation === this.#client.getView().generation && this.#phase === "idle" && base.connection === "ready" },
       projects: groups,
       route: { projectId: groups.find(group=>group.threads.some(row=>row.id===(this.#thread??this.#legacyId)))?.id??"official-chat", threadId: this.#thread ?? this.#legacyId }, title: this.#store.find(this.#thread??this.#legacyId??"")?.title ?? "官方持久会话", messages,
       draft: this.#draft, pending: this.#pending, running: ["starting", "running", "cancelling"].includes(this.#phase),
@@ -177,17 +182,20 @@ export class OfficialChatController {
     if(!this.#known(command.id)||this.#phase!=="idle"||this.#pending||this.#browser.snapshot().inflight||this.#asyncReads>0)throw new Error("session-management-unavailable");
     const existing=this.#store.find(command.id);if(existing?.archiveUncertain&&!["unarchiveSession","pinSession","unreadSession"].includes(command.type))throw new Error("archive-outcome-unresolved");const catalogTitle=this.#browser.snapshot().rows.find(row=>row.id===command.id)?.title;if(command.type==="renameSession"&&(existing?.archived||(this.#browser.snapshot().archived&&this.#browser.snapshot().rows.some(row=>row.id===command.id))))throw new Error("restore-before-rename");if(command.type==="pinSession"||command.type==="unreadSession"){await this.#mutate(()=>{const latest=this.#store.find(command.id);this.#store.upsert(command.id,{title:latest?.title??catalogTitle??"持久会话",[command.type==="pinSession"?"pinned":"unread"]:!(command.type==="pinSession"?latest?.pinned:latest?.unread)});});return;}
     if(this.#client.getView().state!=="ready"||!this.#guarded||existing?.ephemeral)throw new Error("official-management-unavailable");
-    const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
+    const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();let requested=false;
     try{
-      if(command.type!=="unarchiveSession"){const meta=await this.#client.readThreadMetadata({threadId:command.id});if(!this.#current(intent,generation))return;if(meta.thread.ephemeral||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("active-session-management-refused");}
+      if(command.type!=="unarchiveSession"){const meta=await this.#client.readThreadMetadata({threadId:command.id});if(!this.#current(intent,generation))return;if(meta.thread.ephemeral||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("active-session-management-refused");
+        if(command.type==="renameSession"){const title=(meta.thread.name||meta.thread.preview||"持久会话").replace(/\s+/g," ").slice(0,100),observed=existing?.title??catalogTitle;if(observed!==undefined&&meta.thread.name!==null&&title!==observed)throw new Error("thread-name-conflict");}}
+      requested=true;
       if(command.type==="renameSession")await this.#client.renameThread({threadId:command.id,name:command.name!.trim()});
       else if(command.type==="archiveSession")await this.#client.archiveThread({threadId:command.id});
       else await this.#client.unarchiveThread({threadId:command.id});
       if(!this.#current(intent,generation))return;
-      await this.#mutate(()=>{if(command.type==="renameSession")this.#store.upsert(command.id,{title:command.name!.trim()});else this.#store.upsert(command.id,{title:existing?.title??catalogTitle??"持久会话",archived:command.type==="archiveSession",archiveUncertain:false});});if(this.#archiveBlockedId===command.id)this.#archiveBlockedId=null;
+      if(command.type==="renameSession"){const verified=await this.#client.readThreadMetadata({threadId:command.id});if(!this.#current(intent,generation))return;if(verified.thread.name!==command.name!.trim())throw new Error("thread-name-conflict");}
+      await this.#mutate(()=>{if(!this.#current(intent,generation))return;if(command.type==="renameSession")this.#store.upsert(command.id,{title:command.name!.trim()});else this.#store.upsert(command.id,{title:existing?.title??catalogTitle??"持久会话",archived:command.type==="archiveSession",archiveUncertain:false});});if(!this.#current(intent,generation))return;if(this.#archiveBlockedId===command.id)this.#archiveBlockedId=null;
       if(command.type==="archiveSession"&&this.#thread===command.id){this.#thread=null;this.#currentWindow=null;this.#resumeNeeded=false;this.#cached=[];this.#draft="";await this.#mutate(()=>this.#store.select(null));}
       await this.#flushStore();if(this.#browsing){if(command.type==="renameSession")await this.#browser.list(true);else await this.#browser.setArchived(this.#browser.snapshot().archived);await this.#rememberRows();}
-    }catch{if(!this.#disposed&&intent===this.#intent){if(command.type==="archiveSession"){if(this.#thread===command.id)this.#archiveBlockedId=command.id;try{await this.#mutate(()=>this.#store.upsert(command.id,{archiveUncertain:true}),true);}catch{}}this.#error="会话操作未确认；不会自动重试，请刷新列表核对。";}}
+    }catch{if(!this.#disposed&&intent===this.#intent){if(command.type==="archiveSession"){if(this.#thread===command.id)this.#archiveBlockedId=command.id;try{await this.#mutate(()=>this.#store.upsert(command.id,{archiveUncertain:true}),true);}catch{}}this.#error=command.type==="renameSession"&&!requested?"会话名称已变化或无法核对，未发送重命名；请刷新后重新选择。":"会话操作未确认；不会自动重试，请刷新列表核对。";}}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
   #managementAvailable(id?:string):void {
@@ -223,7 +231,29 @@ export class OfficialChatController {
       this.#phase="idle";await this.#activateSaved(childId,true,()=>this.#forkCancelled,()=>{this.#forking=false;this.#publish();});
     }catch(error){
       if(this.#current(intent,generation)){this.#error=requested&&!acknowledged?"分叉结果未知，已保留源会话；禁止自动重试，请重连核对记录。":acknowledged?"分叉已返回，但登记或打开未完成；原会话保留，请重连核对，勿重复分叉。":"分叉未创建，源会话和草稿保留。";}
-    }finally{this.#forking=false;this.#forkCancelled=false;if(intent===this.#intent)this.#phase="idle";this.#publish();}
+    }finally{if(intent===this.#intent){this.#forking=false;this.#forkCancelled=false;this.#phase="idle";}this.#publish();}
+  }
+  async #collectSavedText(id:string,current:()=>boolean):Promise<{text:string;fingerprint:string}|undefined>{
+    const window=new FullTurnsWindow(id);let complete=false;
+    for(let n=0;n<64;n++){
+      const cursor=window.cursor(),page=await this.#client.listTurns({threadId:id,cursor,limit:20,sortDirection:"desc",itemsView:"full"});if(!current())return;
+      if(page.data.some(turn=>turn.status==="inProgress"))throw new Error("copy-source-in-progress");window.commit(page,cursor);
+      if(page.nextCursor===null){complete=true;break;}if(window.limited())throw new Error("copy-display-limit");
+    }
+    if(!complete||!current())throw new Error("copy-incomplete");const saved=window.snapshot();
+    const text=saved.messages.map(message=>(message.role==="user"?"用户":"助手")+":\n"+message.text).join("\n\n");if(!text||Buffer.byteLength(text)>2*1024*1024)throw new Error("copy-text-limit");
+    return {text,fingerprint:createHash("sha256").update(JSON.stringify({ids:saved.turnIds,messages:saved.messages})).digest("hex")};
+  }
+  async #copySession(id:string):Promise<void>{
+    this.#managementAvailable(id);if(!this.#copyText||this.#store.find(id)?.ephemeral)throw new Error("copy-unavailable");
+    let writing=false;const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#copying=true;this.#copyCancelled=false;this.#error=null;this.#copyStatus={state:"reading",notice:"正在完整读取已保存文字；完成前不会写入剪贴板。"};this.#publish();
+    const current=()=>this.#current(intent,generation)&&!this.#copyCancelled;
+    const inspect=async()=>{const result=await this.#client.readThreadMetadata({threadId:id});if(!current())return false;if(result.thread.ephemeral||result.thread.modelProvider!=="openai"||!["idle","notLoaded"].includes(result.thread.status.type))throw new Error("copy-source-unavailable");return true;};
+    try{if(!await inspect())return;const first=await this.#collectSavedText(id,current);if(!first||!current()||!await inspect())return;
+      const verified=await this.#collectSavedText(id,current);if(!verified||!current()||!await inspect())return;if(first.fingerprint!==verified.fingerprint)throw new Error("copy-source-changed");
+      if(!current())return;this.#copying=false;writing=true;this.#copyText(verified.text);this.#copyStatus={state:"copied",notice:"已复制完整读取并复核的保存文字；附件和工具内容未展开，未发送草稿不在其中。"};
+    }catch{if(this.#current(intent,generation)&&!this.#copyCancelled)this.#copyStatus={state:"failed",notice:writing?"剪贴板写入未确认，请检查系统剪贴板；没有自动重试。":"复制未完成：记录变化、读取失败或超过文字上限；未写入剪贴板，可刷新后重试。"};}
+    finally{if(intent===this.#intent){if(this.#copyStatus.state==="reading")this.#copyStatus={state:"cancelled",notice:"复制已停止，未写入剪贴板。"};this.#copying=false;this.#copyCancelled=false;this.#phase="idle";}this.#publish();}
   }
   async #assignProject(id:string,name:string):Promise<void>{
     this.#managementAvailable(id);const intent=++this.#intent;this.#phase="managing";this.#publish();
@@ -241,36 +271,48 @@ export class OfficialChatController {
   async #renameSection(sectionId:string,name:string):Promise<void>{
     this.#managementAvailable();if(this.#sections.status!=="ready"||!this.#sections.rows.some(row=>row.id===sectionId))throw new Error("sections-unavailable");
     const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
-    try{const result=await this.#client.updateSection({sectionId,name:name.trim()});if(!this.#current(intent,generation))return;
-      await this.#mutate(()=>{for(const row of this.#store.snapshot().sessions)if(row.sectionId===sectionId)this.#store.upsert(row.id,{sectionName:result.section.name});});
-      this.#sections.rows=this.#sections.rows.map(row=>row.id===sectionId?{id:sectionId,name:result.section.name}:row);this.#error=null;
+    const expected=this.#sections.rows.find(row=>row.id===sectionId)!.name;
+    try{const before=await this.#fetchSections(intent,generation);if(!before||!this.#current(intent,generation))return;if(before.find(row=>row.id===sectionId)?.name!==expected)throw new Error("section-name-conflict");
+      const result=await this.#client.updateSection({sectionId,name:name.trim()});if(!this.#current(intent,generation))return;
+      const after=await this.#fetchSections(intent,generation);if(!after||!this.#current(intent,generation))return;if(after.find(row=>row.id===sectionId)?.name!==name.trim())throw new Error("section-name-conflict");
+      await this.#mutate(()=>{if(!this.#current(intent,generation))return;for(const row of this.#store.snapshot().sessions)if(row.sectionId===sectionId)this.#store.upsert(row.id,{sectionName:result.section.name});});
+      if(!this.#current(intent,generation))return;this.#sections.rows=this.#sections.rows.map(row=>row.id===sectionId?{id:sectionId,name:result.section.name}:row);this.#error=null;
     }catch{if(this.#current(intent,generation)){this.#sections.status="error";this.#error="分区重命名未确认；请刷新官方分区核对，不会自动重试。";}}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
-  async #readSectionOrder(sectionId:string,intent:number,generation:number,target?:{id:string;title:string;beforeThreadId?:string}):Promise<void>{
-    this.#sectionOrder={sectionId,rows:[],ready:false};const rows=new Map<string,{id:string;title:string}>(),seen=new Set<string>();let cursor:string|null=null;
+  async #fetchSectionOrder(sectionId:string,intent:number,generation:number):Promise<{id:string;title:string}[]|undefined>{
+    const rows=new Map<string,{id:string;title:string}>(),seen=new Set<string>();let cursor:string|null=null;
     for(let page=0;page<16;page++){
       const response=await this.#client.listThreads({sectionId,cursor,limit:20,archived:false,sortKey:"section_position",sortDirection:"asc",sourceKinds:["cli","vscode","exec","appServer","subAgent","subAgentReview","subAgentCompact","subAgentThreadSpawn","subAgentOther","unknown"]});if(!this.#current(intent,generation))return;
       for(const row of response.data){if(rows.has(row.id))throw new Error("section-order-duplicate");if(row.ephemeral||row.section?.id!==sectionId||!/^[a-z0-9-]{1,64}$/.test(row.id))throw new Error("section-list-mismatch");rows.set(row.id,{id:row.id,title:(row.name||row.preview||"持久会话").replace(/[\x00-\x1f]/g," ").slice(0,100)});}
-      if(rows.size>200)throw new Error("section-list-capacity");
-      if(response.nextCursor===null){const ordered=[...rows.values()];
-        if(target){const position=ordered.findIndex(row=>row.id===target.id),anchor=target.beforeThreadId?ordered.findIndex(row=>row.id===target.beforeThreadId):ordered.length;if(position<0||(target.beforeThreadId?position+1!==anchor:position!==ordered.length-1))throw new Error("section-order-changed");}
-        await this.#mutate(()=>{if(target)this.#store.upsert(target.id,{title:target.title});for(const [position,row] of ordered.entries())if(this.#store.find(row.id))this.#store.upsert(row.id,{sectionId,sectionName:this.#sections.rows.find(section=>section.id===sectionId)?.name??null,sectionPosition:position});});if(this.#current(intent,generation))this.#sectionOrder={sectionId,rows:ordered,ready:true};return;}
-      if(rows.size>=200)throw new Error("section-list-capacity");
-      if(seen.has(response.nextCursor)||response.nextCursor===cursor)throw new Error("section-cursor-loop");seen.add(response.nextCursor);cursor=response.nextCursor;
+      if(rows.size>200)throw new Error("section-list-capacity");if(response.nextCursor===null)return [...rows.values()];
+      if(rows.size>=200)throw new Error("section-list-capacity");if(seen.has(response.nextCursor)||response.nextCursor===cursor)throw new Error("section-cursor-loop");seen.add(response.nextCursor);cursor=response.nextCursor;
     }throw new Error("section-list-capacity");
+  }
+  async #readSectionOrder(sectionId:string,intent:number,generation:number,target?:{id:string;title:string;beforeThreadId?:string;priorIds?:string[]}):Promise<void>{
+    this.#sectionOrder={sectionId,rows:[],ready:false};const ordered=await this.#fetchSectionOrder(sectionId,intent,generation);if(!ordered||!this.#current(intent,generation))return;
+    if(target){const position=ordered.findIndex(row=>row.id===target.id),anchor=target.beforeThreadId?ordered.findIndex(row=>row.id===target.beforeThreadId):ordered.length;
+      if(position<0||(target.beforeThreadId?position+1!==anchor:position!==ordered.length-1)||target.priorIds&&JSON.stringify(ordered.filter(row=>row.id!==target.id).map(row=>row.id))!==JSON.stringify(target.priorIds.filter(id=>id!==target.id)))throw new Error("section-order-conflict");}
+    await this.#mutate(()=>{if(!this.#current(intent,generation))return;if(target)this.#store.upsert(target.id,{title:target.title});for(const [position,row] of ordered.entries())if(this.#store.find(row.id))this.#store.upsert(row.id,{sectionId,sectionName:this.#sections.rows.find(section=>section.id===sectionId)?.name??null,sectionPosition:position});});if(this.#current(intent,generation))this.#sectionOrder={sectionId,rows:ordered,ready:true};
+  }
+  async #fetchSections(intent:number,generation:number):Promise<{id:string;name:string}[]|undefined>{
+    const rows=new Map<string,{id:string;name:string}>(),seen=new Set<string>();let cursor:string|null=null;
+    for(let page=0;page<4;page++){const response=await this.#client.listSections({cursor,limit:20});if(!this.#current(intent,generation))return;
+      for(const row of response.data){if(rows.has(row.id))throw new Error("section-list-duplicate");rows.set(row.id,{id:row.id,name:row.name.replace(/[\x00-\x1f]/g," ")});}if(rows.size>64)throw new Error("section-capacity");if(response.nextCursor===null)return [...rows.values()];if(rows.size>=64||seen.has(response.nextCursor)||response.nextCursor===cursor)throw new Error("section-page-conflict");seen.add(response.nextCursor);cursor=response.nextCursor;
+    }throw new Error("section-page-capacity");
   }
   async #loadSectionOrder(sectionId:string):Promise<void>{
     this.#managementAvailable();if(this.#sections.status!=="ready"||!this.#sections.rows.some(row=>row.id===sectionId))throw new Error("sections-unavailable");
     const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
-    try{await this.#readSectionOrder(sectionId,intent,generation);this.#error=null;}catch{if(this.#current(intent,generation))this.#error="分区顺序读取未完成，暂停指定位置移动；请刷新后核对。";}
+    try{await this.#readSectionOrder(sectionId,intent,generation);if(this.#current(intent,generation))this.#error=null;}catch{if(this.#current(intent,generation))this.#error="分区顺序读取未完成，暂停指定位置移动；请刷新后核对。";}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
-  async #loadSections():Promise<void>{
-    this.#managementAvailable();const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
-    try{const rows=new Map<string,{id:string;name:string}>(),seen=new Set<string>();let cursor:string|null=null;
-      for(let page=0;page<4;page++){const response=await this.#client.listSections({cursor,limit:20});if(!this.#current(intent,generation))return;for(const row of response.data)rows.set(row.id,{id:row.id,name:row.name.replace(/[\x00-\x1f]/g," ")});if(rows.size>64)throw new Error("section-capacity");if(response.nextCursor===null){await this.#mutate(()=>{for(const row of this.#store.snapshot().sessions){const name=rows.get(row.sectionId??"")?.name;if(name!==undefined)this.#store.upsert(row.id,{sectionName:name});}});if(!this.#current(intent,generation))return;this.#sections={status:"ready",rows:[...rows.values()],notice:"分区由官方核心保存；本地项目标签不改变执行目录。",canCreate:this.#sectionCreateBlockedGeneration!==generation};return;}if(seen.has(response.nextCursor))throw new Error("section-cursor-loop");seen.add(response.nextCursor);cursor=response.nextCursor;}
-      throw new Error("section-page-capacity");
+  async #loadSections(id?:string):Promise<void>{
+    this.#managementAvailable(id);const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
+    try{const rows=await this.#fetchSections(intent,generation);if(!rows||!this.#current(intent,generation))return;
+      if(id){const metadata=await this.#client.readThreadMetadata({threadId:id});if(!this.#current(intent,generation))return;if(metadata.thread.ephemeral)throw new Error("persistent-source-required");this.#sectionObservation={id,sectionId:metadata.thread.section?.id??null,generation};}
+      await this.#mutate(()=>{if(!this.#current(intent,generation))return;for(const row of this.#store.snapshot().sessions){const name=rows.find(section=>section.id===row.sectionId)?.name;if(name!==undefined)this.#store.upsert(row.id,{sectionName:name});}});if(!this.#current(intent,generation))return;this.#sections={status:"ready",rows,notice:"分区由官方核心保存；检测到外部变更时请刷新后重新选择。",canCreate:this.#sectionCreateBlockedGeneration!==generation,...(id?{targetId:id,currentSectionId:this.#sectionObservation!.sectionId}:{})};
+
     }catch(error){if(this.#current(intent,generation))this.#sections={...this.#sections,status:error instanceof HostOperationError&&error.code==="rpc-error:-32601"?"unsupported":"error",notice:"官方分区读取未完成或当前存储不支持，保留原归属；未切换到伪造接口。",canCreate:false};}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
@@ -285,29 +327,36 @@ export class OfficialChatController {
     this.#managementAvailable(id);const record=this.#store.find(id),section=this.#sections.rows.find(row=>row.id===sectionId);
     if(this.#sections.status!=="ready"||(sectionId!==null&&!section)||record?.ephemeral||record?.archived||record?.archiveUncertain||(this.#browsing&&this.#browser.snapshot().archived))throw new Error("section-target-unavailable");
     if(beforeThreadId&&(!this.#sectionOrder?.ready||this.#sectionOrder.sectionId!==sectionId||!this.#sectionOrder.rows.some(row=>row.id===beforeThreadId)||beforeThreadId===id))throw new Error("section-anchor-unavailable");
-    const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
+    const observed=this.#sectionObservation?.id===id&&this.#sectionObservation.generation===this.#client.getView().generation?this.#sectionObservation.sectionId:record?.sectionId;
+    const expectedOrder=this.#sectionOrder?.ready&&this.#sectionOrder.sectionId===sectionId?this.#sectionOrder.rows.map(row=>row.id):undefined;
+    const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();let requested=false;
     try{const meta=await this.#client.readThreadMetadata({threadId:id});if(!this.#current(intent,generation))return;if(meta.thread.ephemeral||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("active-session-management-refused");
-      if(this.#sectionOrder)this.#sectionOrder.ready=false;await this.#client.moveToSection({threadId:id,sectionId,...(beforeThreadId?{beforeThreadId}:{})});if(!this.#current(intent,generation))return;
+      if(observed!==undefined&&(meta.thread.section?.id??null)!==observed)throw new Error("section-membership-conflict");
+      const prior=sectionId?await this.#fetchSectionOrder(sectionId,intent,generation):[];if(!prior||!this.#current(intent,generation))return;
+      if(expectedOrder&&JSON.stringify(prior.map(row=>row.id))!==JSON.stringify(expectedOrder))throw new Error("section-order-conflict");
+      if(beforeThreadId&&!prior.some(row=>row.id===beforeThreadId))throw new Error("section-anchor-conflict");
+      if(this.#sectionOrder)this.#sectionOrder.ready=false;requested=true;await this.#client.moveToSection({threadId:id,sectionId,...(beforeThreadId?{beforeThreadId}:{})});if(!this.#current(intent,generation))return;
       const verified=await this.#client.readThreadMetadata({threadId:id});if(!this.#current(intent,generation))return;if((verified.thread.section?.id??null)!==sectionId)throw new Error("section-move-not-verified");
       const title=(record?.title??meta.thread.name??meta.thread.preview??"持久会话").slice(0,100);
-      if(sectionId){await this.#readSectionOrder(sectionId,intent,generation,{id,title,beforeThreadId});if(!this.#current(intent,generation))return;}
-      else{await this.#mutate(()=>this.#store.upsert(id,{title,sectionId:null,sectionName:null,sectionPosition:undefined}));this.#sectionOrder=undefined;}this.#error=null;
-    }catch{if(this.#current(intent,generation))this.#error="分区移动未确认，保留本地原归属；官方结果可能已改变，请重连或重新打开记录核对。";}
+      if(sectionId){await this.#readSectionOrder(sectionId,intent,generation,{id,title,beforeThreadId,priorIds:prior.map(row=>row.id)});if(!this.#current(intent,generation))return;}
+      else{await this.#mutate(()=>{if(this.#current(intent,generation))this.#store.upsert(id,{title,sectionId:null,sectionName:null,sectionPosition:undefined});});if(!this.#current(intent,generation))return;this.#sectionOrder=undefined;}if(this.#sectionObservation?.id===id)this.#sectionObservation={id,sectionId,generation};this.#error=null;
+    }catch{if(this.#current(intent,generation)){if(this.#sectionOrder)this.#sectionOrder.ready=false;this.#error=requested?"分区移动未确认，保留本地原归属；官方结果可能已改变，请刷新核对。":"检测到外部更改或无法核对当前分区，未发送移动；请刷新分区和顺序后重新选择。";}}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
   async dispatch(value: unknown): Promise<DesktopView> {
     if (this.#disposed) throw new Error("controller-unavailable"); const command = validateDesktopCommand(value);
     if(this.#phase==="managing"&&["thread","browseHistory","returnToChat","toggleArchived","refreshThreads","moreThreads","refreshHistory","history"].includes(command.type))throw new Error("session-management-busy");
-    if (this.#browsing && ["draft", "submit", "confirm", "selectModel", ...(!this.#forking?["cancel"]:[])].includes(command.type)) throw new Error("saved-history-read-only");
+    if (this.#browsing && ["draft", "submit", "confirm", "selectModel", ...(!this.#forking&&!this.#copying?["cancel"]:[])].includes(command.type)) throw new Error("saved-history-read-only");
     switch (command.type) {
       case "continueSession": if(this.#browsing && this.#browser.snapshot().archived)throw new Error("archived-session-read-only"); await this.#activateSaved(command.id); break;
       case "pinSession": case "unreadSession": case "renameSession": case "archiveSession": case "unarchiveSession": await this.#manage(command); break;
+      case "copySession": await this.#copySession(command.id);break;
       case "forkSession": await this.#fork(command.id,command.lastTurnId); break;
       case "renameProject": await this.#renameProject(command.id,command.name);break;
       case "renameSection": await this.#renameSection(command.sectionId,command.name);break;
       case "loadSectionOrder": await this.#loadSectionOrder(command.sectionId);break;
       case "assignProject": await this.#assignProject(command.id,command.name); break;
-      case "loadSections": await this.#loadSections();break;
+      case "loadSections": await this.#loadSections(command.id);break;
       case "createSection": await this.#createSection(command.name);break;
       case "assignSection": await this.#assignSection(command.id,command.sectionId,command.beforeThreadId);break;
       case "toggleArchived": if(!this.#browsing)throw new Error("history-view-required"); await this.#browser.setArchived(!this.#browser.snapshot().archived); await this.#rememberRows(); break;
@@ -340,7 +389,7 @@ export class OfficialChatController {
       case "selectModel": if (this.#phase !== "idle" || this.#pending || !this.#core.snapshot().coreStatus?.models.includes(command.model)) throw new Error("model-unavailable"); this.#model = command.model; await this.#save(); break;
       case "submit": if (!this.#archiveBlockedId && !this.#browser.snapshot().inflight && this.#asyncReads===0 && this.#phase === "idle" && !this.#pending && this.#guarded && this.#model && this.#client.getView().state === "ready" && this.#draft.trim()) this.#pending = this.#draft.trim(); break;
       case "confirm": await this.#confirm(); break;
-      case "cancel": if(this.#forking){this.#forkCancelled=true;this.#error="已取消自动打开；已发送的官方分叉仍可能完成，将登记返回ID，不会重复请求。";break;} if (this.#pending) this.#pending = null; else if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#cancelWanted = true; await this.#interrupt(); } break;
+      case "cancel": if(this.#copying){this.#copyCancelled=true;this.#copyStatus={state:"cancelled",notice:"复制已取消，未写入剪贴板。"};break;} if(this.#forking){this.#forkCancelled=true;this.#error="已取消自动打开；已发送的官方分叉仍可能完成，将登记返回ID，不会重复请求。";break;} if (this.#pending) this.#pending = null; else if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#cancelWanted = true; await this.#interrupt(); } break;
       case "new": if (!["idle", "unknown"].includes(this.#phase)) throw new Error("chat-busy"); await this.#save(); this.#archiveBlockedId=null; this.#legacyId=null;this.#currentWindow=null;this.#resumeNeeded=false; this.#browser.cancel(); this.#browsing = false; this.#intent++; this.#thread = null; this.#turn = null; this.#cached = []; this.#prompts.clear(); this.#draft = ""; this.#pending = null; this.#error = null; if (this.#guarded) this.#phase = "idle"; await this.#save(); break;
       case "thread": if (this.#browsing) await this.#browser.select(command.id, true); else if (command.id !== (this.#thread??this.#legacyId)) await this.#activateSaved(command.id); break;
       case "history": {
