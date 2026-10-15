@@ -5,5 +5,7 @@ export function sessionGroups(records:ManagedSession[]){
   if(row.archived)continue;let group=groups[0]!;
   if(row.localProject||row.sectionId){const key=JSON.stringify([row.localProject??null,row.sectionId??null]);let owned=byName.get(key);if(!owned){owned={id:"group-"+groups.length,name:(row.localProject?"本地项目："+row.localProject:"未分配项目")+(row.sectionId?" · 官方分区："+(row.sectionName??row.sectionId):""),threads:[]};groups.push(owned);byName.set(key,owned);}group=owned;}
   group.threads.push({id:row.id,title:(row.pinned?"📌 ":"")+(row.unread?"● ":"")+(row.forkedFromId?"⑂ ":"")+row.title});
- }return groups;
+ }
+ const byId=new Map(records.map(row=>[row.id,row]));for(const group of groups)group.threads.sort((a,b)=>{const x=byId.get(a.id)!,y=byId.get(b.id)!;return Number(y.pinned)-Number(x.pinned)||(x.sectionId&&x.sectionId===y.sectionId?(x.sectionPosition??200)-(y.sectionPosition??200):0);});
+ return groups;
 }

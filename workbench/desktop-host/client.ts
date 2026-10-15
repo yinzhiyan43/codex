@@ -1,4 +1,4 @@
-import type { ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "../protocol-adapter/contracts.ts";
+import type { ThreadSectionUpdateParams, ThreadSectionUpdateResponse, ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
@@ -29,6 +29,7 @@ export interface WorkbenchClient {
   getView(): HostView;
   takeDiagnostics(): HostDiagnostic[];
   subscribe(listener: () => void): () => void;
+  updateSection(params: ThreadSectionUpdateParams): Promise<ThreadSectionUpdateResponse>;
   listSections(params: ThreadSectionListParams): Promise<ThreadSectionListResponse>;
   createSection(params: ThreadSectionCreateParams): Promise<ThreadSectionCreateResponse>;
   moveToSection(params: ThreadSectionMoveParams): Promise<ThreadSectionMoveResponse>;

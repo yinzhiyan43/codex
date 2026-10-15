@@ -1,0 +1,280 @@
+{
+  "milestone": "M2.e",
+  "date": "2026-10-15",
+  "publicBaseCommit": "b15bd57ee8ec5db4b93b36b42374bb2aa050c98b",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "core": {
+    "version": "0.162.1",
+    "commit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
+  },
+  "uiReference": {
+    "version": "26.1007.30912",
+    "build": "20156"
+  },
+  "contracts": 51,
+  "offlineTests": 211,
+  "offlinePassed": 211,
+  "nativeSynthetic": {
+    "result": "passed",
+    "identity": {
+      "version": "0.162.1",
+      "target": "aarch64-apple-darwin",
+      "sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0"
+    },
+    "isolatedSyntheticData": true,
+    "networkDeniedByPolicy": true,
+    "modelRequests": 0,
+    "turnStartRequests": 0,
+    "processes": [
+      {
+        "phase": "write",
+        "exitCode": 0,
+        "signal": null
+      },
+      {
+        "phase": "restart",
+        "exitCode": 0,
+        "signal": null
+      }
+    ],
+    "methods": [
+      {
+        "phase": "write",
+        "method": "initialize"
+      },
+      {
+        "phase": "write",
+        "method": "initialized"
+      },
+      {
+        "phase": "write",
+        "method": "config/read"
+      },
+      {
+        "phase": "write",
+        "method": "thread/fork"
+      },
+      {
+        "phase": "write",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "write",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "write",
+        "method": "thread/fork"
+      },
+      {
+        "phase": "write",
+        "method": "threadSection/create"
+      },
+      {
+        "phase": "write",
+        "method": "threadSection/update"
+      },
+      {
+        "phase": "write",
+        "method": "threadSection/update"
+      },
+      {
+        "phase": "write",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "write",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "write",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "write",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "initialize"
+      },
+      {
+        "phase": "restart",
+        "method": "initialized"
+      },
+      {
+        "phase": "restart",
+        "method": "config/read"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "restart",
+        "method": "threadSection/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      }
+    ],
+    "forkId": "01a13e4a-1fca-7571-bfc9-bcda6bf83ef0",
+    "inheritedTurns": 2,
+    "selectedTurnIncluded": true,
+    "laterTurnExcluded": true,
+    "secondId": "01a13e4a-1ffd-7a41-ad41-1f372bfb023c",
+    "renamePreservesAppearance": true,
+    "beforeThreadOrderVerified": true,
+    "forkBoundarySurvivesRestart": true,
+    "sectionRenameSurvivesRestart": true,
+    "sectionOrderSurvivesRestart": true,
+    "appendOrderVerified": true,
+    "sourceBodyUnchanged": true,
+    "sourceRolloutBytesUnchanged": true,
+    "cleanupConfirmed": true
+  },
+  "editingUi": [
+    {
+      "result": "passed",
+      "phase": "write",
+      "runKind": "offline-session-editing-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "fork-1",
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "turn-fork-cancel-no-rpc",
+        "inclusive-turn-two-boundary",
+        "later-turn-three-excluded",
+        "double-confirm-one-fork",
+        "source-draft-preserved",
+        "global-local-label-rename",
+        "source-body-draft-unchanged",
+        "official-anchor-order",
+        "official-rename-by-id",
+        "all-owned-section-mirrors-updated",
+        "no-model-resume-project-share-delete-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "thread/fork",
+        "thread/read",
+        "thread/turns/list",
+        "threadSection/list",
+        "threadSection/create",
+        "thread/read",
+        "thread/section/move",
+        "thread/read",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "threadSection/list",
+        "thread/list",
+        "thread/read",
+        "thread/section/move",
+        "thread/read",
+        "thread/list",
+        "threadSection/list",
+        "thread/list",
+        "threadSection/update",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "consoleErrors": []
+    },
+    {
+      "result": "passed",
+      "phase": "restart",
+      "runKind": "offline-session-editing-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "fork-1",
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "same-fork-boundary-after-app-restart",
+        "source-child-drafts-restored",
+        "global-project-rename-restored",
+        "official-section-rename-order-restored",
+        "reorder-after-app-restart",
+        "narrow-layout",
+        "no-model-resume-project-share-delete-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "threadSection/list",
+        "thread/list",
+        "thread/read",
+        "thread/section/move",
+        "thread/read",
+        "thread/list"
+      ],
+      "consoleErrors": []
+    }
+  ],
+  "managementUiRegression": {
+    "writeChecks": 18,
+    "restartChecks": 13,
+    "realModelRequests": 0
+  },
+  "independentReview": {
+    "model": "gpt-6-sol",
+    "effort": "xhigh",
+    "finalTargetedTests": 13,
+    "passed": 13,
+    "remainingReproducibleP1P2": 0,
+    "fixes": [
+      "Commit membership/order only after complete ordered-page and anchor verification",
+      "Allow all 10 pinned source kinds for section order",
+      "Keep local pin priority in sidebar",
+      "Stop at exactly 200 members without requesting excess page",
+      "Reject duplicate section members across pages"
+    ]
+  },
+  "logoSha256": "fa71fb064ea40553bb41d2e07b95dc927db1698422d8c02f89cb32f78c9ea0d6",
+  "newChangesPushed": false,
+  "limitations": [
+    "No real model or real account-history UI verification",
+    "No server snapshot across section pages; concurrent external reorders are not atomic",
+    "Anchors require complete section scan within 200 records and 16 pages",
+    "Some legacy synthetic displayed turns may not be forkable by core",
+    "Official project experimental APIs, section deletion and appearance editing remain unavailable",
+    "IME, native keyboard and VoiceOver not verified"
+  ]
+}

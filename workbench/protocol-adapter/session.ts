@@ -1,4 +1,4 @@
-import type { ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "./contracts.ts";
+import type { ThreadSectionUpdateParams, ThreadSectionUpdateResponse, ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "./contracts.ts";
 import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "./contracts.ts";
 import type { ThreadListParams, ThreadListResponse } from "./contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "./contracts.ts";
@@ -175,6 +175,7 @@ export class ProtocolSession {
   startThread(params: ThreadStartParams): Promise<ThreadStartResponse> { return this.request("thread/start", params) as Promise<ThreadStartResponse>; }
   startTurn(params: TurnStartParams): Promise<TurnStartResponse> { return this.request("turn/start", params) as Promise<TurnStartResponse>; }
   interruptTurn(params: TurnInterruptParams): Promise<TurnInterruptResponse> { return this.request("turn/interrupt", params) as Promise<TurnInterruptResponse>; }
+  updateSection(params: ThreadSectionUpdateParams): Promise<ThreadSectionUpdateResponse> { return this.request("threadSection/update",params) as Promise<ThreadSectionUpdateResponse>; }
   listSections(params: ThreadSectionListParams): Promise<ThreadSectionListResponse> { return this.request("threadSection/list",params) as Promise<ThreadSectionListResponse>; }
   createSection(params: ThreadSectionCreateParams): Promise<ThreadSectionCreateResponse> { return this.request("threadSection/create",params) as Promise<ThreadSectionCreateResponse>; }
   moveToSection(params: ThreadSectionMoveParams): Promise<ThreadSectionMoveResponse> { return this.request("thread/section/move",params) as Promise<ThreadSectionMoveResponse>; }
@@ -194,8 +195,12 @@ export class ProtocolSession {
     validate(spec.params, params);
     const values = params as Record<string, unknown>;
     // The narrow M1 allowlist also rejects fields not yet reviewed, including experimental ones.
-    const fields: Record<string, string[]> = { "threadSection/list":["cursor","limit"],"threadSection/create":["name"],"thread/section/move":["threadId","sectionId"], "thread/resume": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","excludeTurns"], "thread/fork": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","ephemeral","excludeTurns"], "thread/name/set": ["threadId","name"], "thread/archive": ["threadId"], "thread/unarchive": ["threadId"], "thread/list": ["cursor", "limit", "sortKey", "sortDirection", "modelProviders", "sourceKinds", "archived"], "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
+    const fields: Record<string, string[]> = { "threadSection/update":["sectionId","name"],"threadSection/list":["cursor","limit"],"threadSection/create":["name"],"thread/section/move":["threadId","sectionId","beforeThreadId"], "thread/resume": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","excludeTurns"], "thread/fork": ["lastTurnId","threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","ephemeral","excludeTurns"], "thread/name/set": ["threadId","name"], "thread/archive": ["threadId"], "thread/unarchive": ["threadId"], "thread/list": ["sectionId","cursor", "limit", "sortKey", "sortDirection", "modelProviders", "sourceKinds", "archived"], "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
     if (Object.keys(values).some(field => !fields[method]!.includes(field))) throw new ProtocolSessionError("unsupported-field");
+    const validId=(value:unknown)=>typeof value==="string"&&/^[a-z0-9-]{1,64}$/.test(value);
+    if(method==="thread/fork"&&values.lastTurnId!==undefined&&!validId(values.lastTurnId))throw new ProtocolSessionError("invalid-fork-boundary");
+    if(method==="threadSection/update"&&(!validId(values.sectionId)||typeof values.name!=="string"||!values.name.trim()||values.name.length>80||/[\x00-\x1f]/.test(values.name)))throw new ProtocolSessionError("invalid-section-update");
+    if(method==="thread/section/move"&&values.beforeThreadId!==undefined&&(!validId(values.beforeThreadId)||values.beforeThreadId===values.threadId||values.sectionId===null))throw new ProtocolSessionError("invalid-section-anchor");
     if(method==="threadSection/list" && (values.limit!==20 || !(values.cursor===undefined||values.cursor===null||typeof values.cursor==="string"&&values.cursor.length<=4096)))throw new ProtocolSessionError("invalid-section-page");
     if(method==="threadSection/create" && (typeof values.name!=="string"||!values.name.trim()||values.name.length>80||/[\x00-\x1f]/.test(values.name)))throw new ProtocolSessionError("invalid-section-name");
     if(method==="thread/section/move" && (typeof values.threadId!=="string"||!/^[a-z0-9-]{1,64}$/.test(values.threadId)||!(values.sectionId===null||typeof values.sectionId==="string"&&/^[a-z0-9-]{1,64}$/.test(values.sectionId))))throw new ProtocolSessionError("invalid-section-scope");
@@ -214,7 +219,9 @@ export class ProtocolSession {
     if (method === "config/read" && values.includeLayers !== false) throw new ProtocolSessionError("config-layers-disabled");
     if (method === "account/read" && values.refreshToken !== undefined && values.refreshToken !== false) throw new ProtocolSessionError("explicit-refresh-disabled");
     if (method === "thread/list") {
-      if(values.sourceKinds!==undefined && (!Array.isArray(values.sourceKinds)||values.sourceKinds.length>3||values.sourceKinds.some(kind=>!["cli","vscode","appServer"].includes(kind as string))))throw new ProtocolSessionError("invalid-source-filter");
+      if(values.sectionId!==undefined&&values.sectionId!==null&&!validId(values.sectionId))throw new ProtocolSessionError("invalid-section-filter");
+      if(values.sortKey==="section_position"&&!validId(values.sectionId))throw new ProtocolSessionError("section-sort-requires-filter");
+      if(values.sourceKinds!==undefined && (!Array.isArray(values.sourceKinds)||values.sourceKinds.length>10||values.sourceKinds.some(kind=>!["cli","vscode","exec","appServer","subAgent","subAgentReview","subAgentCompact","subAgentThreadSpawn","subAgentOther","unknown"].includes(kind as string))))throw new ProtocolSessionError("invalid-source-filter");
       if (values.modelProviders !== undefined && (!Array.isArray(values.modelProviders) || values.modelProviders.length > 16 || values.modelProviders.some(value => typeof value !== "string" || value.length > 64))) throw new ProtocolSessionError("invalid-provider-filter");
     }
     if (method === "model/list" || method === "thread/list") {
@@ -345,6 +352,7 @@ export class ProtocolSession {
     }
 
     if(pending.method==="threadSection/list"){const page=message.result as ThreadSectionListResponse;if(page.data.length>20||(page.nextCursor!==null&&page.nextCursor.length>4096)||page.data.some(section=>!/^[a-z0-9-]{1,64}$/.test(section.id)||section.name.length>200))throw new Error("Unbounded section page");}
+    if(pending.method==="threadSection/update"){const section=(message.result as ThreadSectionUpdateResponse).section;if(section.id!==pending.params.sectionId||section.name!==String(pending.params.name).trim())throw new Error("Section update mismatch");}
     if(pending.method==="threadSection/create"){const section=(message.result as ThreadSectionCreateResponse).section;if(!/^[a-z0-9-]{1,64}$/.test(section.id)||section.name!==String(pending.params.name).trim())throw new Error("Section create mismatch");}
     if (pending.method === "turn/start") {
       const result = message.result as TurnStartResponse;

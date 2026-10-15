@@ -1,3 +1,5 @@
+export type { ThreadSectionUpdateParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionUpdateParams.ts";
+export type { ThreadSectionUpdateResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionUpdateResponse.ts";
 export type { ThreadSectionListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionListParams.ts";
 export type { ThreadSectionListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionListResponse.ts";
 export type { ThreadSectionCreateParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionCreateParams.ts";

@@ -359,7 +359,7 @@ test("saved metadata reads validate identity without filling live projection",as
 });
 test("thread catalog input and replies retain bounds and forbid path filters",async()=>{
  const session=await ready();assert.throws(()=>session.listThreads({cwd:"/private"} as any),/unsupported-field/);assert.throws(()=>session.listThreads({limit:101}),/invalid-page-limit/);assert.throws(()=>session.listThreads({cursor:"x".repeat(4097)}),/invalid-page-cursor/);assert.throws(()=>session.listThreads({modelProviders:Array(17).fill("openai")}),/invalid-provider-filter/);
- assert.throws(()=>session.listThreads({sourceKinds:["subAgent"]}),/invalid-source-filter/);const good=session.listThreads({limit:1,modelProviders:[],sourceKinds:["cli","vscode","appServer"]});let request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread()],nextCursor:"opaque",backwardsCursor:null}});assert.equal((await good).nextCursor,"opaque");
+ assert.throws(()=>session.listThreads({sourceKinds:Array(11).fill("cli")}),/invalid-source-filter/);const good=session.listThreads({limit:1,modelProviders:[],sourceKinds:["cli","vscode","appServer"]});let request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread()],nextCursor:"opaque",backwardsCursor:null}});assert.equal((await good).nextCursor,"opaque");
  const oversized=session.listThreads({limit:1});const rejected=assert.rejects(oversized,/invalid-protocol/);request=outgoing(session)[0]!;feed(session,{id:request.id,result:{data:[syntheticThread(),syntheticThread()],nextCursor:null,backwardsCursor:null}});await rejected;assert.equal(session.state,"failed");
 });
 

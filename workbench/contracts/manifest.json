@@ -259,6 +259,16 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionMoveResponse.json",
       "path": "contracts/schemas/sectionMoveResult.json",
       "sha256": "243299d7eebd4fb264d4e75efeb5058982681202371c2b83ff1a63b3369ddbb6"
+    },
+    "sectionsUpdateParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionUpdateParams.json",
+      "path": "contracts/schemas/sectionsUpdateParams.json",
+      "sha256": "6cc7b7e486026a59d6fcc0701407d9293c0fe8b96e41894630c3a39fee967980"
+    },
+    "sectionsUpdateResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionUpdateResponse.json",
+      "path": "contracts/schemas/sectionsUpdateResult.json",
+      "sha256": "4588cbf0374204c17f02f15eecb5390cd5346bc551675e07e541bbfd28d020bf"
     }
   },
   "requests": {
@@ -351,6 +361,11 @@
       "params": "sectionMoveParams",
       "result": "sectionMoveResult",
       "experimental": false
+    },
+    "threadSection/update": {
+      "params": "sectionsUpdateParams",
+      "result": "sectionsUpdateResult",
+      "experimental": false
     }
   },
   "notifications": {
@@ -384,5 +399,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "9c2d04e258a8c5c3b44601907c0b393ce205b0a756b301cfe8ac7b4d990b4216"
+  "specSha256": "52b0a9702e1f4bfa814ca20f2552366388bac6d6652c019ca85b5e378e5f5781"
 }

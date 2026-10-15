@@ -63,7 +63,9 @@
     "sectionsCreateParams": "v2/ThreadSectionCreateParams.json",
     "sectionsCreateResult": "v2/ThreadSectionCreateResponse.json",
     "sectionMoveParams": "v2/ThreadSectionMoveParams.json",
-    "sectionMoveResult": "v2/ThreadSectionMoveResponse.json"
+    "sectionMoveResult": "v2/ThreadSectionMoveResponse.json",
+    "sectionsUpdateParams": "v2/ThreadSectionUpdateParams.json",
+    "sectionsUpdateResult": "v2/ThreadSectionUpdateResponse.json"
   },
   "requests": {
     "thread/read": {
@@ -154,6 +156,11 @@
     "thread/section/move": {
       "params": "sectionMoveParams",
       "result": "sectionMoveResult",
+      "experimental": false
+    },
+    "threadSection/update": {
+      "params": "sectionsUpdateParams",
+      "result": "sectionsUpdateResult",
       "experimental": false
     }
   },

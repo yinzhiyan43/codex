@@ -88,10 +88,13 @@ function render(next: DesktopView): void {
   for (const message of next.messages) {
     const node = existing.get(message.id) ?? document.createElement("article");
     node.className = `message ${message.role}`; node.dataset.messageId = message.id;
-    const signature = JSON.stringify([message.text, message.stale, message.status, savedHistory]);
+    const forkTurn=next.forkTurns?.find(turn=>turn.messageId===message.id);
+    const canFork=!!forkTurn&&next.connection==="ready"&&!next.loading&&!next.running&&!next.historyBrowser?.archived;
+    const signature = JSON.stringify([message.text, message.stale, message.status, savedHistory,canFork]);
     if (signature !== node.dataset.signature) {
       node.replaceChildren(document.createTextNode(message.text)); node.dataset.signature = signature;
       if (chat && message.status && message.status !== "running") { const state = document.createElement("span"); state.className = "cache-label"; state.textContent = savedHistory ? ({ completed: "历史完成记录", cancelled: "历史中断记录", failed: "历史失败记录", unknown: "历史未完成状态" })[message.status] : ({ completed: "已完成", cancelled: "官方已确认中断", failed: "失败", unknown: "结果未知" })[message.status]; node.append(state); }
+      if(canFork&&next.route.threadId){const fork=document.createElement("button"),threadId=next.route.threadId,turnId=forkTurn!.id;fork.textContent="从此轮分叉";fork.className="turn-fork";fork.dataset.forkTurn=turnId;fork.addEventListener("click",()=>showTurnFork(threadId,turnId));node.append(fork);}
       if (message.stale) { const badge = document.createElement("span"); badge.className = "cache-label"; badge.textContent = "缓存"; node.append(badge); }
     }
     if (message.status) node.dataset.status = message.status; else delete node.dataset.status;
@@ -149,6 +152,13 @@ function render(next: DesktopView): void {
   const sections=next.sessionSections,sectionChoice=el<HTMLSelectElement>("section-choice"),previousSection=sectionChoice.value;
   sectionChoice.replaceChildren(new Option("不属于任何分区",""),...(sections?.rows??[]).map(row=>new Option(row.name,row.id)));
   if([...sectionChoice.options].some(option=>option.value===previousSection))sectionChoice.value=previousSection;
+  const order=next.sectionOrder,anchorChoice=el<HTMLSelectElement>("section-order"),previousAnchor=anchorChoice.value;
+  const ordered=order?.ready&&order.sectionId===sectionChoice.value?order.rows.filter(row=>row.id!==sectionTargetId):[];
+  anchorChoice.replaceChildren(new Option("分区末尾",""),...ordered.map(row=>new Option("放在「"+row.title+"」之前",row.id)));
+  if([...anchorChoice.options].some(option=>option.value===previousAnchor))anchorChoice.value=previousAnchor;
+  anchorChoice.disabled=next.loading||!order?.ready||order.sectionId!==sectionChoice.value;
+  el<HTMLButtonElement>("section-rename").disabled=next.loading||sections?.status!=="ready"||!sectionChoice.value;
+  el<HTMLButtonElement>("section-refresh-order").disabled=next.loading||sections?.status!=="ready"||!sectionChoice.value;
   el("section-notice").textContent=sections?.notice??"分区尚未读取";
   el<HTMLButtonElement>("section-create").disabled=!sections?.canCreate||next.loading;
   el<HTMLButtonElement>("section-apply").disabled=sections?.status!=="ready"||next.loading;
@@ -242,18 +252,19 @@ el("refresh-threads").addEventListener("click", () => void send({ type: "refresh
 el("more-threads").addEventListener("click", () => void send({ type: "moreThreads" }));
 el("refresh-saved-history").addEventListener("click", () => void send({ type: "refreshHistory" }));
 
-let actionId:string|null=null;let sectionTargetId:string|null=null;let menuId: string | null = null; let sessionAction: "renameSession" | "archiveSession" | "unarchiveSession" | "forkSession" | "assignProject" | null = null;
+let actionLastTurnId:string|undefined;let actionId:string|null=null;let sectionTargetId:string|null=null;let menuId: string | null = null; let sessionAction: "renameSession" | "archiveSession" | "unarchiveSession" | "forkSession" | "assignProject" | "renameProject" | null = null;
 const sessionMenu=el("session-menu"), sessionDialog=el<HTMLDialogElement>("session-dialog");
 el("project-list").addEventListener("contextmenu",event=>{
   const button=(event.target as HTMLElement).closest<HTMLButtonElement>("[data-thread]");if(!button?.dataset.thread || view?.mode!=="official-chat")return;event.preventDefault();menuId=button.dataset.thread;
   const record=view.managedSessions?.find(row=>row.id===menuId);el("session-pin").textContent=record?.pinned?"取消置顶":"置顶";el("session-unread").textContent=record?.unread?"标记为已读":"标记为未读";el("session-archive").textContent=record?.archived||view.historyBrowser?.archived?"恢复归档":"归档";
-  for(const id of ["session-rename","session-archive","session-fork","session-section","session-project"])el<HTMLButtonElement>(id).disabled=view.connection!=="ready"||view.loading||view.running||!!record?.ephemeral;
+  for(const id of ["session-rename","session-archive","session-fork","session-section","session-project","session-project-rename"])el<HTMLButtonElement>(id).disabled=view.connection!=="ready"||view.loading||view.running||!!record?.ephemeral;
   el<HTMLButtonElement>("session-rename").disabled ||= !!record?.archived || !!view.historyBrowser?.archived;
+  el<HTMLButtonElement>("session-project-rename").disabled ||= !record?.localProject;
   el<HTMLButtonElement>("session-fork").disabled ||= !!record?.archived||!!record?.archiveUncertain||!!record?.forkUncertain||!!view.historyBrowser?.archived;
   el<HTMLButtonElement>("session-section").disabled ||= !!record?.archived||!!record?.archiveUncertain||!!view.historyBrowser?.archived;
   sessionMenu.hidden=false;sessionMenu.style.left=Math.min(event.clientX,innerWidth-230)+"px";sessionMenu.style.top=Math.min(event.clientY,Math.max(10,innerHeight-440))+"px";
 });
-const showAction=(type:typeof sessionAction,title:string,description:string)=>{actionId=menuId;sessionAction=type;el<HTMLInputElement>("session-name").maxLength=type==="assignProject"?80:100;sessionMenu.hidden=true;el("session-dialog-title").textContent=title;el("session-dialog-description").textContent=description;el("session-name-label").hidden=!["renameSession","assignProject"].includes(type??"");el("session-apply").hidden=type===null;el<HTMLInputElement>("session-name").value=view?.managedSessions?.find(row=>row.id===menuId)?.title??view?.projects.flatMap(p=>p.threads).find(row=>row.id===menuId)?.title??"";sessionDialog.showModal();};
+const showAction=(type:typeof sessionAction,title:string,description:string)=>{actionLastTurnId=undefined;actionId=menuId;sessionAction=type;el<HTMLInputElement>("session-name").maxLength=["assignProject","renameProject"].includes(type??"")?80:100;sessionMenu.hidden=true;el("session-dialog-title").textContent=title;el("session-dialog-description").textContent=description;el("session-name-label").hidden=!["renameSession","assignProject","renameProject"].includes(type??"");el("session-apply").hidden=type===null;el<HTMLInputElement>("session-name").value=view?.managedSessions?.find(row=>row.id===menuId)?.title??view?.projects.flatMap(p=>p.threads).find(row=>row.id===menuId)?.title??"";sessionDialog.showModal();};
 el("session-rename").addEventListener("click",()=>showAction("renameSession","重命名会话","通过官方接口更新会话名称。"));
 el("session-pin").addEventListener("click",()=>{sessionMenu.hidden=true;if(menuId)void send({type:"pinSession",id:menuId});});
 el("session-unread").addEventListener("click",()=>{sessionMenu.hidden=true;if(menuId)void send({type:"unreadSession",id:menuId});});
@@ -261,16 +272,22 @@ el("session-archive").addEventListener("click",()=>{const archived=view?.managed
 el("session-share").addEventListener("click",()=>showAction(null,"分享尚未接入","尚未核实此会话的官方分享接口。此处不会创建链接或对外分享内容。"));
 el("session-delete").addEventListener("click",()=>showAction(null,"永久删除当前未开放","官方删除接口已登记；本轮未授权删除真实会话。这里不会发送删除请求或移除正文。"));
 el("session-dismiss").addEventListener("click",()=>sessionDialog.close());
-el("session-form").addEventListener("submit",event=>{event.preventDefault();if(!actionId||!sessionAction)return;const targetId=actionId;const command:DesktopCommand=sessionAction==="renameSession"||sessionAction==="assignProject"?{type:sessionAction,id:targetId,name:el<HTMLInputElement>("session-name").value}: {type:sessionAction,id:targetId};sessionDialog.close();void (async()=>{await flushDraft();await send(command);})();});
+el("session-form").addEventListener("submit",event=>{event.preventDefault();if(!actionId||!sessionAction)return;const targetId=actionId;const command:DesktopCommand=sessionAction==="renameSession"||sessionAction==="assignProject"||sessionAction==="renameProject"?{type:sessionAction,id:targetId,name:el<HTMLInputElement>("session-name").value}: sessionAction==="forkSession"?{type:sessionAction,id:targetId,...(actionLastTurnId?{lastTurnId:actionLastTurnId}:{})}:{type:sessionAction,id:targetId};actionId=null;sessionAction=null;actionLastTurnId=undefined;sessionDialog.close();void (async()=>{await flushDraft();await send(command);})();});
 document.addEventListener("click",event=>{if(!sessionMenu.contains(event.target as Node))sessionMenu.hidden=true;});
 document.addEventListener("keydown",event=>{if(event.key==="Escape")sessionMenu.hidden=true;});
 el("continue-session").addEventListener("click",()=>{if(view?.historyBrowser?.selectedId)void send({type:"continueSession",id:view.historyBrowser.selectedId});});
 el("toggle-archived").addEventListener("click",()=>void send({type:"toggleArchived"}));
 
+const showTurnFork=(id:string,turnId:string)=>{menuId=id;showAction("forkSession","从所选轮次分叉","新会话包含所选已保存轮次及其之前的上下文，后续轮次不复制。源正文与草稿保留，不调用模型。");actionLastTurnId=turnId;};
+el("session-project-rename").addEventListener("click",()=>{const label=view?.managedSessions?.find(row=>row.id===menuId)?.localProject;if(!label)return;showAction("renameProject","重命名整个本地项目标签","更新所有使用此本地标签的记录，包含已归档记录。不改变会话正文、草稿或执行目录；已有同名标签将拒绝合并。");el<HTMLInputElement>("session-name").value=label;});
 el("session-fork").addEventListener("click",()=>showAction("forkSession","分叉整个已保存会话","通过官方接口复制所选已保存上下文。源会话正文与草稿保留，成功后打开新分叉，不调用模型。普通历史可能隐藏空预览分叉，工作台会登记官方返回ID。"));
 el("session-project").addEventListener("click",()=>{showAction("assignProject","工作台本地项目标签","此归属只由当前工作台保存，不创建官方项目，不改变会话cwd或文件。留空清除归属。");el<HTMLInputElement>("session-name").value=view?.managedSessions?.find(row=>row.id===menuId)?.localProject??"";el<HTMLInputElement>("session-name").maxLength=80;});
-el("session-section").addEventListener("click",()=>{const target=menuId;if(!target)return;sectionTargetId=target;sessionMenu.hidden=true;void(async()=>{await flushDraft();await send({type:"loadSections"});const selected=view?.managedSessions?.find(row=>row.id===target)?.sectionId??"";el<HTMLSelectElement>("section-choice").value=selected;el<HTMLInputElement>("section-name").value="";el<HTMLDialogElement>("section-dialog").showModal();})();});
+el("session-section").addEventListener("click",()=>{const target=menuId;if(!target)return;sectionTargetId=target;sessionMenu.hidden=true;void(async()=>{await flushDraft();await send({type:"loadSections"});const selected=view?.managedSessions?.find(row=>row.id===target)?.sectionId??"";el<HTMLSelectElement>("section-choice").value=selected;el<HTMLInputElement>("section-name").value="";el<HTMLInputElement>("section-rename-name").value=view?.sessionSections?.rows.find(row=>row.id===selected)?.name??"";el<HTMLSelectElement>("section-order").value="";if(selected)await send({type:"loadSectionOrder",sectionId:selected});el<HTMLDialogElement>("section-dialog").showModal();})();});
+const refreshSectionOrder=()=>{const sectionId=el<HTMLSelectElement>("section-choice").value;if(sectionId)void send({type:"loadSectionOrder",sectionId});};
+el("section-choice").addEventListener("change",()=>{el<HTMLSelectElement>("section-order").replaceChildren(new Option("分区末尾",""));el<HTMLSelectElement>("section-order").disabled=true;const sectionId=el<HTMLSelectElement>("section-choice").value;el<HTMLInputElement>("section-rename-name").value=view?.sessionSections?.rows.find(row=>row.id===sectionId)?.name??"";el<HTMLButtonElement>("section-rename").disabled=!sectionId;el<HTMLButtonElement>("section-refresh-order").disabled=!sectionId;refreshSectionOrder();});
+el("section-refresh-order").addEventListener("click",refreshSectionOrder);
+el("section-rename").addEventListener("click",()=>{const sectionId=el<HTMLSelectElement>("section-choice").value,name=el<HTMLInputElement>("section-rename-name").value.trim();if(sectionId&&name)void send({type:"renameSection",sectionId,name});});
 el("section-dismiss").addEventListener("click",()=>el<HTMLDialogElement>("section-dialog").close());
-el("section-form").addEventListener("submit",event=>{event.preventDefault();if(!sectionTargetId)return;const id=sectionTargetId,sectionId=el<HTMLSelectElement>("section-choice").value||null;el<HTMLDialogElement>("section-dialog").close();void send({type:"assignSection",id,sectionId});});
-el("section-create").addEventListener("click",()=>{const name=el<HTMLInputElement>("section-name").value.trim(),previousId=view?.sessionSections?.lastCreatedId;if(!name)return;void(async()=>{await send({type:"createSection",name});const created=view?.sessionSections?.lastCreatedId;if(created&&created!==previousId)el<HTMLSelectElement>("section-choice").value=created;})();});
+el("section-form").addEventListener("submit",event=>{event.preventDefault();if(!sectionTargetId)return;const id=sectionTargetId,sectionId=el<HTMLSelectElement>("section-choice").value||null;el<HTMLDialogElement>("section-dialog").close();const beforeThreadId=el<HTMLSelectElement>("section-order").value;void send({type:"assignSection",id,sectionId,...(beforeThreadId?{beforeThreadId}:{})});});
+el("section-create").addEventListener("click",()=>{const name=el<HTMLInputElement>("section-name").value.trim(),previousId=view?.sessionSections?.lastCreatedId;if(!name)return;void(async()=>{await send({type:"createSection",name});const created=view?.sessionSections?.lastCreatedId;if(created&&created!==previousId){el<HTMLSelectElement>("section-choice").value=created;el<HTMLInputElement>("section-rename-name").value=view?.sessionSections?.rows.find(row=>row.id===created)?.name??"";el<HTMLSelectElement>("section-order").replaceChildren(new Option("分区末尾",""));el<HTMLSelectElement>("section-order").disabled=true;el<HTMLButtonElement>("section-rename").disabled=false;el<HTMLButtonElement>("section-refresh-order").disabled=false;}})();});
 el("cancel-management").addEventListener("click",()=>void send({type:"cancel"}));

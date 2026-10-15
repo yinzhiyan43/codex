@@ -1,4 +1,4 @@
-import type { ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "../protocol-adapter/contracts.ts";
+import type { ThreadSectionUpdateParams, ThreadSectionUpdateResponse, ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
@@ -55,6 +55,7 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   client(): WorkbenchClient {
     return Object.freeze({ start: () => this.start(), reconnect: () => this.reconnect(), stop: () => this.stop(), dispose: () => this.dispose(),
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
+      updateSection: (params: ThreadSectionUpdateParams) => this.updateSection(params),
       listSections: (params: ThreadSectionListParams) => this.listSections(params), createSection: (params: ThreadSectionCreateParams) => this.createSection(params), moveToSection: (params: ThreadSectionMoveParams) => this.moveToSection(params),
       listThreads: (params: ThreadListParams) => this.listThreads(params),
       resumeThread: (params: ThreadResumeParams) => this.resumeThread(params),
@@ -294,6 +295,10 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   async #readConfiguration(): Promise<Record<string, unknown>> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     const response = this.#session.readConfiguration({ includeLayers: false }); this.#pump(this.#context); return (await response).config;
+  }
+  async updateSection(params: ThreadSectionUpdateParams): Promise<ThreadSectionUpdateResponse> {
+    if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
+    try { const response = this.#session.updateSection(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
   }
   async listSections(params: ThreadSectionListParams): Promise<ThreadSectionListResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

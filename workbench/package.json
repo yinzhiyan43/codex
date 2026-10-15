@@ -29,7 +29,9 @@
     "persistence:core:check": "node scripts/persistent-core-check.mjs",
     "desktop:persistence:smoke": "npm run desktop:build && node scripts/persistence-ui-check.mjs",
     "management:core:check": "node scripts/session-management-core-check.mjs",
-    "desktop:management:smoke": "npm run desktop:build && node scripts/session-management-ui-check.mjs"
+    "desktop:management:smoke": "npm run desktop:build && node scripts/session-management-ui-check.mjs",
+    "editing:core:check": "node scripts/session-editing-core-check.mjs",
+    "desktop:editing:smoke": "npm run desktop:build && node scripts/session-editing-ui-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

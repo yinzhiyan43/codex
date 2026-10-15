@@ -11,6 +11,7 @@ const historyNotice = "只显示当前临时会话；临时会话只核对元数
 type Phase = "disconnecting" | "connecting" | "idle" | "starting" | "running" | "cancelling" | "reading" | "restoring" | "managing" | "unknown";
 /** Durable official conversations; restart reads history and never replays model turns. */
 export class OfficialChatController {
+  #sectionOrder:NonNullable<DesktopView["sectionOrder"]>|undefined;
   #forking=false; #forkCancelled=false; #sections: NonNullable<DesktopView["sessionSections"]>={status:"unknown",rows:[],notice:"官方分区尚未读取。",canCreate:false}; #sectionCreateBlockedGeneration:number|null=null;
   #store: SessionStore; #persistenceReady = false; #currentWindow: FullTurnsWindow | null = null; #resumeNeeded = false; #legacyId: string | null = null; #asyncReads = 0; #archiveBlockedId: string | null = null;
   #browser: HistoryBrowser; #browserUnsubscribe: () => void; #browsing = false;
@@ -51,6 +52,7 @@ export class OfficialChatController {
   #sync(): void {
     const host = this.#client.getView();
     if (host.state !== "ready") {
+      if(this.#sectionOrder)this.#sectionOrder.ready=false;
       if (["reading","restoring","managing"].includes(this.#phase)) this.#phase = "idle";
       this.#clearCancelTimer(); this.#guarded = false; this.#pending = null;
       if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#phase = "unknown"; this.#error = "连接已断开，执行结果未知；不会自动重发。重连先核对同一持久记录与上一轮状态。"; }
@@ -66,12 +68,12 @@ export class OfficialChatController {
   }
   snapshot(): DesktopView {
     const base = this.#core.snapshot(), messages = this.#messages(), saved = this.#browser.snapshot(),groups=sessionGroups(this.#store.snapshot().sessions);
-    if (this.#browsing) return { ...base, sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:"历史只读；选择继续聊后，下一次确认发送才恢复官方线程。", mode: "official-chat", version: this.#version,
+    if (this.#browsing) return { ...base, sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?saved.forkTurns:[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:"历史只读；选择继续聊后，下一次确认发送才恢复官方线程。", mode: "official-chat", version: this.#version,
       chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", interruptAcknowledged: false, canRefresh: !!saved.selectedId && !saved.loading && base.connection === "ready", historyMode: true },
       historyBrowser: saved, projects: [{ id: "official-history", name: "只读历史会话", threads: saved.rows.map(row => ({ id: row.id, title: row.title })) },...(saved.managedRows.length?[{id:"registered-forks",name:"已登记分叉 · 本地索引",threads:saved.managedRows.map(row=>({id:row.id,title:row.title}))}]:[])], route: { projectId: "official-history", threadId: saved.selectedId }, title: saved.title,
       messages: saved.messages, draft: "", pending: null, running: false, loading: saved.loading || base.loading || this.#asyncReads>0 || this.#phase==="managing",
       error: this.#error ?? base.error, history: { turnCount: saved.turnCount, itemCount: saved.messages.length, hasMore: saved.moreTurns, busy: saved.loading, loading: saved.loading, stale: saved.stale, notice: saved.notice } };
-    return { ...base, sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:this.#legacyId ? "此前临时会话仅有观察缓存，不能恢复原上下文；发送会创建新的持久会话。" : "新会话默认由官方核心持久保存；重启保留记录与草稿，下一次确认发送才恢复线程。", mode: "official-chat", version: this.#version,
+    return { ...base, sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?(this.#currentWindow?.snapshot().forkTurns??[]):[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:this.#legacyId ? "此前临时会话仅有观察缓存，不能恢复原上下文；发送会创建新的持久会话。" : "新会话默认由官方核心持久保存；重启保留记录与草稿，下一次确认发送才恢复线程。", mode: "official-chat", version: this.#version,
       chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", persistent:!this.#legacyId, resumePending:this.#resumeNeeded, interruptAcknowledged: this.#interruptAcknowledged, canRefresh: !!this.#thread && this.#generation === this.#client.getView().generation && this.#phase === "idle" && base.connection === "ready" },
       projects: groups,
       route: { projectId: groups.find(group=>group.threads.some(row=>row.id===(this.#thread??this.#legacyId)))?.id??"official-chat", threadId: this.#thread ?? this.#legacyId }, title: this.#store.find(this.#thread??this.#legacyId??"")?.title ?? "官方持久会话", messages,
@@ -159,7 +161,7 @@ export class OfficialChatController {
       const page=await this.#client.listTurns({threadId:id,limit:20,sortDirection:"desc",itemsView:"full"});if(!this.#current(intent,generation)||cancelled())return;
       if(page.data.some(turn=>turn.status==="inProgress"))throw new Error("unresolved-persisted-turn");beforeCommit();const window=new FullTurnsWindow(id);window.commit(page,null);this.#currentWindow=window;this.#thread=id;this.#archiveBlockedId=null;this.#legacyId=null;this.#generation=generation;this.#resumeNeeded=true;this.#cached=[];this.#prompts.clear();this.#draft=record?.draft??"";
       if(record?.model&&this.#core.snapshot().coreStatus?.models.includes(record.model))this.#model=record.model;
-      this.#browsing=false;this.#browser.cancel();this.#error=null;await this.#save({title:(metadata.thread.name||record?.title||metadata.thread.preview||"持久会话").replace(/\s+/g," ").slice(0,100),unread:false,sectionId:metadata.thread.section?.id??null,sectionName:metadata.thread.section?.name.replace(/[\x00-\x1f]/g," ").slice(0,200)??null});
+      this.#browsing=false;this.#browser.cancel();this.#error=null;await this.#save({title:(metadata.thread.name||record?.title||metadata.thread.preview||"持久会话").replace(/\s+/g," ").slice(0,100),unread:false,sectionPosition:(record?.sectionId??null)===(metadata.thread.section?.id??null)?record?.sectionPosition:undefined,sectionId:metadata.thread.section?.id??null,sectionName:metadata.thread.section?.name.replace(/[\x00-\x1f]/g," ").slice(0,200)??null});
     }catch{if(this.#current(intent,generation)){this.#error="持久记录读取未完成，已保留原聊天与草稿；未恢复执行或重发。";if(startup&&record)this.#draft=record.draft;}}
     finally{this.#asyncReads--;if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
@@ -191,9 +193,10 @@ export class OfficialChatController {
   #managementAvailable(id?:string):void {
     if(this.#phase!=="idle"||this.#pending||this.#asyncReads||this.#browser.snapshot().inflight||!this.#guarded||this.#client.getView().state!=="ready"||(id&&!this.#known(id)))throw new Error("session-management-unavailable");
   }
-  async #fork(id:string):Promise<void>{
+  async #fork(id:string,lastTurnId?:string):Promise<void>{
     this.#managementAvailable(id);const source=this.#store.find(id);
     if(source?.ephemeral||source?.archived||source?.archiveUncertain||source?.forkUncertain||(this.#browsing&&this.#browser.snapshot().archived)||!this.#model)throw new Error("fork-source-unavailable");
+    if(lastTurnId&&((this.#browsing?this.#browser.snapshot().selectedId:this.#thread)!==id||!this.snapshot().forkTurns?.some(turn=>turn.id===lastTurnId)))throw new Error("fork-boundary-unavailable");
     if(this.#store.snapshot().sessions.length>(source?511:510))throw new Error("session-store-capacity");
     const intent=++this.#intent,generation=this.#client.getView().generation,model=this.#model;
     this.#phase="managing";this.#forking=true;this.#forkCancelled=false;this.#error=null;this.#publish();let requested=false,acknowledged=false;
@@ -203,10 +206,16 @@ export class OfficialChatController {
       await this.#client.checkModelConfiguration();if(cancelled())return;
       const meta=await this.#client.readThreadMetadata({threadId:id});if(cancelled())return;
       if(meta.thread.ephemeral||meta.thread.modelProvider!=="openai"||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("fork-source-active");
+      if(lastTurnId){
+        // Revalidate the actual saved page at this generation before the creating RPC.
+        const verified=new FullTurnsWindow(id);let found=false;
+        for(let n=0;n<64;n++){const cursor=verified.cursor();const page=await this.#client.listTurns({threadId:id,cursor,limit:20,sortDirection:"desc",itemsView:"full"});if(cancelled())return;verified.commit(page,cursor);if(page.data.some(turn=>turn.id===lastTurnId)){found=page.data.some(turn=>turn.id===lastTurnId&&turn.status!=="inProgress");break;}if(!verified.hasMore())break;}
+        if(!found)throw new Error("fork-boundary-unavailable");
+      }
       const title=(meta.thread.name||source?.title||meta.thread.preview||"持久会话").replace(/\s+/g," ").slice(0,100);
       await this.#mutate(()=>this.#store.upsert(id,{title,forkUncertain:true}));if(cancelled()){await this.#mutate(()=>this.#store.upsert(id,{forkUncertain:false}));return;}
       requested=true;
-      const result=await this.#client.forkThread({threadId:id,model,modelProvider:"openai",cwd:this.#cwd,approvalPolicy:"never",sandbox:"read-only",ephemeral:false,excludeTurns:true,baseInstructions:"You are a text-only chat assistant. Do not use tools or access files.",developerInstructions:"Only provide text. Never call tools or access files, credentials or external services."});
+      const result=await this.#client.forkThread({threadId:id,...(lastTurnId?{lastTurnId}:{}),model,modelProvider:"openai",cwd:this.#cwd,approvalPolicy:"never",sandbox:"read-only",ephemeral:false,excludeTurns:true,baseInstructions:"You are a text-only chat assistant. Do not use tools or access files.",developerInstructions:"Only provide text. Never call tools or access files, credentials or external services."});
       acknowledged=true;const childId=result.thread.id;
       if(childId===id||result.thread.forkedFromId!==id||this.#store.find(childId))throw new Error("fork-identity-conflict");
       await this.#mutate(()=>{this.#store.upsert(childId,{title:(result.thread.name||title+" · 分叉").slice(0,100),model,localProject:source?.localProject??null,sectionId:result.thread.section?.id??null,sectionName:result.thread.section?.name.replace(/[\x00-\x1f]/g," ").slice(0,200)??null,forkedFromId:id});this.#store.upsert(id,{forkUncertain:false});},true);
@@ -221,10 +230,46 @@ export class OfficialChatController {
     try{await this.#mutate(()=>this.#store.upsert(id,{title:this.#store.find(id)?.title??this.#browser.snapshot().rows.find(row=>row.id===id)?.title??"持久会话",localProject:name.trim()||null}));}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
+  async #renameProject(id:string,name:string):Promise<void>{
+    this.#managementAvailable(id);const previous=this.#store.find(id)?.localProject,target=name.trim();
+    if(!previous)throw new Error("project-label-required");
+    if(this.#store.snapshot().sessions.some(row=>row.localProject===target&&row.localProject!==previous))throw new Error("project-label-conflict");
+    const intent=++this.#intent;this.#phase="managing";this.#publish();
+    try{await this.#mutate(()=>{const rows=this.#store.snapshot().sessions;if(rows.some(row=>row.localProject===target&&row.localProject!==previous))throw new Error("project-label-conflict");for(const row of rows)if(row.localProject===previous)this.#store.upsert(row.id,{localProject:target});});}
+    finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
+  }
+  async #renameSection(sectionId:string,name:string):Promise<void>{
+    this.#managementAvailable();if(this.#sections.status!=="ready"||!this.#sections.rows.some(row=>row.id===sectionId))throw new Error("sections-unavailable");
+    const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
+    try{const result=await this.#client.updateSection({sectionId,name:name.trim()});if(!this.#current(intent,generation))return;
+      await this.#mutate(()=>{for(const row of this.#store.snapshot().sessions)if(row.sectionId===sectionId)this.#store.upsert(row.id,{sectionName:result.section.name});});
+      this.#sections.rows=this.#sections.rows.map(row=>row.id===sectionId?{id:sectionId,name:result.section.name}:row);this.#error=null;
+    }catch{if(this.#current(intent,generation)){this.#sections.status="error";this.#error="分区重命名未确认；请刷新官方分区核对，不会自动重试。";}}
+    finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
+  }
+  async #readSectionOrder(sectionId:string,intent:number,generation:number,target?:{id:string;title:string;beforeThreadId?:string}):Promise<void>{
+    this.#sectionOrder={sectionId,rows:[],ready:false};const rows=new Map<string,{id:string;title:string}>(),seen=new Set<string>();let cursor:string|null=null;
+    for(let page=0;page<16;page++){
+      const response=await this.#client.listThreads({sectionId,cursor,limit:20,archived:false,sortKey:"section_position",sortDirection:"asc",sourceKinds:["cli","vscode","exec","appServer","subAgent","subAgentReview","subAgentCompact","subAgentThreadSpawn","subAgentOther","unknown"]});if(!this.#current(intent,generation))return;
+      for(const row of response.data){if(rows.has(row.id))throw new Error("section-order-duplicate");if(row.ephemeral||row.section?.id!==sectionId||!/^[a-z0-9-]{1,64}$/.test(row.id))throw new Error("section-list-mismatch");rows.set(row.id,{id:row.id,title:(row.name||row.preview||"持久会话").replace(/[\x00-\x1f]/g," ").slice(0,100)});}
+      if(rows.size>200)throw new Error("section-list-capacity");
+      if(response.nextCursor===null){const ordered=[...rows.values()];
+        if(target){const position=ordered.findIndex(row=>row.id===target.id),anchor=target.beforeThreadId?ordered.findIndex(row=>row.id===target.beforeThreadId):ordered.length;if(position<0||(target.beforeThreadId?position+1!==anchor:position!==ordered.length-1))throw new Error("section-order-changed");}
+        await this.#mutate(()=>{if(target)this.#store.upsert(target.id,{title:target.title});for(const [position,row] of ordered.entries())if(this.#store.find(row.id))this.#store.upsert(row.id,{sectionId,sectionName:this.#sections.rows.find(section=>section.id===sectionId)?.name??null,sectionPosition:position});});if(this.#current(intent,generation))this.#sectionOrder={sectionId,rows:ordered,ready:true};return;}
+      if(rows.size>=200)throw new Error("section-list-capacity");
+      if(seen.has(response.nextCursor)||response.nextCursor===cursor)throw new Error("section-cursor-loop");seen.add(response.nextCursor);cursor=response.nextCursor;
+    }throw new Error("section-list-capacity");
+  }
+  async #loadSectionOrder(sectionId:string):Promise<void>{
+    this.#managementAvailable();if(this.#sections.status!=="ready"||!this.#sections.rows.some(row=>row.id===sectionId))throw new Error("sections-unavailable");
+    const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
+    try{await this.#readSectionOrder(sectionId,intent,generation);this.#error=null;}catch{if(this.#current(intent,generation))this.#error="分区顺序读取未完成，暂停指定位置移动；请刷新后核对。";}
+    finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
+  }
   async #loadSections():Promise<void>{
     this.#managementAvailable();const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
     try{const rows=new Map<string,{id:string;name:string}>(),seen=new Set<string>();let cursor:string|null=null;
-      for(let page=0;page<4;page++){const response=await this.#client.listSections({cursor,limit:20});if(!this.#current(intent,generation))return;for(const row of response.data)rows.set(row.id,{id:row.id,name:row.name.replace(/[\x00-\x1f]/g," ")});if(rows.size>64)throw new Error("section-capacity");if(response.nextCursor===null){this.#sections={status:"ready",rows:[...rows.values()],notice:"分区由官方核心保存；本地项目标签不改变执行目录。",canCreate:this.#sectionCreateBlockedGeneration!==generation};return;}if(seen.has(response.nextCursor))throw new Error("section-cursor-loop");seen.add(response.nextCursor);cursor=response.nextCursor;}
+      for(let page=0;page<4;page++){const response=await this.#client.listSections({cursor,limit:20});if(!this.#current(intent,generation))return;for(const row of response.data)rows.set(row.id,{id:row.id,name:row.name.replace(/[\x00-\x1f]/g," ")});if(rows.size>64)throw new Error("section-capacity");if(response.nextCursor===null){await this.#mutate(()=>{for(const row of this.#store.snapshot().sessions){const name=rows.get(row.sectionId??"")?.name;if(name!==undefined)this.#store.upsert(row.id,{sectionName:name});}});if(!this.#current(intent,generation))return;this.#sections={status:"ready",rows:[...rows.values()],notice:"分区由官方核心保存；本地项目标签不改变执行目录。",canCreate:this.#sectionCreateBlockedGeneration!==generation};return;}if(seen.has(response.nextCursor))throw new Error("section-cursor-loop");seen.add(response.nextCursor);cursor=response.nextCursor;}
       throw new Error("section-page-capacity");
     }catch(error){if(this.#current(intent,generation))this.#sections={...this.#sections,status:error instanceof HostOperationError&&error.code==="rpc-error:-32601"?"unsupported":"error",notice:"官方分区读取未完成或当前存储不支持，保留原归属；未切换到伪造接口。",canCreate:false};}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
@@ -236,28 +281,35 @@ export class OfficialChatController {
     catch{if(this.#current(intent,generation)){this.#sectionCreateBlockedGeneration=generation;this.#sections.canCreate=false;this.#error="分区创建结果未确认，不能自动重试；请重连后刷新官方分区。";}}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
-  async #assignSection(id:string,sectionId:string|null):Promise<void>{
+  async #assignSection(id:string,sectionId:string|null,beforeThreadId?:string):Promise<void>{
     this.#managementAvailable(id);const record=this.#store.find(id),section=this.#sections.rows.find(row=>row.id===sectionId);
     if(this.#sections.status!=="ready"||(sectionId!==null&&!section)||record?.ephemeral||record?.archived||record?.archiveUncertain||(this.#browsing&&this.#browser.snapshot().archived))throw new Error("section-target-unavailable");
+    if(beforeThreadId&&(!this.#sectionOrder?.ready||this.#sectionOrder.sectionId!==sectionId||!this.#sectionOrder.rows.some(row=>row.id===beforeThreadId)||beforeThreadId===id))throw new Error("section-anchor-unavailable");
     const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="managing";this.#publish();
     try{const meta=await this.#client.readThreadMetadata({threadId:id});if(!this.#current(intent,generation))return;if(meta.thread.ephemeral||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("active-session-management-refused");
-      await this.#client.moveToSection({threadId:id,sectionId});if(!this.#current(intent,generation))return;
+      if(this.#sectionOrder)this.#sectionOrder.ready=false;await this.#client.moveToSection({threadId:id,sectionId,...(beforeThreadId?{beforeThreadId}:{})});if(!this.#current(intent,generation))return;
       const verified=await this.#client.readThreadMetadata({threadId:id});if(!this.#current(intent,generation))return;if((verified.thread.section?.id??null)!==sectionId)throw new Error("section-move-not-verified");
-      await this.#mutate(()=>this.#store.upsert(id,{title:record?.title??meta.thread.name??meta.thread.preview??"持久会话",sectionId,sectionName:section?.name??null}));this.#error=null;
+      const title=(record?.title??meta.thread.name??meta.thread.preview??"持久会话").slice(0,100);
+      if(sectionId){await this.#readSectionOrder(sectionId,intent,generation,{id,title,beforeThreadId});if(!this.#current(intent,generation))return;}
+      else{await this.#mutate(()=>this.#store.upsert(id,{title,sectionId:null,sectionName:null,sectionPosition:undefined}));this.#sectionOrder=undefined;}this.#error=null;
     }catch{if(this.#current(intent,generation))this.#error="分区移动未确认，保留本地原归属；官方结果可能已改变，请重连或重新打开记录核对。";}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
   async dispatch(value: unknown): Promise<DesktopView> {
     if (this.#disposed) throw new Error("controller-unavailable"); const command = validateDesktopCommand(value);
-    if (this.#browsing && ["draft", "submit", "confirm", "selectModel", "cancel"].includes(command.type)) throw new Error("saved-history-read-only");
+    if(this.#phase==="managing"&&["thread","browseHistory","returnToChat","toggleArchived","refreshThreads","moreThreads","refreshHistory","history"].includes(command.type))throw new Error("session-management-busy");
+    if (this.#browsing && ["draft", "submit", "confirm", "selectModel", ...(!this.#forking?["cancel"]:[])].includes(command.type)) throw new Error("saved-history-read-only");
     switch (command.type) {
       case "continueSession": if(this.#browsing && this.#browser.snapshot().archived)throw new Error("archived-session-read-only"); await this.#activateSaved(command.id); break;
       case "pinSession": case "unreadSession": case "renameSession": case "archiveSession": case "unarchiveSession": await this.#manage(command); break;
-      case "forkSession": await this.#fork(command.id); break;
+      case "forkSession": await this.#fork(command.id,command.lastTurnId); break;
+      case "renameProject": await this.#renameProject(command.id,command.name);break;
+      case "renameSection": await this.#renameSection(command.sectionId,command.name);break;
+      case "loadSectionOrder": await this.#loadSectionOrder(command.sectionId);break;
       case "assignProject": await this.#assignProject(command.id,command.name); break;
       case "loadSections": await this.#loadSections();break;
       case "createSection": await this.#createSection(command.name);break;
-      case "assignSection": await this.#assignSection(command.id,command.sectionId);break;
+      case "assignSection": await this.#assignSection(command.id,command.sectionId,command.beforeThreadId);break;
       case "toggleArchived": if(!this.#browsing)throw new Error("history-view-required"); await this.#browser.setArchived(!this.#browser.snapshot().archived); await this.#rememberRows(); break;
       case "browseHistory": {
         if (this.#phase !== "idle" || this.#pending || !this.#guarded || this.#client.getView().state !== "ready") throw new Error("history-unavailable");

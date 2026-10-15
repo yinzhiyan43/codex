@@ -5,11 +5,15 @@ export type DesktopCommand =
   | { type: "draft"; routeId: string; text: string }
   | { type: "search"; text: string }
   | { type: "history"; threadId: string }
-  | { type: "continueSession" | "forkSession" | "archiveSession" | "unarchiveSession" | "pinSession" | "unreadSession"; id: string }
+  | { type: "continueSession" | "archiveSession" | "unarchiveSession" | "pinSession" | "unreadSession"; id: string }
+  | { type:"forkSession"; id:string; lastTurnId?:string }
+  | { type:"loadSectionOrder"; sectionId:string }
+  | { type:"renameSection"; sectionId:string; name:string }
+  | { type:"renameProject"; id:string; name:string }
   | { type: "renameSession"; id: string; name: string }
   | { type: "assignProject"; id: string; name: string }
   | { type: "createSection"; name: string }
-  | { type: "assignSection"; id: string; sectionId: string | null }
+  | { type: "assignSection"; id: string; sectionId: string | null; beforeThreadId?:string }
   | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
 const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
@@ -19,9 +23,15 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   const keys = Object.keys(v).sort().join(",");
   if (simple.has(v.type) && keys === "type") return v as DesktopCommand;
   if (v.type === "selectModel" && keys === "model,type" && typeof v.model === "string" && /^gpt-[a-z0-9.-]{1,100}$/.test(v.model)) return v as DesktopCommand;
+  const validId=(x:unknown)=>typeof x==="string"&&/^[a-z0-9-]{1,64}$/.test(x);
+  const validName=(x:unknown)=>typeof x==="string"&&!!x.trim()&&x.length<=80&&!/[\x00-\x1f]/.test(x);
+  if(v.type==="forkSession"&&["id,type","id,lastTurnId,type"].includes(keys)&&validId(v.id)&&(v.lastTurnId===undefined||validId(v.lastTurnId)))return v as DesktopCommand;
+  if(v.type==="loadSectionOrder"&&keys==="sectionId,type"&&validId(v.sectionId))return v as DesktopCommand;
+  if(v.type==="renameSection"&&keys==="name,sectionId,type"&&validId(v.sectionId)&&validName(v.name))return v as DesktopCommand;
+  if(v.type==="renameProject"&&keys==="id,name,type"&&validId(v.id)&&validName(v.name))return v as DesktopCommand;
   if(v.type==="assignProject"&&keys==="id,name,type"&&typeof v.id==="string"&&/^[a-z0-9-]{1,64}$/.test(v.id)&&typeof v.name==="string"&&v.name.length<=80&&!/[\x00-\x1f]/.test(v.name))return v as DesktopCommand;
   if(v.type==="createSection"&&keys==="name,type"&&typeof v.name==="string"&&v.name.trim().length>0&&v.name.length<=80&&!/[\x00-\x1f]/.test(v.name))return v as DesktopCommand;
-  if(v.type==="assignSection"&&keys==="id,sectionId,type"&&typeof v.id==="string"&&/^[a-z0-9-]{1,64}$/.test(v.id)&&(v.sectionId===null||typeof v.sectionId==="string"&&/^[a-z0-9-]{1,64}$/.test(v.sectionId)))return v as DesktopCommand;
+  if(v.type==="assignSection"&&["id,sectionId,type","beforeThreadId,id,sectionId,type"].includes(keys)&&(v.beforeThreadId===undefined||validId(v.beforeThreadId)&&v.beforeThreadId!==v.id&&v.sectionId!==null)&&typeof v.id==="string"&&/^[a-z0-9-]{1,64}$/.test(v.id)&&(v.sectionId===null||typeof v.sectionId==="string"&&/^[a-z0-9-]{1,64}$/.test(v.sectionId)))return v as DesktopCommand;
   if (v.type === "renameSession" && keys === "id,name,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id) && typeof v.name === "string" && v.name.trim().length > 0 && v.name.length <= 100 && !/[\x00-\x1f]/.test(v.name)) return v as DesktopCommand;
   if (["continueSession","forkSession","archiveSession","unarchiveSession","pinSession","unreadSession"].includes(v.type) && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if ((v.type === "project" || v.type === "thread") && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;

@@ -1,3 +1,4 @@
+import { runEditingSmoke } from "./editing-smoke.ts";
 import { runManagementSmoke } from "./management-smoke.ts";
 import { runPersistenceSmoke } from "./persistence-smoke.ts";
 import { SessionStore } from "../desktop-host/session-store.ts";
@@ -27,6 +28,7 @@ const chatMode = process.argv.includes("--official-chat") || offlineChat;
 const durableProfile = chatMode && !offlineChat;
 const profile = durableProfile ? join(app.getPath("appData"),"Codex Workbench") : mkdtempSync(join(tmpdir(),"codex-workbench-synthetic-"));
 if(durableProfile){mkdirSync(profile,{recursive:true,mode:0o700});if(!app.requestSingleInstanceLock())app.exit(0);}
+const editingSmoke=process.argv.includes("--editing-smoke");if(editingSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("editing-smoke-is-offline-only");
 const managementSmoke=process.argv.includes("--management-smoke");if(managementSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("management-smoke-is-offline-only");
 const persistenceIndex=process.argv.indexOf("--persistence-root");
 if(persistenceIndex>=0&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("persistence-fixture-is-offline-smoke-only");
@@ -139,7 +141,7 @@ if (smokeIndex >= 0) {
   if (!output?.startsWith("/")) throw new Error("smoke-output-must-be-absolute");
   mkdirSync(output, { recursive: true });
   const smokeTimeout = setTimeout(() => { console.error("Desktop smoke timed out"); void controller!.dispose().finally(() => app.exit(1)); }, 30000);
-  try { await (managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize())); console.log("Desktop smoke passed"); window.close(); }
+  try { await (editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize())); console.log("Desktop smoke passed"); window.close(); }
   catch (error) { console.error(error); await controller.dispose(); cleanupProfiles(); app.exit(1); }
   finally { clearTimeout(smokeTimeout); }
 }

@@ -1,4 +1,4 @@
-# Workbench protocol, host and desktop — through M2.d
+# Workbench protocol, host and desktop — through M2.e
 
 This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Default npm test checks are offline and launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. An explicit isolated mode has now verified the installed official 0.162.1 binary for handshake, read errors and lifecycle; it does not log in or send model requests. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md), plus [the M1.e real connection report](../docs/workbench/core-connection-milestone.md).
 
@@ -120,3 +120,11 @@ Local project labels only organize this workbench; they do not call experimental
 Server catalog storage stays bounded to 200 rows/16 pages. Registered forks are shown separately within the 512-record managed index, at most 712 deduplicated history rows total; body/cache budgets remain unchanged. Own metadata edits serialize with draft persistence and roll back on failed local writes. There is no distributed transaction with the official core; unknown created IDs cannot be invented or guaranteed recoverable.
 
 `npm run desktop:management:smoke -- /absolute/output` verifies two hidden offline Apps. `npm run management:core:check -- --result /absolute/result.json` explicitly runs the pinned native core against synthetic records with denied network and zero model turns. See [M2.d evidence and capability map](../docs/workbench/session-management-milestone.md) and [machine results](../docs/workbench/session-management-results.json).
+
+## Saved-turn forks and organization editing — M2.e
+
+Loaded terminal saved turns offer an inclusive fork confirmation using standard `lastTurnId`; later turns are excluded and source drafts remain independent. Official sections support rename with appearance omitted/preserved and verified `beforeThreadId`/append ordering. Anchors require a complete scan within 200 members/16 pages; duplicate members/cursor conflicts fail without importing order. Section pages are not a server snapshot during external concurrent reorders. Sidebar local pins take priority over the observed section order.
+
+Local project labels can be renamed across every matching record, including archived records, with collision refusal and atomic rollback. These labels do not create official projects or change cwd.
+
+Current validation: 51 schemas, 211 offline tests; editing hidden-App restart checks 14 + 10, management regression 18 + 13, isolated native two-process synthetic proof, zero new real model requests. `npm run desktop:editing:smoke -- /absolute/private/output` and `npm run editing:core:check -- --result /absolute/result.json` reproduce the explicit checks. See [M2.e report](../docs/workbench/session-editing-milestone.md) and [machine results](../docs/workbench/session-editing-results.json). The sanitized M2.d base b15bd57 was pushed as authorized; M2.e changes remain a local commit.

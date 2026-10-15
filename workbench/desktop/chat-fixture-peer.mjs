@@ -14,14 +14,15 @@ const turn = (id,items=[],status="inProgress") => ({id,rootTurnId:null,items,ite
 const metadata = t => ({id:t.id,sessionId:"offline",projectId:null,forkedFromId:t.parent??null,section:t.sectionId?sections.get(t.sectionId)??null:null,preview:t.parent&&!t.hasOwnTurn?"":"offline fixture",ephemeral:t.saved?false:true,name:t.title??null,path:t.saved?"/synthetic/private-never-in-renderer":null,historyMode:"legacy",modelProvider:"openai",createdAt:1,updatedAt:1,status:{type:"idle"},cwd:"/synthetic/chat",cliVersion:"0.162.1",source:"cli",turns:[...t.turns.values()].map(v=>turn(v.id,v.items,v.status))});
 const agent = (id,text) => ({type:"agentMessage",id,text,phase:null,memoryCitation:null,delivery:null,questions:null});
 const model = (name,isDefault) => ({id:name,model:name,displayName:name,description:"Offline fixture only",hidden:false,isDefault,inputModalities:["text"],supportsPersonality:false,supportedReasoningEfforts:[{reasoningEffort:"low",description:"fixture"}],defaultReasoningEffort:"low"});
-for (const [id,title] of (["many-history","large-catalog","small-page-catalog"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : [["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]])) {
- const t={id,title,saved:true,turns:new Map()};
+for (const [id,title] of (["many-history","large-catalog","small-page-catalog","large-section"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : [["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]])) {
+ const t={id,title,saved:true,turns:new Map(),...(mode==="large-section"?{sectionId:"section-large",position:threads.size}:{})};
  for (const [index,key] of [[1,"turn-z"],[2,"turn-a"],[3,"turn-m"]]) {
    const u={type:"userMessage",id:key+"-user",clientId:null,content:[{type:"text",text:title+" 用户 "+index,text_elements:[]}]};
    const a=agent(key+"-agent",title+" 回应 "+index); t.turns.set(key,{id:key,items:[u,a],status:"completed"});
  }
  threads.set(id,t);
 }
+if(mode==="large-section")sections.set("section-large",{id:"section-large",name:"Large synthetic section",appearance:null});
 if(statePath&&existsSync(statePath)){const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;sectionCount=v.sectionCount??0;sections=new Map((v.sections??[]).map(s=>[s.id,s]));threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));}
 function serverPage(values,cursor,prefix,limit=2) {
  const start=cursor===null||cursor===undefined?0:Number(String(cursor).slice(prefix.length));
@@ -36,23 +37,26 @@ function handle(m) {
   if(m.method==="account/read") return reply(m.id,{account:mode==="no-account"?null:{type:"chatgpt",email:"fixture@example.invalid",planType:"pro"},requiresOpenaiAuth:true});
   if(m.method==="model/list") return reply(m.id,{data:[model("gpt-fixture-one",true),model("gpt-fixture-two",false)],nextCursor:null});
   if(m.method==="threadSection/list"){if(mode==="unsupported-sections")return error(m.id,-32601);return reply(m.id,serverPage([...sections.values()],m.params.cursor,"sections:",20));}
-  if(m.method==="threadSection/create"){const section={id:"section-"+(++sectionCount),name:m.params.name,appearance:null};sections.set(section.id,section);persist();if(mode==="section-create-timeout")return;return reply(m.id,{section});}
+  if(m.method==="threadSection/create"){const section={id:"section-"+(++sectionCount),name:m.params.name,appearance:mode==="section-appearance"?{icon:"star",color:"blue"}:null};sections.set(section.id,section);persist();if(mode==="section-create-timeout")return;return reply(m.id,{section});}
+  if(m.method==="threadSection/update"){const section=sections.get(m.params.sectionId);if(!section||mode==="section-update-error")return error(m.id,-32600);section.name=m.params.name;if(Object.hasOwn(m.params,"appearance"))section.appearance=m.params.appearance;persist();return reply(m.id,{section});}
   if(m.method==="thread/start") { const id="chat-"+(++threadCount); const t={id,saved:!m.params.ephemeral,turns:new Map()};threads.set(id,t);persist();return reply(m.id,{thread:metadata(t),model:m.params.model,modelProvider:"openai",cwd:"/synthetic/chat",approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null}); }
   if(m.method==="thread/list") {
     const saved=[...threads.values()].filter(t=>t.saved && !!t.archived===!!m.params.archived && (!t.parent||t.hasOwnTurn||m.params.sectionId) && (m.params.sectionId===undefined||((t.sectionId??null)===m.params.sectionId))).map(t=>({...metadata(t),turns:[]}));
+    if(m.params.sortKey==="section_position")saved.sort((a,b)=>(threads.get(a.id).position??0)-(threads.get(b.id).position??0));
     // Intentional inclusive overlap: repeat last row on continuation.
-    const page=serverPage(saved,m.params.cursor,"threads:",["many-history","large-catalog"].includes(mode)?20:2);
-    if(m.params.cursor&&!["many-history","large-catalog","small-page-catalog"].includes(mode))page.data.unshift(saved[1]);
+    const page=serverPage(saved,m.params.cursor,"threads:",["many-history","large-catalog","large-section"].includes(mode)?20:2);
+    if(!m.params.sectionId&&m.params.cursor&&!["many-history","large-catalog","small-page-catalog","large-section"].includes(mode))page.data.unshift(saved[1]);
     return reply(m.id,page);
   }
   const t=threads.get(m.params?.threadId); if(!t) return error(m.id,-32600);
   if(m.method==="thread/fork"){
     if(mode==="fork-error")return error(m.id,-32600);
-    const fork={id:"fork-"+(++threadCount),saved:true,parent:t.id,title:t.title,turns:new Map([...t.turns].map(([key,v])=>[key,JSON.parse(JSON.stringify(v))]))};threads.set(fork.id,fork);persist();
+    let inherited=[...t.turns];if(m.params.lastTurnId){const end=inherited.findIndex(([id])=>id===m.params.lastTurnId);if(end<0||inherited[end][1].status==="inProgress")return error(m.id,-32600);inherited=inherited.slice(0,end+1);}
+    const fork={id:"fork-"+(++threadCount),saved:true,parent:t.id,title:t.title,turns:new Map(inherited.map(([key,v])=>[key,JSON.parse(JSON.stringify(v))]))};threads.set(fork.id,fork);persist();
     const value={thread:{...metadata(fork),id:mode==="wrong-fork"?t.id:fork.id,turns:[]},model:m.params.model,modelProvider:"openai",cwd:m.params.cwd,approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null,collaborationMode:null,turnsBackwardsCursor:null,itemsBackwardsCursor:null};
     if(mode==="fork-timeout")return;return mode==="slow-fork"?setTimeout(()=>reply(m.id,value),400):reply(m.id,value);
   }
-  if(m.method==="thread/section/move"){if(mode==="section-move-error")return error(m.id,-32600);t.sectionId=m.params.sectionId;persist();return reply(m.id,{});}
+  if(m.method==="thread/section/move"){if(mode==="section-move-error")return error(m.id,-32600);const sectionId=m.params.sectionId,anchor=m.params.beforeThreadId;if(sectionId&&!sections.has(sectionId)||anchor&&(anchor===t.id||threads.get(anchor)?.sectionId!==sectionId))return error(m.id,-32600);const ordered=[...threads.values()].filter(row=>row.id!==t.id&&row.sectionId===sectionId).sort((a,b)=>(a.position??0)-(b.position??0));const index=anchor?ordered.findIndex(row=>row.id===anchor):ordered.length;ordered.splice(index,0,t);t.sectionId=sectionId;for(const [position,row]of ordered.entries())row.position=position;persist();return reply(m.id,{});}
   if(m.method==="thread/name/set"){t.title=m.params.name.trim();persist();return reply(m.id,{});}
   if(m.method==="thread/archive"){if(mode==="late-archive")return setTimeout(()=>{t.archived=true;persist();reply(m.id,{});},1500);t.archived=true;persist();if(mode==="slow-archive")return;return reply(m.id,{});}
   if(m.method==="thread/unarchive"){t.archived=false;persist();return reply(m.id,{thread:{...metadata(t),id:mode==="wrong-unarchive"?"saved-a":t.id,turns:[]}});}

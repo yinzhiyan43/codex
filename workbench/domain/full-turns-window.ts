@@ -36,5 +36,5 @@ export class FullTurnsWindow {
     this.#turns = turns; this.#order = order; this.#cursor = page.nextCursor; this.#seen.add(requestKey); this.#started = true; this.#stale = false; this.#limited = page.nextCursor !== null && (turns.size >= 256 || this.#seen.size >= 64 || normalizedBytes >= 2 * 1024 * 1024);
   }
   limited(): boolean { return this.#limited; }
-  snapshot() { return { turnIds:[...this.#order], messages: this.#order.flatMap(id => this.#turns.get(id)!.messages.map(message => ({ ...message, stale: this.#stale }))), turnCount: this.#turns.size, hasMore: this.hasMore(), stale: this.#stale }; }
+  snapshot() { return { forkTurns:this.#stale?[]:this.#order.flatMap(id=>{const turn=this.#turns.get(id)!;const message=turn.messages.at(-1);return turn.status!=="inProgress"&&message?[{id,messageId:message.id}]:[];}), turnIds:[...this.#order], messages: this.#order.flatMap(id => this.#turns.get(id)!.messages.map(message => ({ ...message, stale: this.#stale }))), turnCount: this.#turns.size, hasMore: this.hasMore(), stale: this.#stale }; }
 }
