@@ -1,0 +1,580 @@
+{
+  "stage": "M2.d",
+  "date": "2026-10-15",
+  "predecessorCommit": "7645df6281712835940f7e6364fc03fca8a794bd",
+  "coreCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d",
+  "schemas": 49,
+  "offlineTests": {
+    "tests": 197,
+    "passed": 197,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "nativeIsolatedSyntheticManagement": {
+    "result": "passed",
+    "identity": {
+      "version": "0.162.1",
+      "target": "aarch64-apple-darwin",
+      "sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0"
+    },
+    "isolatedSyntheticData": true,
+    "networkDeniedByPolicy": true,
+    "modelRequests": 0,
+    "turnStartRequests": 0,
+    "processes": [
+      {
+        "phase": "write",
+        "exitCode": 0,
+        "signal": null
+      },
+      {
+        "phase": "restart",
+        "exitCode": 0,
+        "signal": null
+      }
+    ],
+    "methods": [
+      {
+        "phase": "write",
+        "method": "initialize"
+      },
+      {
+        "phase": "write",
+        "method": "initialized"
+      },
+      {
+        "phase": "write",
+        "method": "config/read"
+      },
+      {
+        "phase": "write",
+        "method": "thread/fork"
+      },
+      {
+        "phase": "write",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "write",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "write",
+        "method": "threadSection/create"
+      },
+      {
+        "phase": "write",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "write",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "initialize"
+      },
+      {
+        "phase": "restart",
+        "method": "initialized"
+      },
+      {
+        "phase": "restart",
+        "method": "config/read"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/read"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "restart",
+        "method": "threadSection/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/section/move"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/turns/list"
+      },
+      {
+        "phase": "restart",
+        "method": "thread/resume"
+      }
+    ],
+    "forkId": "01a13e27-cea7-76a3-bfa6-873d21476910",
+    "forkPreview": "",
+    "forkSource": "vscode",
+    "parentId": "00000000-0000-4000-8000-000000000004",
+    "inheritedTurns": 3,
+    "sectionId": "01a13e27-ced7-72d2-a578-59cc47c3eaea",
+    "sectionCatalogContainsFork": true,
+    "childReadableAfterRestart": true,
+    "childTurnsAfterRestart": 3,
+    "sectionSurvivesRestart": true,
+    "sectionForkSurvivesRestart": true,
+    "ordinaryCatalogContainsFork": false,
+    "sourceBodyUnchanged": true,
+    "sourceRolloutBytesUnchanged": true,
+    "sameForkResumeConfirmed": true,
+    "cleanupConfirmed": true
+  },
+  "offlineManagementUi": {
+    "write": {
+      "result": "passed",
+      "phase": "write",
+      "runKind": "offline-session-management-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "fork-1",
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "local-project-clear-source-label",
+        "local-project-assignment",
+        "duplicate-section-name-binds-returned-id",
+        "official-section-create",
+        "official-section-assignment",
+        "group-labels-visible",
+        "fork-dialog-cancel-no-rpc",
+        "fork-confirm-once",
+        "fork-new-id-relationship",
+        "source-draft-not-copied-or-overwritten",
+        "local-project-inherited",
+        "complete-inherited-text",
+        "empty-preview-fork-visible-in-history",
+        "explicit-reopen-without-model",
+        "no-official-project-share-delete-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "threadSection/list",
+        "threadSection/create",
+        "threadSection/create",
+        "thread/read",
+        "thread/section/move",
+        "thread/read",
+        "config/read",
+        "thread/read",
+        "thread/fork",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "consoleErrors": []
+    },
+    "restart": {
+      "result": "passed",
+      "phase": "restart",
+      "runKind": "offline-session-management-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "fork-1",
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "same-fork-after-app-restart",
+        "fork-and-source-drafts-preserved",
+        "project-section-metadata-restored",
+        "no-auto-fork-resume-model",
+        "original-source-openable-and-unchanged",
+        "local-project-clear",
+        "official-section-clear",
+        "confirmed-continuation-uses-fork-id-once",
+        "narrow-layout",
+        "no-official-project-share-delete-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "threadSection/list",
+        "thread/read",
+        "thread/section/move",
+        "thread/read",
+        "thread/read",
+        "thread/turns/list",
+        "config/read",
+        "account/read",
+        "thread/read",
+        "thread/resume",
+        "turn/start"
+      ],
+      "consoleErrors": []
+    }
+  },
+  "offlinePersistenceUiRegression": {
+    "write": {
+      "result": "passed",
+      "phase": "write",
+      "runKind": "offline-persistent-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "chat-1",
+      "offlineFakeTurns": 1,
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "persistent-default",
+        "repeated-confirm-once",
+        "completed-first-context",
+        "draft-stored-before-exit",
+        "all-eleven-menu-items",
+        "unknown-submenus-disabled",
+        "official-rename",
+        "local-pin",
+        "local-unread",
+        "share-and-delete-no-action",
+        "no-delete-share-fork-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "config/read",
+        "account/read",
+        "thread/start",
+        "turn/start",
+        "thread/read",
+        "thread/name/set"
+      ],
+      "consoleErrors": []
+    },
+    "restart": {
+      "result": "passed",
+      "phase": "restart",
+      "runKind": "offline-persistent-disk-fixture",
+      "officialNativeExecuted": false,
+      "realModelRequests": 0,
+      "threadId": "chat-1",
+      "offlineFakeTurns": 1,
+      "checks": [
+        "explicit-offline-label",
+        "renderer-isolation",
+        "same-id-after-app-and-peer-restart",
+        "exact-first-context-restored",
+        "draft-title-pin-restored",
+        "no-auto-resume-or-model-replay",
+        "explicit-resume-on-confirm",
+        "same-thread-continued-once",
+        "stable-old-and-live-message-ids",
+        "archive-confirmation-describes-scope",
+        "official-archive",
+        "archived-browse",
+        "archived-rename-disabled",
+        "official-unarchive",
+        "restored-history-continue-button-without-model",
+        "narrow-layout",
+        "no-delete-share-fork-rpc",
+        "console-errors"
+      ],
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "config/read",
+        "account/read",
+        "thread/read",
+        "thread/resume",
+        "turn/start",
+        "thread/read",
+        "thread/archive",
+        "thread/list",
+        "thread/list",
+        "thread/unarchive",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "consoleErrors": []
+    }
+  },
+  "offlineHistoryUiRegression": {
+    "result": "passed",
+    "runKind": "offline-history-protocol-fixture",
+    "officialNativeExecuted": false,
+    "realModelRequests": 0,
+    "offlineFakeTurns": 1,
+    "checks": [
+      "explicit-offline-label",
+      "renderer-isolation",
+      "persistent-default-retained",
+      "current-refresh-official-full-turns",
+      "persistence-visible",
+      "server-list-cursor",
+      "overlap-row-dedup",
+      "read-only-composer-model-send",
+      "history-execution-boundary",
+      "selected-late-response-ignored",
+      "full-turn-server-pagination",
+      "chronology-with-equal-times",
+      "overlap-turn-item-dedup",
+      "stable-message-dom",
+      "terminal-page-button-disabled",
+      "raw-path-omitted",
+      "catalog-refresh-keeps-selection",
+      "explicit-record-refresh",
+      "cancel-keeps-stale-cache",
+      "disconnect-cache",
+      "reconnect-read-load-without-resume-or-replay",
+      "return-retains-draft-and-text",
+      "late-page-after-return-ignored",
+      "no-resume-or-items-rpc",
+      "narrow-layout-controls",
+      "console-errors"
+    ],
+    "screenshots": [
+      "history-paged",
+      "history-disconnected",
+      "history-narrow"
+    ],
+    "methods": [
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list",
+      "config/read",
+      "config/read",
+      "account/read",
+      "thread/start",
+      "turn/start",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list",
+      "config/read",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list"
+    ],
+    "consoleErrors": []
+  },
+  "offlineChatUiRegression": {
+    "result": "passed",
+    "runKind": "offline-protocol-fixture",
+    "officialNativeExecuted": false,
+    "realModelRequests": 0,
+    "checks": [
+      "explicit-offline-label",
+      "renderer-isolation",
+      "native-account-metadata-shape",
+      "email-omitted",
+      "server-catalog-selection",
+      "ui-ipc-host-jsonl-chain",
+      "confirmation-once",
+      "streamed-text",
+      "completed-terminal",
+      "draft-cleared-on-ack",
+      "refresh-current-thread-only",
+      "persistence-and-pagination-visible",
+      "interrupt-ack-not-terminal",
+      "interrupted-terminal",
+      "late-delta-ignored",
+      "failed-terminal",
+      "private-error-omitted",
+      "disconnect-unknown",
+      "no-auto-replay",
+      "new-persistent-route",
+      "narrow-layout",
+      "console-errors"
+    ],
+    "screenshots": [
+      "chat-ready",
+      "chat-streaming",
+      "chat-interrupted",
+      "chat-disconnected",
+      "chat-narrow"
+    ],
+    "consoleErrors": []
+  },
+  "syntheticUiRegression": {
+    "result": "passed",
+    "checks": [
+      "selected-app-icon",
+      "ready-synthetic-peer",
+      "renderer-isolation",
+      "project-thread-navigation",
+      "draft-preservation",
+      "repeated-clicks",
+      "confirm-return",
+      "cancel-running",
+      "complete-synthetic-response",
+      "disconnect-stale",
+      "explicit-reconnect",
+      "new-back",
+      "search-empty",
+      "narrow-controls",
+      "console-errors",
+      "history-overlap-and-order",
+      "stable-message-dom",
+      "history-cancel",
+      "approval-once",
+      "approval-decline",
+      "approval-cancel",
+      "approval-expiry",
+      "approval-disconnect"
+    ],
+    "selectedIcon": {
+      "width": 1254,
+      "height": 1254
+    },
+    "screenshots": [
+      "empty",
+      "conversation",
+      "submitted",
+      "disconnected",
+      "narrow",
+      "empty-final",
+      "approvals-pending",
+      "approvals-processed",
+      "history-cancelled",
+      "history-paged"
+    ],
+    "consoleErrors": []
+  },
+  "independentReview": {
+    "model": "gpt-6-sol",
+    "effort": "xhigh",
+    "targetedPassed": 103,
+    "status": "completed",
+    "remainingP1P2": 0,
+    "diffCheckPassed": true,
+    "nativeModelGuiRuns": 0,
+    "fixedFindings": [
+      "stable modal target across asynchronous section loading",
+      "bind newly created same-name section by returned ID",
+      "separate registered fork index without hiding native catalog rows",
+      "end fork cancellation at route commit",
+      "normalize pre-existing official section names before own metadata persistence"
+    ]
+  },
+  "capabilities": {
+    "fork": "official ID-only complete persistent fork; acknowledged ID indexed locally",
+    "section": "official list/create/move; own metadata display mirror",
+    "project": "local label only; experimental official project APIs disabled",
+    "shareDelete": "non-executing dialogs",
+    "unknownSubmenus": "not guessed"
+  },
+  "limits": {
+    "nativeCatalogRows": 200,
+    "catalogPages": 16,
+    "managedRecordsIncludingForks": 512,
+    "maxHistorySidebarRowsAfterDedup": 712,
+    "sectionRows": 64,
+    "sectionPages": 4,
+    "bodyCachedThreads": 8,
+    "turnsPerCache": 256,
+    "bodyPagesPerCache": 64,
+    "serializedBodyBytes": 2097152,
+    "readsInFlight": 4,
+    "wireFrameBytes": 1048576
+  },
+  "selectedLogoSha256": "fa71fb064ea40553bb41d2e07b95dc927db1698422d8c02f89cb32f78c9ea0d6",
+  "goalsPreserved": 92,
+  "additionalRealModelRequests": 0,
+  "userHistoryReadByAgent": false,
+  "userConfigurationModified": false,
+  "coreModified": false,
+  "pushed": false,
+  "evidenceLimits": [
+    "Native probe used synthetic paginated 3-turn history and no turn/start; UI used disk-backed offline peer.",
+    "No real account model-created fork continuation was executed.",
+    "Unknown fork outcome cannot reconstruct an unacknowledged ID; persisted uncertainty prevents automatic repeat.",
+    "Project support is local label metadata, not official experimental project service.",
+    "Section update/delete/order/appearance and branch-at-turn are not implemented.",
+    "Real large history, attachments/tools, native IME/VoiceOver and full visual fidelity remain unverified.",
+    "Existing real model smoke endpoint/side-process/ephemeral measurement gaps unchanged."
+  ],
+  "launchModes": {
+    "officialChat": "npm run desktop:chat",
+    "offlineManagementUi": "npm run desktop:management:smoke -- /absolute/output",
+    "isolatedSyntheticNativeProbe": "npm run management:core:check -- --result /absolute/result.json"
+  }
+}

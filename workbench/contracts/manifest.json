@@ -229,6 +229,36 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadUnarchiveResponse.json",
       "path": "contracts/schemas/threadUnarchiveResult.json",
       "sha256": "66cfe007cebae2b6f5dd8678bb0ec87d25cf0dce328937bfc3a96f8631777a91"
+    },
+    "sectionsListParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionListParams.json",
+      "path": "contracts/schemas/sectionsListParams.json",
+      "sha256": "6aea71b3fba46351fcaf648eab0da564080ba424599a012648abd9fd44464cf8"
+    },
+    "sectionsListResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionListResponse.json",
+      "path": "contracts/schemas/sectionsListResult.json",
+      "sha256": "dc3b5e5501a56ea2a1a83cb97c5221b355629f8c9468793d94e22673424140bc"
+    },
+    "sectionsCreateParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionCreateParams.json",
+      "path": "contracts/schemas/sectionsCreateParams.json",
+      "sha256": "e3bf941ceab7a4dd39ce1b4063168621d60162aa97f7171cef59819c999c501e"
+    },
+    "sectionsCreateResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionCreateResponse.json",
+      "path": "contracts/schemas/sectionsCreateResult.json",
+      "sha256": "2b0b0e7a2651354aac35aa5d1a423b9f207ee8d46b2de077df747f4ed4f4c8de"
+    },
+    "sectionMoveParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionMoveParams.json",
+      "path": "contracts/schemas/sectionMoveParams.json",
+      "sha256": "48bc921055838df25c5595c96be7bd25beef3accb8bd1d28026fcaa7d81487b1"
+    },
+    "sectionMoveResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionMoveResponse.json",
+      "path": "contracts/schemas/sectionMoveResult.json",
+      "sha256": "243299d7eebd4fb264d4e75efeb5058982681202371c2b83ff1a63b3369ddbb6"
     }
   },
   "requests": {
@@ -306,6 +336,21 @@
       "params": "threadUnarchiveParams",
       "result": "threadUnarchiveResult",
       "experimental": false
+    },
+    "threadSection/list": {
+      "params": "sectionsListParams",
+      "result": "sectionsListResult",
+      "experimental": false
+    },
+    "threadSection/create": {
+      "params": "sectionsCreateParams",
+      "result": "sectionsCreateResult",
+      "experimental": false
+    },
+    "thread/section/move": {
+      "params": "sectionMoveParams",
+      "result": "sectionMoveResult",
+      "experimental": false
     }
   },
   "notifications": {
@@ -339,5 +384,5 @@
       "remoteControl/"
     ]
   },
-  "specSha256": "82787d8bee47e51ace41656057d5ad0c64cfa57c469490e49f86e6e00b45e7cf"
+  "specSha256": "9c2d04e258a8c5c3b44601907c0b393ce205b0a756b301cfe8ac7b4d990b4216"
 }

@@ -1,3 +1,9 @@
+export type { ThreadSectionListParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionListParams.ts";
+export type { ThreadSectionListResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionListResponse.ts";
+export type { ThreadSectionCreateParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionCreateParams.ts";
+export type { ThreadSectionCreateResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionCreateResponse.ts";
+export type { ThreadSectionMoveParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionMoveParams.ts";
+export type { ThreadSectionMoveResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSectionMoveResponse.ts";
 import Ajv from "ajv";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";

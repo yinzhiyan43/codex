@@ -17,3 +17,7 @@ test("store rejects symlink targets without reading or overwriting outside bytes
 test("only observed temporary text is retained as stale cache without invented success",async t=>{
  const path=await location(t),store=new SessionStore(path);await store.load();store.upsert("old-temp",{ephemeral:true});store.preserveTemporary("old-temp",[{id:"observed",role:"assistant",text:"partial",status:"running"}]);store.select("old-temp");await store.flush();const reopened=new SessionStore(path);await reopened.load();assert.deepEqual(reopened.snapshot().temporary!.messages,[{id:"observed",role:"assistant",text:"partial",status:"unknown",stale:true}]);
 });
+
+test("invalid new ownership metadata is rejected before it can corrupt a durable store",async t=>{
+ const path=await location(t),store=new SessionStore(path);await store.load();store.upsert("known",{localProject:"Valid",sectionId:"section-1",sectionName:"Known"});await store.flush();await assert.rejects(store.transaction(()=>store.upsert("known",{sectionName:"bad\u0000label"})),/invalid-session-metadata/);assert.equal(store.find("known")!.sectionName,"Known");const reopened=new SessionStore(path);await reopened.load();assert.equal(reopened.find("known")!.localProject,"Valid");assert.equal(reopened.find("known")!.sectionName,"Known");
+});

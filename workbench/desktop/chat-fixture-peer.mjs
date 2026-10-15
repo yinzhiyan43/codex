@@ -1,16 +1,17 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 // OFFLINE protocol simulator. No Codex binary, credentials, files, network or models.
 import { StringDecoder } from "node:string_decoder";
-const decoder = new StringDecoder("utf8"); let buffer = "", threads = new Map(), threadCount = 0, turnCount = 0;
+const decoder = new StringDecoder("utf8"); let buffer = "", threads = new Map(), threadCount = 0, turnCount = 0, sections = new Map(), sectionCount = 0;
 const mode = process.argv[2] ?? "normal";
+if(mode==="control-section-names")sections.set("section-external",{id:"section-external",name:"External\nSection",appearance:null});
 const statePath = process.argv[3]; if(statePath && (!statePath.startsWith("/")||statePath.includes("\0")))throw new Error("invalid-offline-state-path");
-const persist = () => { if(!statePath)return;const value={threadCount,turnCount,threads:[...threads.values()].filter(t=>t.saved).map(t=>({...t,turns:[...t.turns.values()].map(v=>({id:v.id,items:v.items,status:v.status,text:v.text}))}))};writeFileSync(statePath+".tmp",JSON.stringify(value),{mode:0o600});renameSync(statePath+".tmp",statePath); };
+const persist = () => { if(!statePath)return;const value={threadCount,turnCount,sectionCount,sections:[...sections.values()],threads:[...threads.values()].filter(t=>t.saved).map(t=>({...t,turns:[...t.turns.values()].map(v=>({id:v.id,items:v.items,status:v.status,text:v.text}))}))};writeFileSync(statePath+".tmp",JSON.stringify(value),{mode:0o600});renameSync(statePath+".tmp",statePath); };
 const send = value => process.stdout.write(JSON.stringify(value)+"\n");
 const reply = (id,result) => send({id,result});
 const error = (id,code=-32603) => send({id,error:{code,message:"offline-rpc-error"}});
 const notify = (method,params) => send({method,params});
 const turn = (id,items=[],status="inProgress") => ({id,rootTurnId:null,items,itemsView:"full",status,error:status==="failed"?{message:"not-for-renderer",additionalDetails:null,codexErrorInfo:null}:null,startedAt:1,completedAt:status==="inProgress"?null:1,durationMs:null});
-const metadata = t => ({id:t.id,sessionId:"offline",projectId:null,preview:"offline fixture",ephemeral:t.saved?false:true,name:t.title??null,path:t.saved?"/synthetic/private-never-in-renderer":null,historyMode:"legacy",modelProvider:"openai",createdAt:1,updatedAt:1,status:{type:"idle"},cwd:"/synthetic/chat",cliVersion:"0.162.1",source:"cli",turns:[...t.turns.values()].map(v=>turn(v.id,v.items,v.status))});
+const metadata = t => ({id:t.id,sessionId:"offline",projectId:null,forkedFromId:t.parent??null,section:t.sectionId?sections.get(t.sectionId)??null:null,preview:t.parent&&!t.hasOwnTurn?"":"offline fixture",ephemeral:t.saved?false:true,name:t.title??null,path:t.saved?"/synthetic/private-never-in-renderer":null,historyMode:"legacy",modelProvider:"openai",createdAt:1,updatedAt:1,status:{type:"idle"},cwd:"/synthetic/chat",cliVersion:"0.162.1",source:"cli",turns:[...t.turns.values()].map(v=>turn(v.id,v.items,v.status))});
 const agent = (id,text) => ({type:"agentMessage",id,text,phase:null,memoryCitation:null,delivery:null,questions:null});
 const model = (name,isDefault) => ({id:name,model:name,displayName:name,description:"Offline fixture only",hidden:false,isDefault,inputModalities:["text"],supportsPersonality:false,supportedReasoningEfforts:[{reasoningEffort:"low",description:"fixture"}],defaultReasoningEffort:"low"});
 for (const [id,title] of (["many-history","large-catalog","small-page-catalog"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : [["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]])) {
@@ -21,7 +22,7 @@ for (const [id,title] of (["many-history","large-catalog","small-page-catalog"].
  }
  threads.set(id,t);
 }
-if(statePath&&existsSync(statePath)){const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));}
+if(statePath&&existsSync(statePath)){const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;sectionCount=v.sectionCount??0;sections=new Map((v.sections??[]).map(s=>[s.id,s]));threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));}
 function serverPage(values,cursor,prefix,limit=2) {
  const start=cursor===null||cursor===undefined?0:Number(String(cursor).slice(prefix.length));
  const end=Math.min(start+limit,values.length),data=values.slice(start,end);
@@ -34,15 +35,24 @@ function handle(m) {
   if(m.method==="config/read") return reply(m.id,{config:{model_provider:mode==="unsafe-config"?"local":"openai",forced_login_method:"chatgpt",openai_base_url:"https://chatgpt.com/backend-api/codex",chatgpt_base_url:"https://chatgpt.com/backend-api/",notify:[],features:{background_paginated_rollout_migration:false,goals:mode==="unsafe-goals",daemon_auto_start:false,hooks:false,shell_tool:mode==="unsafe-tools",unified_exec:false,view_image:false,apps:false,plugins:false,code_mode:false,multi_agent:false,multi_agent_v2:mode==="unsafe-agents",image_generation:false,browser_use:false,browser_use_external:false,browser_use_full_cdp_access:false,computer_use:mode==="unsafe-computer"},agents:{enabled:mode==="unsafe-agents"},web_search:"disabled",mcp_servers:{disabled:{enabled:false}}},origins:{},layers:null});
   if(m.method==="account/read") return reply(m.id,{account:mode==="no-account"?null:{type:"chatgpt",email:"fixture@example.invalid",planType:"pro"},requiresOpenaiAuth:true});
   if(m.method==="model/list") return reply(m.id,{data:[model("gpt-fixture-one",true),model("gpt-fixture-two",false)],nextCursor:null});
+  if(m.method==="threadSection/list"){if(mode==="unsupported-sections")return error(m.id,-32601);return reply(m.id,serverPage([...sections.values()],m.params.cursor,"sections:",20));}
+  if(m.method==="threadSection/create"){const section={id:"section-"+(++sectionCount),name:m.params.name,appearance:null};sections.set(section.id,section);persist();if(mode==="section-create-timeout")return;return reply(m.id,{section});}
   if(m.method==="thread/start") { const id="chat-"+(++threadCount); const t={id,saved:!m.params.ephemeral,turns:new Map()};threads.set(id,t);persist();return reply(m.id,{thread:metadata(t),model:m.params.model,modelProvider:"openai",cwd:"/synthetic/chat",approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null}); }
   if(m.method==="thread/list") {
-    const saved=[...threads.values()].filter(t=>t.saved && !!t.archived===!!m.params.archived).map(t=>({...metadata(t),turns:[]}));
+    const saved=[...threads.values()].filter(t=>t.saved && !!t.archived===!!m.params.archived && (!t.parent||t.hasOwnTurn||m.params.sectionId) && (m.params.sectionId===undefined||((t.sectionId??null)===m.params.sectionId))).map(t=>({...metadata(t),turns:[]}));
     // Intentional inclusive overlap: repeat last row on continuation.
     const page=serverPage(saved,m.params.cursor,"threads:",["many-history","large-catalog"].includes(mode)?20:2);
     if(m.params.cursor&&!["many-history","large-catalog","small-page-catalog"].includes(mode))page.data.unshift(saved[1]);
     return reply(m.id,page);
   }
   const t=threads.get(m.params?.threadId); if(!t) return error(m.id,-32600);
+  if(m.method==="thread/fork"){
+    if(mode==="fork-error")return error(m.id,-32600);
+    const fork={id:"fork-"+(++threadCount),saved:true,parent:t.id,title:t.title,turns:new Map([...t.turns].map(([key,v])=>[key,JSON.parse(JSON.stringify(v))]))};threads.set(fork.id,fork);persist();
+    const value={thread:{...metadata(fork),id:mode==="wrong-fork"?t.id:fork.id,turns:[]},model:m.params.model,modelProvider:"openai",cwd:m.params.cwd,approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null,collaborationMode:null,turnsBackwardsCursor:null,itemsBackwardsCursor:null};
+    if(mode==="fork-timeout")return;return mode==="slow-fork"?setTimeout(()=>reply(m.id,value),400):reply(m.id,value);
+  }
+  if(m.method==="thread/section/move"){if(mode==="section-move-error")return error(m.id,-32600);t.sectionId=m.params.sectionId;persist();return reply(m.id,{});}
   if(m.method==="thread/name/set"){t.title=m.params.name.trim();persist();return reply(m.id,{});}
   if(m.method==="thread/archive"){if(mode==="late-archive")return setTimeout(()=>{t.archived=true;persist();reply(m.id,{});},1500);t.archived=true;persist();if(mode==="slow-archive")return;return reply(m.id,{});}
   if(m.method==="thread/unarchive"){t.archived=false;persist();return reply(m.id,{thread:{...metadata(t),id:mode==="wrong-unarchive"?"saved-a":t.id,turns:[]}});}
@@ -60,12 +70,12 @@ function handle(m) {
     const page=serverPage(values,m.params.cursor,"turns:");
     if(m.params.cursor)page.data.unshift(values[1]);
     if(mode==="bad-history-cursor")page.nextCursor=m.params.cursor??"turns:0";
-    if(mode==="slow-history"&&t.id==="saved-z")return setTimeout(()=>reply(m.id,page),400);
+    if((mode==="slow-history"&&t.id==="saved-z")||(mode==="slow-fork-open"&&t.parent))return setTimeout(()=>reply(m.id,page),400);
     return reply(m.id,page);
   }
   if(m.method==="thread/items/list") return error(m.id,-32601);
   if(m.method==="turn/start") {
-    const text=m.params.input[0].text; if(text.includes("[reply-error]")) return error(m.id);
+    t.hasOwnTurn=true;const text=m.params.input[0].text; if(text.includes("[reply-error]")) return error(m.id);
     const id="chat-turn-"+(++turnCount),user={type:"userMessage",id:id+"-user",clientId:null,content:m.params.input};
     const a=agent(id+"-agent",""); const v={id,items:[user,a],status:"inProgress",text,timer:null}; t.turns.set(id,v);persist();
     notify("turn/started",{threadId:t.id,turn:turn(id,[user])});

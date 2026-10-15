@@ -3,10 +3,13 @@ import { HostOperationError } from "./client.ts";
 import { FullTurnsWindow } from "../domain/full-turns-window.ts";
 import type { DemoMessage } from "./demo-controller.ts";
 export type HistoryRow = { id: string; title: string };
-export type HistoryBrowserView = { archived: boolean; rows: HistoryRow[]; selectedId: string | null; title: string; messages: DemoMessage[]; turnCount: number; moreThreads: boolean; moreTurns: boolean; loading: boolean; inflight: boolean; listStale: boolean; stale: boolean; notice: string };
+export type HistoryBrowserView = { archived: boolean; rows: HistoryRow[]; managedRows: HistoryRow[]; selectedId: string | null; title: string; messages: DemoMessage[]; turnCount: number; moreThreads: boolean; moreTurns: boolean; loading: boolean; inflight: boolean; listStale: boolean; stale: boolean; notice: string };
 /** Persisted archived/unarchived sessions. Browsing never resumes execution. */
 export class HistoryBrowser {
   #client: WorkbenchClient; #unsubscribe: () => void; #listeners = new Set<() => void>(); #disposed = false;
+  #managed: {id:string;title:string;archived:boolean}[]=[];
+  setManaged(rows:{id:string;title:string;archived:boolean}[]):void {if(rows.length>512)throw new Error("managed-fork-capacity");this.#managed=structuredClone(rows);}
+  #visibleRows():HistoryRow[]{const rows=new Map<string,HistoryRow>();for(const row of this.#managed)if(row.archived===this.#archived)rows.set(row.id,{id:row.id,title:row.title});for(const row of this.#rows)rows.set(row.id,row);return [...rows.values()];}
   #archived = false; #rows: HistoryRow[] = []; #listCursor: string | null | undefined; #listSeen = new Set<string>(); #listBusy = false; #listStale = true; #listLimited = false;
   #windows = new Map<string, FullTurnsWindow>(); #selected: string | null = null; #selectedRow: HistoryRow | null = null; #readBusy = false;
   #listIntent = 0; #readIntent = 0; #inflight = 0; #generation = 0; #notice = "未归档历史只读；按服务端游标加载完整轮次，不恢复执行或调用模型。";
@@ -26,7 +29,7 @@ export class HistoryBrowser {
   cancel(): void { this.#listIntent++; this.#readIntent++; this.#listBusy = false; this.#readBusy = false; this.#publish(); }
   snapshot(): HistoryBrowserView {
     const snapshot = this.#selected ? this.#windows.get(this.#selected)?.snapshot() : null;
-    return { archived:this.#archived, rows: structuredClone(this.#rows), selectedId: this.#selected, title: this.#rows.find(row => row.id === this.#selected)?.title ?? this.#selectedRow?.title ?? (this.#archived ? "归档历史会话" : "未归档历史会话"), messages: snapshot?.messages ?? [], turnCount: snapshot?.turnCount ?? 0,
+    return { archived:this.#archived, rows: structuredClone(this.#rows), managedRows:this.#managed.filter(row=>row.archived===this.#archived&&!this.#rows.some(native=>native.id===row.id)).map(row=>({id:row.id,title:row.title})), selectedId: this.#selected, title: this.#rows.find(row => row.id === this.#selected)?.title ?? this.#selectedRow?.title ?? (this.#archived ? "归档历史会话" : "未归档历史会话"), messages: snapshot?.messages ?? [], turnCount: snapshot?.turnCount ?? 0,
       moreThreads: !this.#listLimited && this.#listCursor !== null, moreTurns: snapshot?.hasMore ?? false, loading: this.#listBusy || this.#readBusy, inflight: this.#inflight > 0, listStale: this.#listStale, stale: this.#client.getView().state !== "ready" || (snapshot?.stale ?? this.#listStale), notice: this.#notice };
   }
   #ready(): void { if (this.#disposed || this.#client.getView().state !== "ready") throw new Error("history-offline"); if (this.#inflight >= 4) throw new Error("history-read-budget"); }
@@ -56,7 +59,7 @@ export class HistoryBrowser {
     finally { this.#inflight--; if (intent === this.#listIntent) this.#listBusy = false; this.#publish(); }
   }
   async select(id: string, refresh = true): Promise<void> {
-    this.#ready(); const row = this.#rows.find(row => row.id === id);
+    this.#ready(); const row = this.#visibleRows().find(row => row.id === id);
     if (!row && !(id === this.#selected && this.#selectedRow?.id === id && this.#windows.has(id))) throw new Error("thread-outside-history-list");
     if (row) this.#selectedRow = { ...row };
     if (!refresh && this.#selected === id && this.#readBusy) return;

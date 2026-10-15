@@ -57,7 +57,13 @@
     "threadArchiveParams": "v2/ThreadArchiveParams.json",
     "threadArchiveResult": "v2/ThreadArchiveResponse.json",
     "threadUnarchiveParams": "v2/ThreadUnarchiveParams.json",
-    "threadUnarchiveResult": "v2/ThreadUnarchiveResponse.json"
+    "threadUnarchiveResult": "v2/ThreadUnarchiveResponse.json",
+    "sectionsListParams": "v2/ThreadSectionListParams.json",
+    "sectionsListResult": "v2/ThreadSectionListResponse.json",
+    "sectionsCreateParams": "v2/ThreadSectionCreateParams.json",
+    "sectionsCreateResult": "v2/ThreadSectionCreateResponse.json",
+    "sectionMoveParams": "v2/ThreadSectionMoveParams.json",
+    "sectionMoveResult": "v2/ThreadSectionMoveResponse.json"
   },
   "requests": {
     "thread/read": {
@@ -133,6 +139,21 @@
     "thread/unarchive": {
       "params": "threadUnarchiveParams",
       "result": "threadUnarchiveResult",
+      "experimental": false
+    },
+    "threadSection/list": {
+      "params": "sectionsListParams",
+      "result": "sectionsListResult",
+      "experimental": false
+    },
+    "threadSection/create": {
+      "params": "sectionsCreateParams",
+      "result": "sectionsCreateResult",
+      "experimental": false
+    },
+    "thread/section/move": {
+      "params": "sectionMoveParams",
+      "result": "sectionMoveResult",
       "experimental": false
     }
   },

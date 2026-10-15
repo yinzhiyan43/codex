@@ -136,3 +136,5 @@ dialog p { line-height:1.55; overflow-wrap:anywhere; white-space:pre-wrap; max-h
 .session-menu button:disabled { color:#888; cursor:not-allowed; }
 .session-menu .danger { color:#f69c9c; }
 #session-name { display:block; width:100%; margin-top:8px; padding:8px; }
+
+#section-dialog label{display:flex;flex-direction:column;gap:6px;margin:14px 0}#section-choice,#section-name{font:inherit;background:#303030;color:inherit;padding:8px;border:1px solid #555;border-radius:6px}#cancel-management{position:absolute;top:120px;right:20px}#section-dialog{max-width:440px}

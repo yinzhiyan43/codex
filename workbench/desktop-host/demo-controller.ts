@@ -12,7 +12,8 @@ export const demoProjects = [
 ];
 export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" | "failed" | "unknown" };
 export type DesktopView = {
-  managedSessions?: ManagedSession[]; persistenceNotice?: string; mode: "synthetic" | "official-isolated" | "official-account" | "official-chat"; historyBrowser?: HistoryBrowserView; chatStatus?: { phase: string; model: string | null; offline: boolean; ready: boolean; canRefresh: boolean; interruptAcknowledged: boolean; historyMode?: boolean; persistent?: boolean; resumePending?: boolean }; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
+  sessionSections?: {status:"unknown"|"ready"|"unsupported"|"error";rows:{id:string;name:string}[];notice:string;canCreate:boolean;lastCreatedId?:string};
+  managedSessions?: ManagedSession[]; persistenceNotice?: string; mode: "synthetic" | "official-isolated" | "official-account" | "official-chat"; historyBrowser?: HistoryBrowserView; chatStatus?: { phase: string; model: string | null; offline: boolean; ready: boolean; canRefresh: boolean; interruptAcknowledged: boolean; historyMode?: boolean; persistent?: boolean; resumePending?: boolean; canCancelManagement?: boolean }; coreStatus?: CoreStatus; version: number; connection: HostState; stale: boolean; projects: typeof demoProjects;
   route: { projectId: string; threadId: string | null }; title: string; messages: DemoMessage[];
   draft: string; search: string; loading: boolean; pending: string | null; running: boolean;
   error: string | null;
