@@ -21,3 +21,7 @@
 普通 npm run desktop 由用户主动打开可见窗口。测试采用accessory/offscreen，不显示、不抢焦点、不请求Dock attention；启动15秒、smoke30秒期限，完成后释放并退出，无自动重启或全局killall。
 
 M1.c IPC只覆盖合成工作台命令。真实协议操作、审批、文件选择、Git/PTY、通知和deep link需独立白名单/授权/验收，不能借demo dispatch绕过host。
+
+## M2.g 窗口所有权补充
+
+主工作台仍只有一个可编辑主窗口和一个控制器/SessionStore/核心。允许最多四个只读会话副窗口，分别绑定固定ID、独立preload/IPC与分页状态；所有副窗共享最多四个读取lease（主窗预算另计）。相同ID复用已有副窗；副窗无草稿或发送权，关闭不dispose共享host。主窗关闭时销毁所有副窗，再保存草稿并停核；重启不自动恢复副窗拓扑。此决定是最小可验收范围，完整可编辑多窗口仍待设计。见[M2.g报告](session-window-milestone.md)。

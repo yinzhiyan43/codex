@@ -259,7 +259,7 @@ const sessionMenu=el("session-menu"), sessionDialog=el<HTMLDialogElement>("sessi
 el("project-list").addEventListener("contextmenu",event=>{
   const button=(event.target as HTMLElement).closest<HTMLButtonElement>("[data-thread]");if(!button?.dataset.thread || view?.mode!=="official-chat")return;event.preventDefault();menuId=button.dataset.thread;
   const record=view.managedSessions?.find(row=>row.id===menuId);el("session-pin").textContent=record?.pinned?"取消置顶":"置顶";el("session-unread").textContent=record?.unread?"标记为已读":"标记为未读";el("session-archive").textContent=record?.archived||view.historyBrowser?.archived?"恢复归档":"归档";
-  for(const id of ["session-rename","session-archive","session-fork","session-section","session-project","session-project-rename","session-copy"])el<HTMLButtonElement>(id).disabled=view.connection!=="ready"||view.loading||view.running||!!record?.ephemeral;
+  for(const id of ["session-rename","session-archive","session-fork","session-section","session-project","session-project-rename","session-copy","session-window"])el<HTMLButtonElement>(id).disabled=view.connection!=="ready"||view.loading||view.running||!!record?.ephemeral;
   el<HTMLButtonElement>("session-rename").disabled ||= !!record?.archived || !!view.historyBrowser?.archived;
   el<HTMLButtonElement>("session-copy").disabled ||= !view.copyAvailable;
   el<HTMLButtonElement>("session-project-rename").disabled ||= !record?.localProject;
@@ -268,6 +268,7 @@ el("project-list").addEventListener("contextmenu",event=>{
   sessionMenu.hidden=false;sessionMenu.style.left=Math.min(event.clientX,innerWidth-230)+"px";sessionMenu.style.top=Math.min(event.clientY,Math.max(10,innerHeight-440))+"px";
 });
 const showAction=(type:typeof sessionAction,title:string,description:string)=>{actionLastTurnId=undefined;actionId=menuId;sessionAction=type;el<HTMLInputElement>("session-name").maxLength=["assignProject","renameProject"].includes(type??"")?80:100;sessionMenu.hidden=true;el("session-dialog-title").textContent=title;el("session-dialog-description").textContent=description;el("session-name-label").hidden=!["renameSession","assignProject","renameProject"].includes(type??"");el("session-apply").hidden=type===null;el<HTMLInputElement>("session-name").value=view?.managedSessions?.find(row=>row.id===menuId)?.title??view?.projects.flatMap(p=>p.threads).find(row=>row.id===menuId)?.title??"";sessionDialog.showModal();};
+el("session-window").addEventListener("click",()=>{const id=menuId;sessionMenu.hidden=true;if(id)void(async()=>{await flushDraft();await send({type:"openSessionWindow",id});})();});
 el("session-copy").addEventListener("click",()=>showAction("copySession","复制已保存文字","将完整读取并复核所选会话的已保存用户/助手文字后一次写入系统剪贴板。未发送草稿、附件和工具不复制；超过256轮、64页或2MiB时不复制残片。此为工作台自有文字操作。"));
 el("session-rename").addEventListener("click",()=>showAction("renameSession","重命名会话","通过官方接口更新会话名称。"));
 el("session-pin").addEventListener("click",()=>{sessionMenu.hidden=true;if(menuId)void send({type:"pinSession",id:menuId});});

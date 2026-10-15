@@ -1,10 +1,13 @@
+import { runWindowSmoke } from "./window-smoke.ts";
+import { SessionPreview, PreviewReadBudget } from "../desktop-host/session-preview.ts";
+import { validateDesktopCommand } from "../desktop-host/ipc-contract.ts";
 import { runCopySmoke } from "./copy-smoke.ts";
 import { runEditingSmoke } from "./editing-smoke.ts";
 import { runManagementSmoke } from "./management-smoke.ts";
 import { runPersistenceSmoke } from "./persistence-smoke.ts";
 import { SessionStore } from "../desktop-host/session-store.ts";
 import { app, BrowserWindow, ipcMain, protocol, session, nativeImage, clipboard } from "electron";
-import { readFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -29,6 +32,7 @@ const chatMode = process.argv.includes("--official-chat") || offlineChat;
 const durableProfile = chatMode && !offlineChat;
 const profile = durableProfile ? join(app.getPath("appData"),"Codex Workbench") : mkdtempSync(join(tmpdir(),"codex-workbench-synthetic-"));
 if(durableProfile){mkdirSync(profile,{recursive:true,mode:0o700});if(!app.requestSingleInstanceLock())app.exit(0);}
+const windowSmoke=process.argv.includes("--window-smoke");if(windowSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("window-smoke-is-offline-only");
 const copySmoke=process.argv.includes("--copy-smoke");if(copySmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("copy-smoke-is-offline-only");
 const editingSmoke=process.argv.includes("--editing-smoke");if(editingSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("editing-smoke-is-offline-only");
 const managementSmoke=process.argv.includes("--management-smoke");if(managementSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("management-smoke-is-offline-only");
@@ -61,6 +65,9 @@ const applicationIcon = nativeImage.createFromPath(join(directory, "workbench-ic
 if (applicationIcon.isEmpty()) throw new Error("Selected application icon is unreadable");
 app.dock?.setIcon(applicationIcon);
 const assets = new Map([
+  ["/preview.html", ["preview.html", "text/html; charset=utf-8"]],
+  ["/preview.js", ["preview.js", "text/javascript; charset=utf-8"]],
+  ["/preview.css", ["preview.css", "text/css; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/renderer.js", ["renderer.js", "text/javascript; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
@@ -80,7 +87,7 @@ let launch = () => spawn(process.execPath, [join(directory, "peer.cjs")], {
   cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"],
 });
 if (offlineChat) launch = () => {
-  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), windowSmoke?"preview-history":copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
   if (historySmoke || persistencePhase) {
     const write = child.stdin.write.bind(child.stdin);
     child.stdin.write = ((data: string | Uint8Array, ...args: unknown[]) => { for (const line of String(data).trim().split("\n")) { if (offlineFrames.length >= 512) throw new Error("offline-frame-budget"); offlineFrames.push(JSON.parse(line)); } return Reflect.apply(write, child.stdin, [data, ...args]); }) as typeof child.stdin.write;
@@ -120,19 +127,37 @@ const verify = (event: Electron.IpcMainInvokeEvent) => validateDesktopSender({
 ipcMain.handle("workbench:snapshot", event => { verify(event); const release = budget.acquire(); try { return controller!.snapshot(); } finally { release(); } });
 ipcMain.handle("workbench:command", async (event, value: unknown) => {
   verify(event); const release = budget.acquire();
-  try { return await controller!.dispatch(value); }
+  try { const command=validateDesktopCommand(value);if(command.type==="openSessionWindow"){await openPreview(command.id);return controller!.snapshot();}return await controller!.dispatch(command); }
   catch { throw new Error("workbench-command-rejected"); }
   finally { release(); }
 });
+type PreviewEntry={window:BrowserWindow;controller:SessionPreview;budget:IpcBudget;off:()=>void};
+const previews=new Map<string,PreviewEntry>(),readBudget=new PreviewReadBudget(),previewAudit={opened:0,closed:0};
+const previewBinding=(event:Electron.IpcMainInvokeEvent)=>{const entry=[...previews.values()].find(row=>row.window.webContents===event.sender);if(!entry)throw new Error("untrusted-sender");validateDesktopSender({owner:true,mainFrame:event.senderFrame===entry.window.webContents.mainFrame,url:event.senderFrame?.url??"",surface:"preview"});return entry;};
+ipcMain.handle("preview:snapshot",event=>{const entry=previewBinding(event),release=entry.budget.acquire();try{return entry.controller.snapshot();}finally{release();}});
+ipcMain.handle("preview:command",async(event,value:unknown)=>{const entry=previewBinding(event),release=entry.budget.acquire();try{return await entry.controller.dispatch(value);}catch{throw new Error("preview-command-rejected");}finally{release();}});
+async function openPreview(id:string):Promise<void>{
+  if(closing||!(controller instanceof OfficialChatController))throw new Error("preview-unavailable");const source=controller.previewSource(id),existing=previews.get(id);if(existing&&!existing.window.isDestroyed()){if(!isSmoke){existing.window.show();existing.window.focus();}return;}
+  if(previews.size>=4)throw new Error("preview-window-limit");
+  const pane=new BrowserWindow({width:1040,height:760,minWidth:600,minHeight:420,show:false,icon:applicationIcon,backgroundColor:"#181818",title:"Codex Workbench — 只读副窗口",titleBarStyle:"hiddenInset",webPreferences:{preload:join(directory,"preview-preload.cjs"),session:isolated,offscreen:isSmoke,backgroundThrottling:!isSmoke,nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
+  if(isSmoke)pane.webContents.setFrameRate(30);pane.webContents.setWindowOpenHandler(()=>({action:"deny"}));pane.webContents.on("will-navigate",event=>event.preventDefault());pane.webContents.on("will-attach-webview",event=>event.preventDefault());pane.webContents.on("console-message",details=>{if(details.level==="error")consoleErrors.push(details.message);});
+  const preview=new SessionPreview(host.client(),source,readBudget),entry:PreviewEntry={window:pane,controller:preview,budget:new IpcBudget(),off:()=>{}};previews.set(id,entry);previewAudit.opened++;
+  entry.off=preview.subscribe(()=>{if(!closing&&!pane.isDestroyed()&&!pane.webContents.isDestroyed())pane.webContents.send("preview:view",preview.snapshot());});
+  pane.once("closed",()=>{previewAudit.closed++;entry.off();preview.dispose();if(previews.get(id)===entry)previews.delete(id);});
+  try{await pane.loadURL("workbench://app/preview.html");if(closing||pane.isDestroyed())return;void preview.dispatch({type:"refreshHistory"}).catch(()=>{});if(!isSmoke)pane.show();}
+  catch(error){entry.off();preview.dispose();if(!pane.isDestroyed())pane.destroy();if(previews.get(id)===entry)previews.delete(id);throw error;}
+}
 let updateQueued = false;
 const unsubscribe = controller.subscribe(() => {
+  if(!closing){const rows=controller!.snapshot().managedSessions??[];for(const [id,entry]of previews){const row=rows.find(row=>row.id===id);if(row)entry.controller.sync({id,title:row.title,archived:row.archived,archiveUncertain:!!row.archiveUncertain});}}
+
   if (updateQueued) return; updateQueued = true;
   queueMicrotask(() => { updateQueued = false; if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send("workbench:view", controller!.snapshot()); });
 });
 window.on("close", event => {
   if (closing) return; event.preventDefault(); closing = true;
-  unsubscribe(); ipcMain.removeHandler("workbench:command"); ipcMain.removeHandler("workbench:snapshot");
-  void controller!.dispose().then(() => { window.destroy(); app.quit(); }, () => { console.error("Owned host shutdown failed"); app.exit(1); });
+  unsubscribe();ipcMain.removeHandler("preview:snapshot");ipcMain.removeHandler("preview:command");for(const entry of previews.values()){entry.off();entry.controller.dispose();if(!entry.window.isDestroyed())entry.window.destroy();}previews.clear(); ipcMain.removeHandler("workbench:command"); ipcMain.removeHandler("workbench:snapshot");
+  void controller!.dispose().then(() => {if(windowSmoke){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");} window.destroy(); app.quit(); }, () => { console.error("Owned host shutdown failed"); app.exit(1); });
 });
 await window.loadURL("workbench://app/index.html");
 await controller.dispatch({ type: "connect" });
@@ -145,7 +170,7 @@ if (smokeIndex >= 0) {
   const externalHost=copySmoke?new StdioWorkbenchHost(launch,{requestTimeoutMs:5000}):null;
   const smokeTimeout = setTimeout(() => {console.error("Desktop smoke timed out");void Promise.allSettled([controller!.dispose(),externalHost?.dispose()]).finally(()=>app.exit(1));},30000);
   let smokeFailure:unknown=null;
-  try {if(externalHost)await externalHost.start();await (copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
+  try {if(externalHost)await externalHost.start();await (windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
   catch(error){smokeFailure=error;}
   finally{clearTimeout(smokeTimeout);try{await externalHost?.dispose();}catch(error){smokeFailure??=error;}}
   if(smokeFailure){console.error(smokeFailure);await controller.dispose();cleanupProfiles();app.exit(1);}else window.close();

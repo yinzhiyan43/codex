@@ -343,6 +343,10 @@ export class OfficialChatController {
     }catch{if(this.#current(intent,generation)){if(this.#sectionOrder)this.#sectionOrder.ready=false;this.#error=requested?"分区移动未确认，保留本地原归属；官方结果可能已改变，请刷新核对。":"检测到外部更改或无法核对当前分区，未发送移动；请刷新分区和顺序后重新选择。";}}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
+  previewSource(id:string):import("./session-preview.ts").PreviewSource {
+    this.#managementAvailable(id);const record=this.#store.find(id),browser=this.#browser.snapshot();if(record?.ephemeral)throw new Error("preview-persistent-required");
+    return {id,title:record?.title??browser.rows.find(row=>row.id===id)?.title??"持久会话",archived:record?.archived??(browser.archived&&browser.rows.some(row=>row.id===id)),archiveUncertain:!!record?.archiveUncertain};
+  }
   async dispatch(value: unknown): Promise<DesktopView> {
     if (this.#disposed) throw new Error("controller-unavailable"); const command = validateDesktopCommand(value);
     if(this.#phase==="managing"&&["thread","browseHistory","returnToChat","toggleArchived","refreshThreads","moreThreads","refreshHistory","history"].includes(command.type))throw new Error("session-management-busy");

@@ -1,0 +1,188 @@
+{
+  "milestone": "M2.g",
+  "date": "2026-10-15",
+  "baseCommit": "1aa57c5833265e4d0904b7a458f1d2ec148b4bd4",
+  "trackedRemote": "b15bd57ee8ec5db4b93b36b42374bb2aa050c98b",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "core": {
+    "version": "0.162.1",
+    "commit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
+  },
+  "contracts": 51,
+  "offlineTests": 232,
+  "offlinePassed": 232,
+  "scope": "read-only saved-session windows; main window owns drafts/sending/core",
+  "windowLimit": 4,
+  "previewReadLeases": 4,
+  "primaryUsesSeparateReadBudget": true,
+  "multiwindowUi": [
+    {
+      "ui": {
+        "result": "passed",
+        "phase": "write",
+        "runKind": "offline-read-only-multiwindow",
+        "officialNativeExecuted": false,
+        "realModelRequests": 0,
+        "checks": [
+          "offline-synthetic-windows",
+          "no-auto-preview-on-app-start",
+          "selected-menu-id-not-primary-route",
+          "primary-draft-unchanged",
+          "duplicate-open-reuses-window",
+          "same-thread-main-and-read-only-preview",
+          "no-draft-or-sender-in-preview",
+          "renderer-isolation",
+          "preview-ipc-mutations-and-other-thread-denied",
+          "independent-pagination",
+          "primary-rename-archive-restore-sync",
+          "cancel-only-preview-read",
+          "disconnect-stale-cache-explicit-refresh",
+          "closing-preview-keeps-primary-core",
+          "four-preview-capacity-no-extra-window",
+          "only-primary-confirms-one-synthetic-turn",
+          "no-share-delete-or-renderer-errors"
+        ],
+        "openPreviewsBeforeMainClose": 4,
+        "methods": [
+          "initialize",
+          "initialized",
+          "config/read",
+          "account/read",
+          "model/list",
+          "config/read",
+          "thread/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/name/set",
+          "thread/read",
+          "thread/read",
+          "thread/archive",
+          "thread/unarchive",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "initialize",
+          "initialized",
+          "config/read",
+          "account/read",
+          "model/list",
+          "config/read",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/list",
+          "thread/list",
+          "thread/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list",
+          "config/read",
+          "account/read",
+          "thread/read",
+          "thread/resume",
+          "turn/start"
+        ],
+        "consoleErrors": []
+      },
+      "close": {
+        "opened": 5,
+        "closed": 5,
+        "activeWindows": 0,
+        "activeReads": 0,
+        "coreActive": false,
+        "coreState": "disposed"
+      }
+    },
+    {
+      "ui": {
+        "result": "passed",
+        "phase": "restart",
+        "runKind": "offline-read-only-multiwindow",
+        "officialNativeExecuted": false,
+        "realModelRequests": 0,
+        "checks": [
+          "offline-synthetic-windows",
+          "no-auto-preview-on-app-start",
+          "primary-draft-restored-no-auto-send",
+          "explicit-reopen-same-saved-history",
+          "preview-small-window-no-overflow",
+          "no-share-delete-or-renderer-errors"
+        ],
+        "openPreviewsBeforeMainClose": 1,
+        "methods": [
+          "initialize",
+          "initialized",
+          "config/read",
+          "account/read",
+          "model/list",
+          "config/read",
+          "thread/read",
+          "thread/turns/list",
+          "thread/read",
+          "thread/turns/list"
+        ],
+        "consoleErrors": []
+      },
+      "close": {
+        "opened": 1,
+        "closed": 1,
+        "activeWindows": 0,
+        "activeReads": 0,
+        "coreActive": false,
+        "coreState": "disposed"
+      }
+    }
+  ],
+  "uiRegressions": {
+    "copy": [
+      14,
+      9
+    ],
+    "editing": [
+      14,
+      10
+    ],
+    "management": [
+      18,
+      13
+    ]
+  },
+  "independentReview": {
+    "model": "gpt-6-sol",
+    "effort": "xhigh",
+    "targetedTests": 7,
+    "passed": 7,
+    "remainingReproducibleP1P2": 0,
+    "confirmed": [
+      "Fixed source ID and read-only preview IPC",
+      "Closed and cancelled reads keep leases until settle",
+      "Primary controller alone owns drafts/sending/core lifetime",
+      "Ready broadcasts enable Refresh without automatically reading"
+    ]
+  },
+  "realModelRequests": 0,
+  "officialNativeExecutedThisMilestone": false,
+  "sourceHistoryAndDraftsPreserved": true,
+  "newChangesPushed": false,
+  "limitations": [
+    "Additional windows are read-only; no editable multiwindow drafts or sends",
+    "Same ID reuses one preview; at most four distinct previews",
+    "Closing primary saves draft and closes all previews; previews do not auto-reopen after restart",
+    "External changes require explicit refresh; only primary-confirmed archive/restore is synchronized automatically",
+    "Preview displays saved text only; no live turn mirroring or tools/attachments",
+    "Official APIs still have no CAS or cross-page snapshot",
+    "Real model UI, external core integration, IME/VoiceOver and native multi-screen behavior remain unverified"
+  ]
+}

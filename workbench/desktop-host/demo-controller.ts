@@ -12,6 +12,7 @@ export const demoProjects = [
 ];
 export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" | "failed" | "unknown" };
 export type DesktopView = {
+  sessionPreview?:{id:string;archived:boolean;archiveUncertain:boolean;notice:string};
   copyStatus?:{state:"idle"|"reading"|"copied"|"cancelled"|"failed";notice:string}; copyAvailable?:boolean;
   forkTurns?: {id:string;messageId:string}[];
   sectionOrder?: {sectionId:string;rows:{id:string;title:string}[];ready:boolean};

@@ -14,7 +14,7 @@ const turn = (id,items=[],status="inProgress") => ({id,rootTurnId:null,items,ite
 const metadata = t => ({id:t.id,sessionId:"offline",projectId:null,forkedFromId:t.parent??null,section:t.sectionId?sections.get(t.sectionId)??null:null,preview:t.parent&&!t.hasOwnTurn?"":"offline fixture",ephemeral:t.saved?false:true,name:t.title??null,path:t.saved?"/synthetic/private-never-in-renderer":null,historyMode:"legacy",modelProvider:"openai",createdAt:1,updatedAt:1,status:{type:"idle"},cwd:"/synthetic/chat",cliVersion:"0.162.1",source:"cli",turns:[...t.turns.values()].map(v=>turn(v.id,v.items,v.status))});
 const agent = (id,text) => ({type:"agentMessage",id,text,phase:null,memoryCitation:null,delivery:null,questions:null});
 const model = (name,isDefault) => ({id:name,model:name,displayName:name,description:"Offline fixture only",hidden:false,isDefault,inputModalities:["text"],supportsPersonality:false,supportedReasoningEfforts:[{reasoningEffort:"low",description:"fixture"}],defaultReasoningEffort:"low"});
-for (const [id,title] of (["many-history","large-catalog","small-page-catalog","large-section"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : [["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]])) {
+for (const [id,title] of (["many-history","large-catalog","small-page-catalog","large-section"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : (mode==="preview-history"?[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"],["saved-d","合成历史D"]]:[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]]))) {
  const t={id,title,saved:true,turns:new Map(),...(mode==="large-section"?{sectionId:"section-large",position:threads.size}:{})};
  for (const [index,key] of [[1,"turn-z"],[2,"turn-a"],[3,"turn-m"]]) {
    const u={type:"userMessage",id:key+"-user",clientId:null,content:[{type:"text",text:title+" 用户 "+index,text_elements:[]}]};
@@ -77,7 +77,7 @@ function handle(m) {
     const page=serverPage(values,m.params.cursor,"turns:");
     if(m.params.cursor)page.data.unshift(values[1]);
     if(mode==="bad-history-cursor")page.nextCursor=m.params.cursor??"turns:0";
-    if(mode==="shared-management"||(mode==="slow-history"&&t.id==="saved-z")||(mode==="slow-fork-open"&&t.parent))return setTimeout(()=>reply(m.id,page),400);
+    if((mode==="preview-history"&&t.id==="saved-z")||mode==="shared-management"||(mode==="slow-history"&&t.id==="saved-z")||(mode==="slow-fork-open"&&t.parent))return setTimeout(()=>reply(m.id,page),400);
     return reply(m.id,page);
   }
   if(m.method==="thread/items/list") return error(m.id,-32601);
