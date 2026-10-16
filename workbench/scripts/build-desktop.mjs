@@ -11,4 +11,8 @@ await build({entryPoints:[new URL("ui/preview-renderer.ts",root).pathname],outfi
 for (const [source, target] of [["ui/preview.html","preview.html"],["ui/preview.css","preview.css"],["ui/index.html", "index.html"], ["ui/style.css", "style.css"], ["assets/workbench-icon.png", "workbench-icon.png"], ["node_modules/@phosphor-icons/web/src/regular/Phosphor.woff2", "Phosphor.woff2"]]) await copyFile(new URL(source, root), new URL(target, output));
 const iconCSS = await readFile(new URL("node_modules/@phosphor-icons/web/src/regular/style.css", root), "utf8");
 await writeFile(new URL("icons.css", output), iconCSS.replace(/src:[\s\S]*?;/, 'src: url("./Phosphor.woff2") format("woff2");'));
+// Keep third-party attribution alongside the self-contained local build.
+const notices = new URL("third-party/open-codex/", output);
+await mkdir(notices, { recursive: true });
+for (const name of ["LICENSE", "NOTICE.md"]) await copyFile(new URL("vendor/open-codex/" + name, root), new URL(name, notices));
 console.log("Built isolated workbench desktop shell");

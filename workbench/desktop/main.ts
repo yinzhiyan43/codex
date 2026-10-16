@@ -1,3 +1,5 @@
+import { runSettingsSmoke } from "./settings-smoke.ts";
+import { UiPreferencesStore } from "../desktop-host/ui-preferences-store.ts";
 import { runWindowSmoke } from "./window-smoke.ts";
 import { SessionPreview, PreviewReadBudget } from "../desktop-host/session-preview.ts";
 import { validateDesktopCommand } from "../desktop-host/ipc-contract.ts";
@@ -32,6 +34,7 @@ const chatMode = process.argv.includes("--official-chat") || offlineChat;
 const durableProfile = chatMode && !offlineChat;
 const profile = durableProfile ? join(app.getPath("appData"),"Codex Workbench") : mkdtempSync(join(tmpdir(),"codex-workbench-synthetic-"));
 if(durableProfile){mkdirSync(profile,{recursive:true,mode:0o700});if(!app.requestSingleInstanceLock())app.exit(0);}
+const settingsSmoke=process.argv.includes("--settings-smoke");if(settingsSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")||!process.argv.includes("--persistence-smoke")))throw new Error("settings-smoke-is-offline-only");
 const windowSmoke=process.argv.includes("--window-smoke");if(windowSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("window-smoke-is-offline-only");
 const copySmoke=process.argv.includes("--copy-smoke");if(copySmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("copy-smoke-is-offline-only");
 const editingSmoke=process.argv.includes("--editing-smoke");if(editingSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("editing-smoke-is-offline-only");
@@ -118,11 +121,20 @@ window.webContents.on("console-message", details => { if (details.level === "err
 window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 window.webContents.on("will-navigate", event => event.preventDefault());
 window.webContents.on("will-attach-webview", event => event.preventDefault());
+const preferences = new UiPreferencesStore(join(stateRoot, "ui-preferences.json"));
 const budget = new IpcBudget();
 const verify = (event: Electron.IpcMainInvokeEvent) => validateDesktopSender({
   owner: event.sender === window.webContents,
   mainFrame: event.senderFrame === window.webContents.mainFrame,
   url: event.senderFrame?.url ?? "",
+});
+ipcMain.handle("workbench:preferences-read", async event => {
+  verify(event); const release = budget.acquire();
+  try { return await preferences.read(); } catch { throw new Error("ui-preferences-unavailable"); } finally { release(); }
+});
+ipcMain.handle("workbench:preferences-update", async (event, patch: unknown) => {
+  verify(event); const release = budget.acquire();
+  try { return await preferences.update(patch); } catch { throw new Error("ui-preferences-update-failed"); } finally { release(); }
 });
 ipcMain.handle("workbench:snapshot", event => { verify(event); const release = budget.acquire(); try { return controller!.snapshot(); } finally { release(); } });
 ipcMain.handle("workbench:command", async (event, value: unknown) => {
@@ -157,7 +169,8 @@ const unsubscribe = controller.subscribe(() => {
 window.on("close", event => {
   if (closing) return; event.preventDefault(); closing = true;
   unsubscribe();ipcMain.removeHandler("preview:snapshot");ipcMain.removeHandler("preview:command");for(const entry of previews.values()){entry.off();entry.controller.dispose();if(!entry.window.isDestroyed())entry.window.destroy();}previews.clear(); ipcMain.removeHandler("workbench:command"); ipcMain.removeHandler("workbench:snapshot");
-  void controller!.dispose().then(() => {if(windowSmoke){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");} window.destroy(); app.quit(); }, () => { console.error("Owned host shutdown failed"); app.exit(1); });
+  ipcMain.removeHandler("workbench:preferences-read"); ipcMain.removeHandler("workbench:preferences-update");
+  void Promise.all([controller!.dispose(), preferences.settled()]).then(() => {if(windowSmoke){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");} window.destroy(); app.quit(); }, () => { console.error("Owned host shutdown failed"); app.exit(1); });
 });
 await window.loadURL("workbench://app/index.html");
 await controller.dispatch({ type: "connect" });
@@ -170,7 +183,7 @@ if (smokeIndex >= 0) {
   const externalHost=copySmoke?new StdioWorkbenchHost(launch,{requestTimeoutMs:5000}):null;
   const smokeTimeout = setTimeout(() => {console.error("Desktop smoke timed out");void Promise.allSettled([controller!.dispose(),externalHost?.dispose()]).finally(()=>app.exit(1));},30000);
   let smokeFailure:unknown=null;
-  try {if(externalHost)await externalHost.start();await (windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
+  try {if(externalHost)await externalHost.start();await (settingsSmoke&&persistencePhase ? runSettingsSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"ui-preferences.json")) : windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
   catch(error){smokeFailure=error;}
   finally{clearTimeout(smokeTimeout);try{await externalHost?.dispose();}catch(error){smokeFailure??=error;}}
   if(smokeFailure){console.error(smokeFailure);await controller.dispose();cleanupProfiles();app.exit(1);}else window.close();

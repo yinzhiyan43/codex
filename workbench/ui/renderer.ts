@@ -1,5 +1,7 @@
 import type { DesktopView } from "../desktop-host/demo-controller.ts";
 import type { DesktopCommand } from "../desktop-host/ipc-contract.ts";
+import { setupSettings, type PreferencesBridge } from "./settings.ts";
+import { renderSidebar } from "./sidebar.ts";
 declare global { interface Window { workbench: { snapshot(): Promise<DesktopView>; dispatch(command: DesktopCommand): Promise<DesktopView>; subscribe(listener: (view: DesktopView) => void): () => void } } }
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const draft = el<HTMLTextAreaElement>("draft");
@@ -7,6 +9,9 @@ let view: DesktopView | null = null; let version = -1; let routeKey = ""; let dr
 let inputSequence = 0;
 const dialog = el<HTMLDialogElement>("confirm-dialog");
 const connectionDialog = el<HTMLDialogElement>("connection-dialog");
+let localFilter = "";
+let settings: ReturnType<typeof setupSettings> | null = null;
+const updateSidebar = () => { if (view) renderSidebar(view, view.mode === "synthetic" ? view.search : localFilter, id => settings?.collapsed(id) ?? false, settings?.canUpdate() ?? false); };
 function render(next: DesktopView): void {
   if (next.version < version) return;
   version = next.version; view = next;
@@ -36,7 +41,8 @@ function render(next: DesktopView): void {
   el("saved-history-notice").textContent = savedHistory ? next.historyBrowser?.notice ?? "" : "";
   el<HTMLButtonElement>("refresh-threads").disabled = !!next.historyBrowser?.loading || next.connection !== "ready";
   el<HTMLButtonElement>("more-threads").disabled = !next.historyBrowser?.moreThreads || !!next.historyBrowser?.loading || next.connection !== "ready";
-  el<HTMLButtonElement>("toggle-search").disabled = official;
+  el<HTMLButtonElement>("toggle-search").disabled = false;
+  el<HTMLInputElement>("search").placeholder = "筛选已加载会话";
   el<HTMLButtonElement>("account").disabled = official && !chat;
   el("account-menu").querySelector("strong")!.textContent = chat ? "官方CLI当前ChatGPT账号" : "演示账户";
   el("account-menu").querySelector("span")!.textContent = chat ? `套餐标识：${next.coreStatus?.authentication?.planType ?? "未知"}。使用原生登录；更换账号请在终端执行 codex login。` : "仅合成内容";
@@ -177,21 +183,7 @@ function render(next: DesktopView): void {
   el("stop").hidden = !next.running;
   if (next.pending) { el("confirm-text").textContent = next.pending; if (!dialog.open) dialog.showModal(); }
   else if (dialog.open) dialog.close();
-  const list = el("project-list"); list.replaceChildren();
-  const query = next.search.toLocaleLowerCase();
-  for (const p of next.projects) {
-    const visible = p.name.toLocaleLowerCase().includes(query) ? p.threads : p.threads.filter(t => t.title.toLocaleLowerCase().includes(query));
-    if (query && !visible.length && !p.name.toLocaleLowerCase().includes(query)) continue;
-    const button = document.createElement("button"); button.className = "project-row";
-    button.disabled = official; button.title=p.name; button.dataset.project = p.id; button.setAttribute("aria-pressed", String(p.id === next.route.projectId && !next.route.threadId));
-    const icon = document.createElement("i"); icon.className = "ph ph-folder-open"; icon.setAttribute("aria-hidden", "true");
-    button.append(icon, document.createTextNode(p.name)); list.append(button);
-    for (const t of visible) {
-      const thread = document.createElement("button"); thread.className = "thread-row"; thread.textContent = t.title; thread.dataset.thread = t.id;
-      thread.disabled = savedHistory && next.connection !== "ready"; thread.setAttribute("aria-current", String(t.id === next.route.threadId)); list.append(thread);
-    }
-  }
-  if (!list.childElementCount) { const empty = document.createElement("p"); empty.className = "search-empty"; empty.textContent = "没有匹配的演示会话"; list.append(empty); }
+  updateSidebar();
 }
 async function send(command: DesktopCommand): Promise<void> {
   try { render(await window.workbench.dispatch(command)); }
@@ -214,6 +206,7 @@ draft.addEventListener("keydown", event => { if (event.key === "Enter" && !event
 el("composer").addEventListener("submit", event => { event.preventDefault(); if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return; void (async () => { await flushDraft(); await send({ type: "submit" }); })(); });
 el("project-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+  if (button?.dataset.group) void settings?.toggleGroup(button.dataset.group);
   if (button?.dataset.project) void navigate({ type: "project", id: button.dataset.project });
   if (button?.dataset.thread) void navigate({ type: "thread", id: button.dataset.thread });
 });
@@ -233,10 +226,10 @@ el("dismiss").addEventListener("click", () => { void send({ type: "clearError" }
 el("connection-menu").addEventListener("click", () => connectionDialog.showModal());
 el("disconnect").addEventListener("click", () => { connectionDialog.close(); void (async () => { await flushDraft(); await send({ type: "disconnect" }); })(); });
 el("reconnect").addEventListener("click", () => { connectionDialog.close(); void send({ type: "reconnect" }); });
-el("toggle-sidebar").addEventListener("click", () => el("app").classList.toggle("sidebar-hidden"));
+settings = setupSettings((window.workbench as typeof window.workbench & { preferences: PreferencesBridge }).preferences, flushDraft, updateSidebar);
 el("toggle-details").addEventListener("click", () => { el("details").hidden = !el("details").hidden; el("app").classList.toggle("with-details", !el("details").hidden); });
 el("toggle-search").addEventListener("click", () => { el("search-wrap").hidden = !el("search-wrap").hidden; if (!el("search-wrap").hidden) el("search").focus(); });
-el<HTMLInputElement>("search").addEventListener("input", event => { void send({ type: "search", text: (event.target as HTMLInputElement).value }); });
+el<HTMLInputElement>("search").addEventListener("input", event => { const text = (event.target as HTMLInputElement).value; if (view?.mode === "synthetic") void send({ type: "search", text }); else { localFilter = text; updateSidebar(); } });
 el("account").addEventListener("click", () => { el("account-menu").hidden = !el("account-menu").hidden; });
 el("account-close").addEventListener("click", () => { el("account-menu").hidden = true; el("account").focus(); });
 el("account-help").addEventListener("click", () => { el("account-menu").hidden = true; connectionDialog.showModal(); });

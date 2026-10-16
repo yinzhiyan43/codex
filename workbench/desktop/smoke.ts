@@ -30,7 +30,8 @@ export async function runDesktopSmoke(window: BrowserWindow, output: string, err
   assert.equal((await snapshot()).connection, "ready");
   await wait("document.getElementById('notice').hidden");
   assert.equal(await js("typeof require"), "undefined");
-  assert.deepEqual(await js("Object.keys(window.workbench).sort()"), ["dispatch", "snapshot", "subscribe"]);
+  assert.deepEqual(await js("Object.keys(window.workbench.preferences).sort()"), ["read", "update"]);
+  assert.deepEqual(await js("Object.keys(window.workbench).sort()"), ["dispatch", "preferences", "snapshot", "subscribe"]);
   await screenshot("empty");
   await click('[data-thread="thread-welcome"]');
   await wait("document.querySelectorAll('.message').length === 4");

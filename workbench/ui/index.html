@@ -14,6 +14,7 @@
   <header class="titlebar">
     <div class="history-controls"><button id="back" aria-label="返回"><i class="ph ph-arrow-left" aria-hidden="true"></i></button><button disabled aria-label="前进（后续阶段）"><i class="ph ph-arrow-right" aria-hidden="true"></i></button><button id="toggle-sidebar" aria-label="显示或隐藏项目栏"><i class="ph ph-sidebar" aria-hidden="true"></i></button></div>
     <span id="mode-label" class="demo-badge">合成演示</span>
+    <button id="open-settings-toolbar" aria-label="工作台设置"><i class="ph ph-gear" aria-hidden="true"></i></button>
     <button id="toggle-details" aria-label="显示或隐藏详情"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i></button>
   </header>
   <nav class="rail" aria-label="主导航">
@@ -29,12 +30,11 @@
   </nav>
   <aside class="sidebar" aria-label="项目和会话">
     <div class="sidebar-heading"><span>Codex</span><i class="ph ph-caret-down" aria-hidden="true"></i><button id="connection-menu" aria-label="连接设置"><i class="ph ph-plugs" aria-hidden="true"></i></button><button id="toggle-search" aria-label="搜索会话"><i class="ph ph-magnifying-glass" aria-hidden="true"></i></button></div>
-    <label id="search-wrap" class="search-wrap" hidden><span class="sr-only">搜索会话</span><input id="search" maxlength="128" placeholder="搜索演示会话"></label>
+    <label id="search-wrap" class="search-wrap" hidden><span class="sr-only">筛选已加载会话标题，不搜索正文</span><input id="search" maxlength="128" placeholder="筛选已加载会话" title="仅筛选已加载的分组名和会话标题，不搜索正文"></label>
     <button id="new" class="sidebar-action"><i class="ph ph-note-pencil" aria-hidden="true"></i>新聊天</button>
     <button id="workspace" class="sidebar-action"><i class="ph ph-circle" aria-hidden="true"></i>本地工作台</button>
-    <h2>项目</h2>
-    <div id="project-list"></div>
-    <div class="recent-label">最近 <i class="ph ph-caret-right" aria-hidden="true"></i></div>
+    <div class="sidebar-scroll"><h2>项目与会话</h2><div id="project-list"></div></div>
+    <footer class="sidebar-footer"><button id="open-settings" type="button"><i class="ph ph-gear" aria-hidden="true"></i>设置</button><span id="sidebar-count"></span></footer>
     <section id="account-menu" class="account-menu" hidden><strong>演示账户</strong><span>仅合成内容</span><hr><button id="account-help"><i class="ph ph-info" aria-hidden="true"></i>关于此演示</button><button id="account-close"><i class="ph ph-x" aria-hidden="true"></i>关闭菜单</button></section>
   </aside>
   <main class="main">
@@ -68,5 +68,55 @@
 <dialog id="section-dialog"><form id="section-form"><h2>官方分区归属</h2><p id="section-notice"></p><label>分区<select id="section-choice"></select></label><label>位置<select id="section-order"><option value="">分区末尾</option></select></label><button id="section-refresh-order" type="button">刷新官方顺序</button><label>所选分区的新名称<input id="section-rename-name" maxlength="80"></label><button id="section-rename" type="button">重命名所选官方分区</button><label>新分区名称<input id="section-name" maxlength="80"></label><button id="section-create" type="button">创建官方分区</button><div class="dialog-actions"><button id="section-dismiss" type="button">返回</button><button id="section-apply" type="submit">移动到分区</button></div></form></dialog>
 <dialog id="session-dialog"><form id="session-form"><h2 id="session-dialog-title"></h2><p id="session-dialog-description"></p><label id="session-name-label">名称<input id="session-name" maxlength="100"></label><div class="dialog-actions"><button id="session-dismiss" type="button">返回</button><button id="session-apply" type="submit">确认</button></div></form></dialog>
 <dialog id="confirm-dialog"><h2 id="confirm-title">发送演示消息？</h2><p id="confirm-text"></p><p class="dialog-caption" id="confirm-caption">只生成本地演示回应。</p><div class="dialog-actions"><button id="cancel-confirm">返回编辑</button><button id="confirm" class="primary">发送</button></div></dialog>
+<!-- Layout adapted from open-codex SettingsApp/SettingsSidebar/SectionShell.
+     Modified for workbench-only preferences; Apache-2.0, see vendor/open-codex. -->
+<dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-title">
+  <div class="settings-layout">
+    <aside class="settings-navigation">
+      <button id="settings-close" type="button"><i class="ph ph-caret-left" aria-hidden="true"></i>返回聊天</button>
+      <h2 id="settings-title">工作台设置</h2>
+      <nav aria-label="设置分类">
+        <button type="button" data-settings-section="appearance" aria-pressed="true"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i>界面与侧栏</button>
+        <button type="button" data-settings-section="capabilities" aria-pressed="false"><i class="ph ph-info" aria-hidden="true"></i>连接与能力</button>
+        <button type="button" data-settings-section="about" aria-pressed="false"><i class="ph ph-code" aria-hidden="true"></i>关于</button>
+      </nav>
+      <span class="settings-navigation-caption">Codex Workbench</span>
+    </aside>
+    <div class="settings-content">
+      <section data-settings-panel="appearance" aria-labelledby="appearance-title">
+        <h2 id="appearance-title">界面与侧栏</h2>
+        <p class="settings-intro">让会话列表与阅读空间适合你的习惯。</p>
+        <h3>侧栏</h3>
+        <div class="settings-group">
+          <div class="settings-row"><div><label for="pref-sidebar-visible">显示侧栏</label><p>也可使用标题栏中的侧栏按钮。</p></div><input id="pref-sidebar-visible" type="checkbox" role="switch" disabled></div>
+          <div class="settings-row"><div><label for="pref-sidebar-width">侧栏宽度</label><p>为较长的项目名与会话标题留出空间。</p></div><select id="pref-sidebar-width" disabled><option value="220">紧凑 · 220 px</option><option value="259">标准 · 259 px</option><option value="300">宽敞 · 300 px</option></select></div>
+          <div class="settings-row"><div><label for="pref-density">列表密度</label><p>只调整侧栏中的分组与会话行。</p></div><select id="pref-density" disabled><option value="comfortable">舒适</option><option value="compact">紧凑</option></select></div>
+          <div class="settings-row"><div><span>展开所有分组</span><p>分组也可通过列表中的箭头逐个展开。</p></div><button id="pref-expand-groups" type="button" disabled>全部展开</button></div>
+        </div>
+        <h3>阅读</h3>
+        <div class="settings-group"><div class="settings-row"><div><label for="pref-font-size">阅读字号</label><p>调整主窗口消息文字与输入框，不改变模型。</p></div><select id="pref-font-size" disabled><option value="13">13 px</option><option value="14">14 px</option><option value="16">16 px</option></select></div></div>
+      </section>
+      <section data-settings-panel="capabilities" aria-labelledby="capabilities-title" hidden>
+        <h2 id="capabilities-title">连接与能力</h2>
+        <p class="settings-intro">当前工作台已接入的功能与边界。</p>
+        <div class="settings-group">
+          <div class="settings-row"><div><span>官方核心与会话</span><p>沿用现有官方核心连接。历史分页、草稿、项目与分区、分叉、文字复制和只读副窗口继续通过原有会话界面使用。</p></div><span class="capability-badge">已接入</span></div>
+          <div class="settings-row"><div><span>模型、推理与速度</span><p>此页不修改这些设置。聊天中的模型选择沿用原有入口与发送确认流程。</p></div><span class="capability-badge">保持现有设置</span></div>
+          <div class="settings-row"><div><span>账户、权限与配置文件</span><p>此页不管理登录、安全权限或共享 Codex 配置。MCP、钩子、浏览器及 Claude Code 设置尚未接入。</p></div><span class="capability-badge">未接入</span></div>
+        </div>
+      </section>
+      <section data-settings-panel="about" aria-labelledby="about-title" hidden>
+        <h2 id="about-title">关于工作台</h2>
+        <p class="settings-intro">保留官方核心接入，逐步完善本地会话体验。</p>
+        <div class="settings-group">
+          <div class="settings-row"><div><span>核心协议</span><p>固定 rust-v0.162.1。界面偏好仅保存于工作台自己的 ui-preferences.json。</p></div></div>
+          <div class="settings-row"><div><span>界面归属</span><p>侧栏与设置布局改编自 solrizon-ai/open-codex，Copyright 2025 solrizon-ai，Apache License 2.0。参考提交 3362b6bb790cb70485c026d39768e41affc2ce9b。完整许可证及修改说明随源码保留在 workbench/vendor/open-codex。</p></div></div>
+        </div>
+      </section>
+      <footer class="settings-status"><p id="preferences-status" role="status">正在读取界面偏好…</p><button id="preferences-retry" type="button" hidden>重新读取</button></footer>
+    </div>
+  </div>
+</dialog>
+
 </body>
 </html>

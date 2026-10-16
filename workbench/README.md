@@ -1,4 +1,4 @@
-# Workbench protocol, host and desktop — through M2.g
+# Workbench protocol, host and desktop — through M2.h
 
 This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Default npm test checks are offline and launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. An explicit isolated mode has now verified the installed official 0.162.1 binary for handshake, read errors and lifecycle; it does not log in or send model requests. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md), plus [the M1.e real connection report](../docs/workbench/core-connection-milestone.md).
 
@@ -144,3 +144,14 @@ Validation: 51 schemas, 225 offline tests; new hidden-App checks 14+9, editing r
 Preview caches/pagination are independent. Their shared four read leases include closed windows’ outstanding requests; the primary window retains its own budget. Main-confirmed names/archive states synchronize. A disconnect marks caches stale; ready broadcasts enable explicit Refresh without automatic reads. Closing a preview never stops the core. Closing the primary saves its draft, destroys previews and disposes the shared host; restart restores the main conversation only, and previews are reopened explicitly.
 
 Validation: 51 schemas, 232 offline tests, hidden multiwindow checks 17+6 plus 78 prior UI regressions, close ledgers 5/5 and 1/1 with no active windows/reads/core after primary exit, and independent Sol xhigh 7/7. No new native-core or real-model requests. Use `npm run desktop:window:smoke -- /absolute/private/output`. See [M2.g report](../docs/workbench/session-window-milestone.md) and [results](../docs/workbench/session-window-results.json). Editable multiwindow drafts/sends, window topology restoration, real-core multiwindow integration and native multi-screen/accessibility remain unverified. This increment is a local commit only.
+
+
+## Sidebar and workbench settings — M2.h
+
+Selected layout from [solrizon-ai/open-codex](https://github.com/solrizon-ai/open-codex/tree/3362b6bb790cb70485c026d39768e41affc2ce9b) is adapted to the existing DOM frontend: collapsible groups, scrollable session list with a fixed settings footer, and a settings modal with navigation and grouped rows. No new runtime dependencies. The full Apache-2.0 [license and attribution](vendor/open-codex/NOTICE.md) are retained in source and copied into the local build.
+
+Preferences support sidebar visibility/width, list density, reading size and group expansion. A separate private `ui-preferences.json` uses bounded validated patches and serialized atomic writes; failures retain the last committed values. Only the primary preload exposes `preferences.read/update`, with the same owner/frame/URL admission checks as existing commands. Read-only previews have no such bridge. Settings preserve pending drafts, chat routes, models and send confirmations; shared Codex config, account/security settings, task model/reasoning/speed and upstream core are untouched. Local project rename resets that group's expansion because labels have no independent identity.
+
+The search field filters only loaded group names and session titles. Unsupported configuration and service capabilities are explanations without interactive placeholders. Full server search, themes and complete settings parity remain open.
+
+Validation: 51 schemas, 237 offline tests, new settings hidden UI 14+8, prior multiwindow/copy/editing/management 101, and synthetic desktop 23 (146 UI checks total); independent Sol xhigh review found no reproducible P1/P2. No real model/native core execution. Run `npm run desktop:settings:smoke -- /absolute/private/output`. See [report](../docs/workbench/sidebar-settings-milestone.md) and [results](../docs/workbench/sidebar-settings-results.json). This increment is local only; no push.
