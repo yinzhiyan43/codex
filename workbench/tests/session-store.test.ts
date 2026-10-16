@@ -21,3 +21,7 @@ test("only observed temporary text is retained as stale cache without invented s
 test("invalid new ownership metadata is rejected before it can corrupt a durable store",async t=>{
  const path=await location(t),store=new SessionStore(path);await store.load();store.upsert("known",{localProject:"Valid",sectionId:"section-1",sectionName:"Known"});await store.flush();await assert.rejects(store.transaction(()=>store.upsert("known",{sectionName:"bad\u0000label"})),/invalid-session-metadata/);assert.equal(store.find("known")!.sectionName,"Known");const reopened=new SessionStore(path);await reopened.load();assert.equal(reopened.find("known")!.localProject,"Valid");assert.equal(reopened.find("known")!.sectionName,"Known");
 });
+
+test("old stores load without delivery; malformed delivery stays untouched and blocks writes",async t=>{
+ const path=await location(t),state={version:1,lastId:null,freshDraft:"old draft",sessions:[],temporary:null};await writeFile(path,JSON.stringify(state));const old=new SessionStore(path);await old.load();assert.equal(old.snapshot().delivery,null);for(const delivery of [{key:"a",text:"x",beforeTurnId:null},{token:"f".repeat(32),key:"a",text:"",beforeTurnId:null},{token:"f".repeat(32),key:"a",text:"x",beforeTurnId:null,extra:true}]){const original=JSON.stringify({...state,delivery});await writeFile(path,original);const invalid=new SessionStore(path);await assert.rejects(invalid.load(),/unavailable/);await assert.rejects(invalid.flush(),/not-loaded/);assert.equal(await readFile(path,"utf8"),original);}
+});

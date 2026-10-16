@@ -16,7 +16,7 @@ const agent = (id,text) => ({type:"agentMessage",id,text,phase:null,memoryCitati
 const model = (name,isDefault) => ({id:name,model:name,displayName:name,description:"Offline fixture only",hidden:false,isDefault,inputModalities:["text"],supportsPersonality:false,supportedReasoningEfforts:[{reasoningEffort:"low",description:"fixture"}],defaultReasoningEffort:"low"});
 for (const [id,title] of (mode==="search-history"?Array.from({length:6},(_,n)=>["search-"+n,"合成搜索会话 "+n]):["many-history","large-catalog","small-page-catalog","large-section"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : (mode==="preview-history"?[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"],["saved-d","合成历史D"]]:[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]]))) {
  const t={id,title,saved:true,turns:new Map(),...(mode==="large-section"?{sectionId:"section-large",position:threads.size}:{})};
- for (const [index,key] of [[1,"turn-z"],[2,"turn-a"],[3,"turn-m"]]) {
+ for (const [index,key] of (mode==="editable-long"?Array.from({length:90},(_,n)=>[n+1,"long-turn-"+n]):[[1,"turn-z"],[2,"turn-a"],[3,"turn-m"]])) {
    const u={type:"userMessage",id:key+"-user",clientId:null,content:[{type:"text",text:title+" 用户 "+index,text_elements:[]}]};
    const a=agent(key+"-agent",title+" 回应 "+index); t.turns.set(key,{id:key,items:[u,a],status:"completed"});
  }

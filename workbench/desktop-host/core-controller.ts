@@ -75,5 +75,6 @@ export class CoreController {
     }
     this.#publish(); return this.snapshot();
   }
-  async dispose(): Promise<void> { if (this.#disposed) return; this.#intent++; this.#disposed = true; this.#checking = false; this.#unsubscribe(); this.#listeners.clear(); await this.#client.dispose(); }
+  detach():void{if(this.#disposed)return;this.#intent++;this.#disposed=true;this.#checking=false;this.#unsubscribe();this.#listeners.clear();}
+  async dispose(): Promise<void> { if (this.#disposed) return;this.detach();await this.#client.dispose(); }
 }

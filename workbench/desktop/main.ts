@@ -1,3 +1,6 @@
+import {runEditableSmoke} from "./editable-smoke.ts";
+import {randomBytes} from "node:crypto";
+import {EditableWorkspace,type EditableSessionSurface} from "../desktop-host/editable-workspace.ts";
 import { runKeyboardSmoke } from "./keyboard-smoke.ts";
 import { runThemeSmoke } from "./theme-smoke.ts";
 import { ThemeController,type SystemAppearance } from "../desktop-host/theme-controller.ts";
@@ -32,6 +35,8 @@ import { IpcBudget, validateDesktopSender } from "../desktop-host/ipc-contract.t
 import { runDesktopSmoke } from "./smoke.ts";
 const directory = dirname(fileURLToPath(import.meta.url));
 const offlineChat = process.argv.includes("--official-chat-offline");
+const editableIndex=process.argv.indexOf("--editable-smoke"),editablePhase=editableIndex<0?null:process.argv[editableIndex+1];
+if(editableIndex>=0&&(!offlineChat||!process.argv.includes("--smoke-output")||!process.argv.includes("--persistence-root")||!["write","restart","failure","long","delivery","delivered"].includes(editablePhase??"")))throw new Error("editable-smoke-is-offline-fixture-only");
 const keyboardSmoke=process.argv.includes("--keyboard-smoke");
 if(keyboardSmoke&&(!offlineChat||!process.argv.includes("--smoke-output")))throw new Error("keyboard-smoke-is-offline-only");
 const themeSmokeIndex=process.argv.indexOf("--theme-smoke"),themePhase=themeSmokeIndex<0?null:process.argv[themeSmokeIndex+1];
@@ -69,7 +74,7 @@ if (isSmoke && chatMode && !offlineChat) throw new Error("chat-smoke-requires-ex
 let isolatedDirectory: string | null = null;
 if (isSmoke) { app.setActivationPolicy("accessory"); void app.dock?.hide(); }
 protocol.registerSchemesAsPrivileged([{ scheme: "workbench", privileges: { standard: true, secure: true, supportFetchAPI: false } }]);
-let controller: DemoController | CoreController | OfficialChatController | null = null;
+let controller: DemoController | CoreController | EditableWorkspace | null = null;
 let closing = false;const copyProbe={writes:0,text:""};
 const cleanupProfiles = () => { if(!durableProfile)rmSync(profile, { recursive: true, force: true }); if (isolatedDirectory) rmSync(isolatedDirectory, { recursive: true, force: true }); };
 app.on("will-quit", cleanupProfiles);
@@ -104,8 +109,8 @@ let launch = () => spawn(process.execPath, [join(directory, "peer.cjs")], {
   cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"],
 });
 if (offlineChat) launch = () => {
-  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), (searchSmoke||keyboardSmoke)?"search-history":windowSmoke?"preview-history":copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
-  if (keyboardSmoke || themePhase || searchSmoke || historySmoke || persistencePhase) {
+  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), editablePhase==="long"?"editable-long":(searchSmoke||keyboardSmoke)?"search-history":windowSmoke?"preview-history":copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+  if (editablePhase || keyboardSmoke || themePhase || searchSmoke || historySmoke || persistencePhase) {
     const write = child.stdin.write.bind(child.stdin);
     child.stdin.write = ((data: string | Uint8Array, ...args: unknown[]) => { for (const line of String(data).trim().split("\n")) { if (offlineFrames.length >= 512) throw new Error("offline-frame-budget"); offlineFrames.push(JSON.parse(line)); } return Reflect.apply(write, child.stdin, [data, ...args]); }) as typeof child.stdin.write;
   }
@@ -126,7 +131,7 @@ const appearance:SystemAppearance=themePhase?{isDark:()=>simulatedDark,subscribe
 const themes=new ThemeController(initialMode,appearance);
 const simulateAppearance=(dark:boolean)=>{if(!themePhase||typeof dark!=="boolean")throw new Error("theme-simulation-unavailable");simulatedDark=dark;for(const fn of systemObservers)fn();};
 const host = new StdioWorkbenchHost(launch, { searchApi:chatMode, requestTimeoutMs: chatMode ? 30000 : 5000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
-controller = chatMode ? new OfficialChatController(host.client(), chatCwd, offlineChat,15000,new SessionStore(join(stateRoot,"sessions.json")),text=>{if(isSmoke){copyProbe.writes++;copyProbe.text=text;}else clipboard.writeText(text);}) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
+controller = chatMode ? new EditableWorkspace(host.client(), chatCwd, offlineChat,new SessionStore(join(stateRoot,"sessions.json")),text=>{if(isSmoke){copyProbe.writes++;copyProbe.text=text;}else clipboard.writeText(text);}) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
 const window = new BrowserWindow({ width: 1536, height: 894, minWidth: 900, minHeight: 650,
   icon: applicationIcon,
   backgroundColor: themeBackground(themes.snapshot().resolved), title: chatMode ? "Codex Workbench — " + (offlineChat ? "官方聊天协议离线验证" : "官方ChatGPT聊天") : official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
@@ -158,11 +163,11 @@ ipcMain.handle("workbench:preferences-update", async (event, patch: unknown) => 
 ipcMain.handle("workbench:snapshot", event => { verify(event); const release = budget.acquire(); try { return controller!.snapshot(); } finally { release(); } });
 ipcMain.handle("workbench:command", async (event, value: unknown) => {
   verify(event); const release = budget.acquire();
-  try { const command=validateDesktopCommand(value);if(command.type==="openSessionWindow"||command.type==="openSearchResult"){await openPreview(command.id,command.type==="openSearchResult");return controller!.snapshot();}return await controller!.dispatch(command); }
+  try { const command=validateDesktopCommand(value);if(offlineChat&&isSmoke&&controller instanceof EditableWorkspace&&command.type==="draft"){const editor=controller.snapshot().editor!;return await controller.dispatch({type:"editDraft",routeId:command.routeId,text:command.text,revision:editor.revision,lease:editor.lease!});}if(command.type==="openSessionWindow"||command.type==="openSearchResult"){await openPreview(command.id,command.type==="openSearchResult");return controller!.snapshot();}return await controller!.dispatch(command); }
   catch { throw new Error("workbench-command-rejected"); }
   finally { release(); }
 });
-type PreviewEntry={window:BrowserWindow;controller:SessionPreview;budget:IpcBudget;off:()=>void};
+type PreviewEntry={window:BrowserWindow;controller:EditableSessionSurface;owner:string;allowClose:boolean;closePending:boolean;budget:IpcBudget;off:()=>void};
 const previews=new Map<string,PreviewEntry>(),readBudget=new PreviewReadBudget(),previewAudit={opened:0,closed:0};
 const themeBootstrap=(event:Electron.IpcMainEvent)=>{
   let release:(()=>void)|undefined;
@@ -178,13 +183,14 @@ const previewBinding=(event:Electron.IpcMainInvokeEvent)=>{const entry=[...previ
 ipcMain.handle("preview:snapshot",event=>{const entry=previewBinding(event),release=entry.budget.acquire();try{return entry.controller.snapshot();}finally{release();}});
 ipcMain.handle("preview:command",async(event,value:unknown)=>{const entry=previewBinding(event),release=entry.budget.acquire();try{return await entry.controller.dispatch(value);}catch{throw new Error("preview-command-rejected");}finally{release();}});
 async function openPreview(id:string,fromSearch=false):Promise<void>{
-  if(closing||!(controller instanceof OfficialChatController))throw new Error("preview-unavailable");const source=fromSearch?controller.searchPreviewSource(id):controller.previewSource(id),existing=previews.get(id);if(existing&&!existing.window.isDestroyed()){if(!isSmoke){existing.window.show();existing.window.focus();}return;}
+  if(closing||!(controller instanceof EditableWorkspace))throw new Error("preview-unavailable");const source=fromSearch?controller.searchPreviewSource(id):controller.previewSource(id),existing=previews.get(id);if(existing&&!existing.window.isDestroyed()){if(!isSmoke){existing.window.show();existing.window.focus();}return;}
   if(previews.size>=4)throw new Error("preview-window-limit");
   const pane=new BrowserWindow({width:1040,height:760,minWidth:600,minHeight:420,show:false,icon:applicationIcon,backgroundColor:themeBackground(themes.snapshot().resolved),title:"Codex Workbench — 只读副窗口",titleBarStyle:"hiddenInset",webPreferences:{preload:join(directory,"preview-preload.cjs"),session:isolated,offscreen:isSmoke,backgroundThrottling:!isSmoke,nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
   if(isSmoke)pane.webContents.setFrameRate(30);pane.webContents.setWindowOpenHandler(()=>({action:"deny"}));pane.webContents.on("will-navigate",event=>event.preventDefault());pane.webContents.on("will-attach-webview",event=>event.preventDefault());pane.webContents.on("console-message",details=>{if(details.level==="error")consoleErrors.push(details.message);});
-  const preview=new SessionPreview(host.client(),source,readBudget),entry:PreviewEntry={window:pane,controller:preview,budget:new IpcBudget(),off:()=>{}};previews.set(id,entry);previewAudit.opened++;
+  const owner="pane-"+pane.webContents.id,preview=controller.registerPreview(owner,source,readBudget),entry:PreviewEntry={window:pane,controller:preview,owner,allowClose:false,closePending:false,budget:new IpcBudget(),off:()=>{}};previews.set(id,entry);previewAudit.opened++;
   entry.off=preview.subscribe(()=>{if(!closing&&!pane.isDestroyed()&&!pane.webContents.isDestroyed())pane.webContents.send("preview:view",preview.snapshot());});
-  pane.once("closed",()=>{previewAudit.closed++;entry.off();preview.dispose();if(previews.get(id)===entry)previews.delete(id);});
+  pane.on("close",event=>{if(closing||entry.allowClose)return;event.preventDefault();if(entry.closePending)return;entry.closePending=true;void requestFlush(pane).then(()=>preview.close()).then(()=>{entry.allowClose=true;pane.close();}).catch(()=>{entry.closePending=false;if(!pane.isDestroyed())pane.webContents.send("workbench:close-failed");});});
+  pane.once("closed",()=>{previewAudit.closed++;entry.off();if(!closing)preview.dispose();if(previews.get(id)===entry)previews.delete(id);});
   try{await pane.loadURL("workbench://app/preview.html");if(closing||pane.isDestroyed())return;void preview.dispatch({type:"refreshHistory"}).catch(()=>{});if(!isSmoke)pane.show();}
   catch(error){entry.off();preview.dispose();if(!pane.isDestroyed())pane.destroy();if(previews.get(id)===entry)previews.delete(id);throw error;}
 }
@@ -195,12 +201,34 @@ const unsubscribe = controller.subscribe(() => {
   if (updateQueued) return; updateQueued = true;
   queueMicrotask(() => { updateQueued = false; if (!window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.send("workbench:view", controller!.snapshot()); });
 });
-window.on("close", event => {
-  if (closing) return; event.preventDefault(); closing = true;
-  offTheme();themes.dispose();ipcMain.off("workbench:theme-bootstrap",themeBootstrap);
-  unsubscribe();ipcMain.removeHandler("preview:snapshot");ipcMain.removeHandler("preview:command");for(const entry of previews.values()){entry.off();entry.controller.dispose();if(!entry.window.isDestroyed())entry.window.destroy();}previews.clear(); ipcMain.removeHandler("workbench:command"); ipcMain.removeHandler("workbench:snapshot");
-  ipcMain.removeHandler("workbench:preferences-read"); ipcMain.removeHandler("workbench:preferences-update");
-  void Promise.all([controller!.dispose(), preferences.settled()]).then(() => {if(windowSmoke||searchSmoke||themePhase||keyboardSmoke){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");} window.destroy(); app.quit(); }, () => { console.error("Owned host shutdown failed"); app.exit(1); });
+type CloseRequest={nonce:string;promise:Promise<void>;resolve:()=>void;reject:()=>void;timer:ReturnType<typeof setTimeout>};
+const closeRequests=new Map<number,CloseRequest>();
+function requestFlush(pane:BrowserWindow):Promise<void>{
+  if(pane.isDestroyed()||pane.webContents.isDestroyed())return Promise.resolve();const id=pane.webContents.id,existing=closeRequests.get(id);if(existing)return existing.promise;
+  const nonce="close-"+randomBytes(16).toString("hex");let resolve!:()=>void,reject!:()=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=()=>no(new Error("close-save-unconfirmed"));});
+  const timer=setTimeout(()=>{closeRequests.delete(id);reject();},6000);closeRequests.set(id,{nonce,promise,resolve,reject,timer});pane.webContents.send("workbench:close-request",nonce);return promise;
+}
+ipcMain.handle("workbench:close-ready",async(event,value:unknown)=>{
+  let release:(()=>void)|undefined;
+  try{let owner="main";if(event.sender===window.webContents){verify(event);release=budget.acquire();}else{const entry=previewBinding(event);owner=entry.owner;release=entry.budget.acquire();}
+    if(!value||typeof value!=="object"||Array.isArray(value))return false;const payload=value as {nonce:unknown;ok:unknown;proof:unknown};if(Object.keys(payload).sort().join(",")!=="nonce,ok,proof"||typeof payload.nonce!=="string"||typeof payload.ok!=="boolean")return false;
+    const request=closeRequests.get(event.sender.id);if(!request||request.nonce!==payload.nonce)return false;
+    try{if(!payload.ok)throw new Error("renderer-save-unconfirmed");if(controller instanceof EditableWorkspace)await controller.verifyClose(owner,payload.proof);else if(payload.proof!==null)throw new Error("unexpected-close-proof");clearTimeout(request.timer);closeRequests.delete(event.sender.id);request.resolve();return true;}
+    catch{clearTimeout(request.timer);closeRequests.delete(event.sender.id);request.reject();return false;}
+  }catch{return false;}finally{release?.();}
+});
+let preparingClose=false;
+window.on("close",event=>{
+  event.preventDefault();if(closing||preparingClose)return;preparingClose=true;
+  void(async()=>{
+    await Promise.all([requestFlush(window),...[...previews.values()].map(entry=>requestFlush(entry.window))]);
+    if(controller instanceof EditableWorkspace)await controller.settled();
+    closing=true;offTheme();themes.dispose();ipcMain.off("workbench:theme-bootstrap",themeBootstrap);
+    unsubscribe();ipcMain.removeHandler("preview:snapshot");ipcMain.removeHandler("preview:command");for(const entry of previews.values()){entry.off();if(!entry.window.isDestroyed())entry.window.destroy();}previews.clear();ipcMain.removeHandler("workbench:command");ipcMain.removeHandler("workbench:snapshot");ipcMain.removeHandler("workbench:preferences-read");ipcMain.removeHandler("workbench:preferences-update");ipcMain.removeHandler("workbench:close-ready");
+    await Promise.all([controller!.dispose(),preferences.settled()]);
+    if(windowSmoke||searchSmoke||themePhase||keyboardSmoke||editablePhase){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");}
+    window.destroy();app.quit();
+  })().catch(()=>{preparingClose=false;if(closing){console.error("Owned host shutdown failed");app.exit(1);return;}for(const pane of [window,...[...previews.values()].map(entry=>entry.window)])if(!pane.isDestroyed())pane.webContents.send("workbench:close-failed");});
 });
 await window.loadURL("workbench://app/index.html");
 await controller.dispatch({ type: "connect" });
@@ -213,7 +241,7 @@ if (smokeIndex >= 0) {
   const externalHost=copySmoke?new StdioWorkbenchHost(launch,{requestTimeoutMs:5000}):null;
   const smokeTimeout = setTimeout(() => {console.error("Desktop smoke timed out");void Promise.allSettled([controller!.dispose(),externalHost?.dispose()]).finally(()=>app.exit(1));},30000);
   let smokeFailure:unknown=null;
-  try {if(externalHost)await externalHost.start();await (keyboardSmoke ? runKeyboardSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : themePhase ? runThemeSmoke(window,output,consoleErrors,themePhase as "write"|"restart"|"invalid"|"corrupt",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),simulateAppearance,join(stateRoot,"ui-preferences.json")) : searchSmoke ? runSearchSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : settingsSmoke&&persistencePhase ? runSettingsSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"ui-preferences.json")) : windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
+  try {if(externalHost)await externalHost.start();await (editablePhase ? runEditableSmoke(window,output,consoleErrors,editablePhase as "write"|"restart"|"failure"|"long"|"delivery"|"delivered",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"sessions.json")) : keyboardSmoke ? runKeyboardSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : themePhase ? runThemeSmoke(window,output,consoleErrors,themePhase as "write"|"restart"|"invalid"|"corrupt",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),simulateAppearance,join(stateRoot,"ui-preferences.json")) : searchSmoke ? runSearchSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : settingsSmoke&&persistencePhase ? runSettingsSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"ui-preferences.json")) : windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
   catch(error){smokeFailure=error;}
   finally{clearTimeout(smokeTimeout);try{await externalHost?.dispose();}catch(error){smokeFailure??=error;}}
   if(smokeFailure){console.error(smokeFailure);await controller.dispose();cleanupProfiles();app.exit(1);}else window.close();

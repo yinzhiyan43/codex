@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { sessionGroups } from "../domain/session-groups.ts";
 import { SessionStore, type ManagedSession } from "./session-store.ts";
 import { FullTurnsWindow } from "../domain/full-turns-window.ts";
@@ -11,8 +11,11 @@ import { validateDesktopCommand } from "./ipc-contract.ts";
 import type { DesktopView, DemoMessage } from "./demo-controller.ts";
 const historyNotice = "只显示当前临时会话；临时会话只核对元数据，正文保留已观察缓存。持久历史请打开历史会话；不使用 items 分页。";
 type Phase = "disconnecting" | "connecting" | "idle" | "starting" | "running" | "cancelling" | "reading" | "restoring" | "managing" | "unknown";
+export type ChatRuntimeOptions={fixedThreadId?:string;persistSelection?:boolean;canWriteDraft?:(key:string)=>boolean};
 /** Durable official conversations; restart reads history and never replays model turns. */
 export class OfficialChatController {
+  #deliveryResolved:string|null=null;
+  #options:ChatRuntimeOptions;
   #copying=false;#copyCancelled=false;#copyText:((text:string)=>void)|null;#copyStatus:NonNullable<DesktopView["copyStatus"]>={state:"idle",notice:""};
   #sectionObservation:{id:string;sectionId:string|null;generation:number}|undefined;
   #sectionOrder:NonNullable<DesktopView["sectionOrder"]>|undefined;
@@ -26,7 +29,8 @@ export class OfficialChatController {
   #turn: string | null = null; #cancelWanted = false; #interruptSent = false; #interruptAcknowledged = false; #guarded = false;
   #draft = ""; #pending: string | null = null; #submitted = ""; #error: string | null = null; #cached: DemoMessage[] = []; #cachedId: string | null = null;
   #prompts = new Map<string, string>(); #created = 0; #cancelTimer: ReturnType<typeof setTimeout> | null = null; #cancelTimeout: number;
-  constructor(client: WorkbenchClient, cwd: string, offline = false, cancelTimeoutMs = 15000, store = new SessionStore(),copyText:((text:string)=>void)|null=null) {
+  constructor(client: WorkbenchClient, cwd: string, offline = false, cancelTimeoutMs = 15000, store = new SessionStore(),copyText:((text:string)=>void)|null=null,options:ChatRuntimeOptions={}) {
+    this.#options=options;
     this.#copyText=copyText;
     if (!Number.isSafeInteger(cancelTimeoutMs) || cancelTimeoutMs < 1 || cancelTimeoutMs > 60000) throw new Error("invalid-cancel-timeout"); this.#cancelTimeout = cancelTimeoutMs;
     this.#store = store; this.#client = client; this.#cwd = cwd; this.#offline = offline; this.#core = new CoreController(client, true);
@@ -106,10 +110,11 @@ export class OfficialChatController {
     this.#publish();
   }
   async #confirm(): Promise<void> {
-    if (this.#browsing || this.#archiveBlockedId || (this.#browser.snapshot().inflight || this.#asyncReads>0) || !this.#pending || this.#phase !== "idle" || !this.#guarded || !this.#model) return;
+    if (this.#store.snapshot().delivery || this.#browsing || this.#archiveBlockedId || (this.#browser.snapshot().inflight || this.#asyncReads>0) || !this.#pending || this.#phase !== "idle" || !this.#guarded || !this.#model) return;
     const text = this.#pending, model = this.#model; this.#pending = null; this.#submitted = text;
     this.#phase = "starting"; this.#cancelWanted = false; this.#interruptSent = false; this.#interruptAcknowledged = false; this.#error = null;
     const intent = ++this.#intent, generation = this.#client.getView().generation; this.#publish();
+    let journalToken:string|null=null,requestSent=false,accepted=false;
     try {
       await this.#client.checkModelConfiguration(); if (!this.#current(intent, generation)) return;
       const account = await this.#client.getAccount({ refreshToken: false }); if (!this.#current(intent, generation)) return;
@@ -131,15 +136,27 @@ export class OfficialChatController {
       if (!this.#current(intent,generation)) return;
       if (this.#cancelWanted) { this.#phase = "idle"; return; }
       if (this.#prompts.size >= 64) throw new HostOperationError("chat-turn-limit");
+      const before=await this.#client.listTurns({threadId:this.#thread,limit:20,sortDirection:"desc",itemsView:"full"});
+      if(!this.#current(intent,generation))return;
+      if(before.data.some(turn=>turn.status==="inProgress"))throw new HostOperationError("unresolved-persisted-turn");
+      journalToken=randomBytes(16).toString("hex");
+      await this.#mutate(()=>{if(this.#store.snapshot().delivery)throw new Error("unresolved-delivery");this.#store.pendingDelivery({token:journalToken!,key:this.#thread!,text,beforeTurnId:before.data[0]?.id??null});});
+      if(!this.#current(intent,generation)||this.#cancelWanted){this.#deliveryResolved=journalToken;await this.#save();this.#phase="idle";return;}
+      requestSent=true;
       const response = await this.#client.startTurn({ threadId: this.#thread, model, input: [{ type: "text", text, text_elements: [] }], approvalPolicy: "never", sandboxPolicy: { type: "readOnly", networkAccess: false } });
+      accepted=true;this.#deliveryResolved=journalToken;
+      if (this.#draft.trim() === text) this.#draft = "";
+      await this.#save();
       if (!this.#current(intent, generation)) return;
       this.#turn = response.turn.id; this.#prompts.set(response.turn.id, text); this.#submitted = "";
       if (this.#draft.trim() === text) this.#draft = "";
       this.#phase = "running"; this.#sync();
       if (this.#cancelWanted) await this.#interrupt();
     } catch (error) {
+      const notSent=!requestSent||!accepted&&error instanceof HostOperationError&&error.outcome==="not-sent";
+      if(journalToken&&notSent){this.#deliveryResolved=journalToken;try{await this.#save();}catch{}}
       if (this.#current(intent, generation)) {
-        const unknown = error instanceof HostOperationError && error.outcome === "unknown";
+        const unknown = !!this.#store.snapshot().delivery || accepted || error instanceof HostOperationError && error.outcome === "unknown";
         this.#guarded = false;
         this.#phase = unknown ? "unknown" : "idle"; this.#error = unknown ? "请求结果未知；不会自动重发，需重连核对持久记录与上一轮状态。" : "消息未发送完成，请检查连接、账户或配置后再试。";
         if (unknown) await this.#client.stop();
@@ -151,11 +168,14 @@ export class OfficialChatController {
   async #flushStore():Promise<void>{await this.#mutate(()=>{});}
   async #save(update:Partial<Omit<ManagedSession,"id">>={}):Promise<void>{
     if(!this.#persistenceReady)return;
+    const resolved=this.#deliveryResolved;
     const id=this.#thread??this.#legacyId,draft=this.#draft,model=this.#model,legacy=!!this.#legacyId,cache=structuredClone(this.#cached);
-    await this.#mutate(()=>{if(id){this.#store.freshDraft("");this.#store.upsert(id,{...update,draft,model,ephemeral:legacy});this.#store.select(id);if(legacy)this.#store.preserveTemporary(id,cache);}else{this.#store.select(null);this.#store.freshDraft(draft);}});
+    await this.#mutate(()=>{const writable=this.#options.canWriteDraft?.(id??"official-chat")??true,selection=this.#options.persistSelection!==false;if(id){if(selection&&writable)this.#store.freshDraft("");this.#store.upsert(id,{...update,...(writable?{draft,model}:{}),ephemeral:legacy});if(selection)this.#store.select(id);if(legacy)this.#store.preserveTemporary(id,cache);if(writable&&resolved&&this.#store.snapshot().delivery?.token===resolved)this.#store.pendingDelivery(null);}else if(selection){this.#store.select(null);if(writable)this.#store.freshDraft(draft);}});
   }
+  async flushDraftState():Promise<void>{await this.#save();}
+  syncDraftFromStore(key:string):void{if((this.#thread??this.#legacyId??"official-chat")===key){this.#draft=this.#store.confirmedDraft(key);this.#publish();}}
   async #rememberRows():Promise<void>{const {rows,archived}=this.#browser.snapshot();await this.#mutate(()=>{for(const row of rows)if(this.#store.find(row.id))this.#store.upsert(row.id,{title:row.title,archived,ephemeral:false});});}
-  #known(id:string): boolean {return this.#store.find(id)!==undefined||this.#browser.snapshot().rows.some(row=>row.id===id)||id===this.#thread;}
+  #known(id:string): boolean {return id===this.#options.fixedThreadId||this.#store.find(id)!==undefined||this.#browser.snapshot().rows.some(row=>row.id===id)||id===this.#thread;}
   async #activateSaved(id:string, startup=false, cancelled:()=>boolean=()=>false,beforeCommit:()=>void=()=>{}): Promise<void> {
     if(!this.#known(id))throw new Error("unknown-managed-session");
     if(!["idle","restoring"].includes(this.#phase)||this.#pending||this.#browser.snapshot().inflight||this.#asyncReads>=4||!this.#guarded)throw new Error("session-switch-busy");
@@ -355,6 +375,7 @@ export class OfficialChatController {
   }
   async dispatch(value: unknown): Promise<DesktopView> {
     if (this.#disposed) throw new Error("controller-unavailable"); const command = validateDesktopCommand(value);
+    if(this.#options.fixedThreadId&&(!["connect","draft","submit","confirm","cancel","refreshHistory","history","clearError"].includes(command.type)||(command.type==="draft"&&command.routeId!==this.#options.fixedThreadId)||(command.type==="history"&&command.threadId!==this.#options.fixedThreadId)))throw new Error("fixed-session-command-rejected");
     if(this.#phase==="managing"&&["thread","browseHistory","returnToChat","toggleArchived","refreshThreads","moreThreads","refreshHistory","history"].includes(command.type))throw new Error("session-management-busy");
     if (this.#browsing && ["draft", "submit", "confirm", "selectModel", ...(!this.#forking&&!this.#copying?["cancel"]:[])].includes(command.type)) throw new Error("saved-history-read-only");
     switch (command.type) {
@@ -384,8 +405,8 @@ export class OfficialChatController {
       case "connect": case "reconnect": {
         if (["disconnecting", "connecting", "starting", "running", "cancelling", "reading", "restoring", "managing"].includes(this.#phase)) throw new Error("chat-busy");
         const intent=++this.#intent;this.#phase="connecting";this.#guarded=false;this.#pending=null;
-        try { await this.#store.load(); await this.#store.flush(); if(intent!==this.#intent||this.#disposed)break; this.#persistenceReady=true; } catch { if(intent===this.#intent&&!this.#disposed){this.#phase="idle";this.#error="工作台会话存储不可用，未覆盖旧文件，发送已禁用。";this.#guarded=false;}break;}
-        const restoreId=this.#store.snapshot().lastId;
+        try { await this.#store.load(); await this.#store.transaction(()=>{}); if(intent!==this.#intent||this.#disposed)break; this.#persistenceReady=true; } catch { if(intent===this.#intent&&!this.#disposed){this.#phase="idle";this.#error="工作台会话存储不可用，未覆盖旧文件，发送已禁用。";this.#guarded=false;}break;}
+        const restoreId=this.#options.fixedThreadId??this.#store.snapshot().lastId;
         this.#phase = "connecting"; this.#guarded = false; this.#cached = this.#messages(); this.#cachedId=this.#thread??this.#legacyId; this.#thread = null; this.#turn = null; this.#pending = null;
         await this.#core.dispatch(command);
         if (intent !== this.#intent || this.#disposed) break;
@@ -400,7 +421,7 @@ export class OfficialChatController {
       case "disconnect": {if(this.#phase==="disconnecting")throw new Error("chat-busy");const interrupted=["starting","running","cancelling"].includes(this.#phase),intent=++this.#intent;this.#guarded=false;this.#pending=null;this.#browser.cancel();this.#clearCancelTimer();this.#cached=this.#messages();this.#cachedId=this.#thread??this.#legacyId;this.#phase="disconnecting";this.#publish();try{await this.#core.dispatch(command);}finally{try{await this.#save();}catch{}if(intent===this.#intent&&!this.#disposed){this.#phase=interrupted?"unknown":"idle";if(interrupted&&!this.#error)this.#error="连接已断开，执行结果未知；不会自动重发。";}}break;}
       case "draft": if (command.routeId !== (this.#thread ?? this.#legacyId ?? "official-chat")) throw new Error("invalid-draft-route"); this.#draft = command.text; await this.#save(); break;
       case "selectModel": if (this.#phase !== "idle" || this.#pending || !this.#core.snapshot().coreStatus?.models.includes(command.model)) throw new Error("model-unavailable"); this.#model = command.model; await this.#save(); break;
-      case "submit": if (!this.#archiveBlockedId && !this.#browser.snapshot().inflight && this.#asyncReads===0 && this.#phase === "idle" && !this.#pending && this.#guarded && this.#model && this.#client.getView().state === "ready" && this.#draft.trim()) this.#pending = this.#draft.trim(); break;
+      case "submit": if (!this.#store.snapshot().delivery && !this.#archiveBlockedId && !this.#browser.snapshot().inflight && this.#asyncReads===0 && this.#phase === "idle" && !this.#pending && this.#guarded && this.#model && this.#client.getView().state === "ready" && this.#draft.trim()) this.#pending = this.#draft.trim(); break;
       case "confirm": await this.#confirm(); break;
       case "cancel": if(this.#copying){this.#copyCancelled=true;this.#copyStatus={state:"cancelled",notice:"复制已取消，未写入剪贴板。"};break;} if(this.#forking){this.#forkCancelled=true;this.#error="已取消自动打开；已发送的官方分叉仍可能完成，将登记返回ID，不会重复请求。";break;} if (this.#pending) this.#pending = null; else if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#cancelWanted = true; await this.#interrupt(); } break;
       case "new": if (!["idle", "unknown"].includes(this.#phase)) throw new Error("chat-busy"); await this.#save(); this.#archiveBlockedId=null; this.#legacyId=null;this.#currentWindow=null;this.#resumeNeeded=false; this.#browser.cancel(); this.#browsing = false; this.#intent++; this.#thread = null; this.#turn = null; this.#cached = []; this.#prompts.clear(); this.#draft = ""; this.#pending = null; this.#error = null; if (this.#guarded) this.#phase = "idle"; await this.#save(); break;
@@ -415,5 +436,8 @@ export class OfficialChatController {
     }
     this.#publish(); return this.snapshot();
   }
+  /** Used only after the workspace has awaited durable drafts; never owns shared host teardown. */
+  detach():void{if(this.#disposed)return;this.#intent++;this.#disposed=true;this.#searchUnsubscribe();this.#search.dispose();this.#browserUnsubscribe();this.#browser.dispose();this.#clearCancelTimer();this.#unsubscribe();this.#listeners.clear();this.#core.detach();}
+  async disposeSaved():Promise<void>{if(this.#disposed)return;this.detach();await this.#client.dispose();}
   async dispose(): Promise<void> { if (this.#disposed) return; this.#intent++; this.#disposed = true; this.#searchUnsubscribe();this.#search.dispose();this.#browserUnsubscribe(); this.#browser.dispose(); this.#clearCancelTimer(); this.#unsubscribe(); this.#listeners.clear(); try {if(this.#persistenceReady)await this.#save();}finally{await this.#core.dispose();} }
 }

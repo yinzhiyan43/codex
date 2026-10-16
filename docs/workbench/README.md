@@ -38,6 +38,8 @@
 - [M2.j 官方保存会话搜索](session-search-milestone.md)：官方正文/标题预览、归档/游标、只读结果副窗、245项离线与160项后台UI证据及实际范围。
 - [M2.k 完整主题支持](theme-milestone.md)：明暗/跟随系统、首次绘制引导、主副窗同步、偏好迁移和252离线/185后台UI证据。
 - [M2.l 键盘与基础无障碍](keyboard-accessibility-milestone.md)：焦点恢复、菜单/分类键盘操作、输入法保护、257离线及209后台检查；真实IME/VoiceOver待验收。
+- [M2.m 可编辑多窗口](multiwindow-editing-milestone.md)：每会话租约/版本、全局发送互斥、保存关闭、发送未决保护及280离线/243后台检查。
+- [日常使用说明](daily-use.md)：启动、编辑权、发送与异常恢复、已验证能力和剩余缺口。
 - [桌面容器 ADR](desktop-adr.md)：Electron 与主进程/界面边界。
 
 ## 目标与完成标准

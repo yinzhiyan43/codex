@@ -1,3 +1,5 @@
+import {DraftEditor} from "./draft-editor.ts";
+import {setupClose,type CloseBridge} from "./close-ui.ts";
 import { focusHandle, installInteractions, openModal, setText, setupMenu } from "./interactions.ts";
 import { plainEnter } from "./keyboard-policy.ts";
 import { setupSessionSearch } from "./session-search.ts";
@@ -5,12 +7,14 @@ import type { DesktopView } from "../desktop-host/demo-controller.ts";
 import type { DesktopCommand } from "../desktop-host/ipc-contract.ts";
 import { setupSettings, type PreferencesBridge } from "./settings.ts";
 import { renderSidebar } from "./sidebar.ts";
-declare global { interface Window { workbench: { snapshot(): Promise<DesktopView>; dispatch(command: DesktopCommand): Promise<DesktopView>; subscribe(listener: (view: DesktopView) => void): () => void } } }
+declare global { interface Window { workbench: { close:CloseBridge;snapshot(): Promise<DesktopView>; dispatch(command: DesktopCommand): Promise<DesktopView>; subscribe(listener: (view: DesktopView) => void): () => void } } }
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const draft = el<HTMLTextAreaElement>("draft");
 installInteractions();
 let view: DesktopView | null = null; let version = -1; let routeKey = ""; let draftTimer: ReturnType<typeof setTimeout> | null = null;
 let inputSequence = 0;
+const draftEditor=new DraftEditor(draft,el("editor-status"),command=>window.workbench.dispatch(command),render);
+setupClose(window.workbench.close,flushDraft,()=>window.workbench.snapshot(),el("close-status"));
 const dialog = el<HTMLDialogElement>("confirm-dialog");
 const connectionDialog = el<HTMLDialogElement>("connection-dialog");
 let localFilter = "";
@@ -157,7 +161,7 @@ function render(next: DesktopView): void {
     if (approvalRoot.children[cardIndex] !== section) approvalRoot.insertBefore(section, approvalRoot.children[cardIndex] ?? null);
     cardIndex++;
   }
-  if (changedRoute || document.activeElement !== draft) draft.value = next.draft;
+  if(next.editor){el("reconcile-delivery").hidden=!next.editor.deliveryPending;draftEditor.render(next);el("retry-draft").hidden=!draftEditor.failed();el("use-saved-draft").hidden=!draftEditor.failed();el("editor-controls").hidden=!!next.chatStatus?.historyMode;el("editor-controls").setAttribute("aria-busy",String(next.loading));el("claim-editor").hidden=next.editor.owner==="self";el("release-editor").hidden=next.editor.owner!=="self";el<HTMLButtonElement>("release-editor").disabled=!!next.editor.execution;el<HTMLButtonElement>("claim-editor").disabled=next.editor.owner==="other";choice.disabled ||= next.editor.owner!=="self";}else{el("editor-controls").hidden=true;if(changedRoute||document.activeElement!==draft)draft.value=next.draft;}
   el("management-status").hidden=!next.copyStatus?.notice&&!next.chatStatus?.canCancelManagement;
   el("cancel-management").hidden=!next.chatStatus?.canCancelManagement;el("cancel-management").textContent=next.chatStatus?.managementAction==="copy"?"取消复制":"取消自动打开分叉";
   el("copy-status").hidden=!next.copyStatus?.notice;setText(el("copy-status"), next.copyStatus?.notice??"");
@@ -183,6 +187,7 @@ function render(next: DesktopView): void {
   setText(el("notice-text"), notice ?? "");
   el("retry").hidden = chat ? ["connecting","disconnecting"].includes(next.chatStatus?.phase ?? "") || (online && !!next.chatStatus?.ready) : online;
   el<HTMLButtonElement>("send").disabled = savedHistory || (official && !chat) || (chat && (!next.chatStatus?.ready || next.running || !!next.pending)) || !draft.value.trim() || !online || next.loading;
+  if(next.editor)el<HTMLButtonElement>("send").disabled ||= !next.editor.canSend||draftEditor.failed();
   el("send").hidden = next.running;
   el("stop").hidden = !next.running;
   if (next.pending) { el("confirm-text").textContent = next.pending; if (!dialog.open) openModal(dialog, () => !draft.disabled ? draft : !el("stop").hidden ? el("stop") : el("main-content"), el("cancel-confirm")); }
@@ -195,12 +200,14 @@ async function send(command: DesktopCommand): Promise<void> {
   catch { el("notice").hidden = false; setText(el("notice-text"), "操作未完成，请稍后重试。"); }
 }
 async function flushDraft(): Promise<void> {
+  if(view?.editor){await draftEditor.flush();return;}
   if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return;
   if (draftTimer) clearTimeout(draftTimer); draftTimer = null;
   inputSequence++; await send({ type: "draft", routeId: routeKey, text: draft.value });
 }
-async function navigate(command: DesktopCommand): Promise<void> { await flushDraft(); await send(command); }
+async function navigate(command: DesktopCommand): Promise<void> { try{await flushDraft();await send(command);}catch{el("editor-status").textContent="草稿保存未确认，未切换会话；本地文字保留。";} }
 draft.addEventListener("input", () => {
+  if(view?.editor){el<HTMLButtonElement>("send").disabled=!view.editor.canSend||!draft.value.trim()||draftEditor.failed();return;}
   if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return;
   el<HTMLButtonElement>("send").disabled = !draft.value.trim() || view?.connection !== "ready" || !!view?.loading;
   if (draftTimer) clearTimeout(draftTimer);
@@ -208,7 +215,7 @@ draft.addEventListener("input", () => {
   draftTimer = setTimeout(() => { if (sequence === inputSequence) { draftTimer = null; void send({ type: "draft", routeId, text }); } }, 180);
 });
 draft.addEventListener("keydown", event => { if (plainEnter(event)) { event.preventDefault(); if (!el<HTMLButtonElement>("send").disabled && !view?.running) el<HTMLFormElement>("composer").requestSubmit(); } });
-el("composer").addEventListener("submit", event => { event.preventDefault(); if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return; void (async () => { await flushDraft(); await send({ type: "submit" }); })(); });
+el("composer").addEventListener("submit", event => { event.preventDefault(); if (view?.chatStatus?.historyMode || (view?.mode !== "synthetic" && view?.mode !== "official-chat")) return; void (async () => { await flushDraft(); await send({ type: "submit" }); })().catch(()=>{el("editor-status").textContent="草稿尚未保存，未发送；本地文字保留。";}); });
 el("project-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
   if (button?.dataset.group) void settings?.toggleGroup(button.dataset.group);
@@ -300,4 +307,11 @@ el("section-rename").addEventListener("click",()=>{const sectionId=el<HTMLSelect
 el("section-dismiss").addEventListener("click",()=>el<HTMLDialogElement>("section-dialog").close());
 el("section-form").addEventListener("submit",event=>{event.preventDefault();if(!sectionTargetId)return;const id=sectionTargetId,sectionId=el<HTMLSelectElement>("section-choice").value||null;el<HTMLDialogElement>("section-dialog").close();const beforeThreadId=el<HTMLSelectElement>("section-order").value;void send({type:"assignSection",id,sectionId,...(beforeThreadId?{beforeThreadId}:{})});});
 el("section-create").addEventListener("click",()=>{const name=el<HTMLInputElement>("section-name").value.trim(),previousId=view?.sessionSections?.lastCreatedId;if(!name)return;void(async()=>{await send({type:"createSection",name});const created=view?.sessionSections?.lastCreatedId;if(created&&created!==previousId){el<HTMLSelectElement>("section-choice").value=created;el<HTMLInputElement>("section-rename-name").value=view?.sessionSections?.rows.find(row=>row.id===created)?.name??"";el<HTMLSelectElement>("section-order").replaceChildren(new Option("分区末尾",""));el<HTMLSelectElement>("section-order").disabled=true;el<HTMLButtonElement>("section-rename").disabled=false;el<HTMLButtonElement>("section-refresh-order").disabled=false;}})();});
+el("claim-editor").addEventListener("click",()=>{void send({type:"claimEditor"});});
+el("release-editor").addEventListener("click",()=>{void(async()=>{try{await flushDraft();await send({type:"releaseEditor"});}catch{el("editor-status").textContent="草稿保存未确认，编辑权保留。";}})();});
+el("retry-draft").addEventListener("click",()=>{void draftEditor.retry().catch(()=>{});});
+el("use-saved-draft").addEventListener("click",()=>{void window.workbench.snapshot().then(next=>{draftEditor.useSaved(next);render(next);});});
 el("cancel-management").addEventListener("click",()=>void send({type:"cancel"}));
+
+el("reconcile-delivery").addEventListener("click",()=>{void send({type:"reconcileDelivery"});});
+el("retry-persistence").addEventListener("click",()=>{void send({type:"retryPersistence"});});
