@@ -1,0 +1,225 @@
+{
+  "milestone": "M2.i",
+  "date": "2026-10-16",
+  "productBaseline": "a688598b6b46dad95f09e4f9de55dd57fc8fdf37",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "overall": "requested-paths-verified-with-test-driver-recoveries",
+  "singleCleanEndToEndRun": false,
+  "productCodeChanged": false,
+  "coreVersion": "0.162.1",
+  "realCoreExecuted": true,
+  "syntheticPromptsOnly": true,
+  "authenticationMode": "existing ChatGPT login; identity matched before each send; details omitted",
+  "billingMode": "existing ChatGPT subscription/quota; no API-key fallback, new service or new credentials",
+  "provider": "openai",
+  "endpoint": "https://chatgpt.com/backend-api/codex",
+  "userModelReasoningAndSpeedPreserved": true,
+  "requestSettingsGuard": "use existing configured model; compare inherited reasoning/service tier; reject effort/reasoning/serviceTier overrides",
+  "sharedConfigBytesUnchanged": true,
+  "requestCounts": {
+    "result": "passed",
+    "modelRequests": 5,
+    "methodCounts": {
+      "turn/start": 5,
+      "turn/interrupt": 1,
+      "thread/start": 1,
+      "thread/fork": 1,
+      "thread/resume": 4,
+      "thread/name/set": 2
+    },
+    "observedAgentMessageDeltaNotifications": 168,
+    "terminalStatuses": [
+      "completed",
+      "completed",
+      "interrupted",
+      "completed",
+      "completed"
+    ],
+    "auditFailure": null,
+    "frameBodiesOrAccountInformationIncluded": false
+  },
+  "paths": {
+    "sendComplete": {
+      "result": "verified",
+      "expectedSyntheticMarkerMatched": true
+    },
+    "stop": {
+      "result": "verified",
+      "shortResponseRaceCount": 1,
+      "actualInterruptRpcCount": 1,
+      "terminal": "interrupted"
+    },
+    "restartRecovery": {
+      "result": "path-assertions-passed",
+      "driverStageOverall": "failed-after-these-assertions",
+      "bodyAndDraftMatched": true,
+      "autoSendOrResume": false
+    },
+    "sameConversationContinue": {
+      "result": "path-assertions-passed",
+      "driverStageOverall": "failed-after-these-assertions",
+      "sameSourceId": true,
+      "expectedSyntheticMarkerMatched": true,
+      "prefixPreserved": true
+    },
+    "specifiedTurnForkContinue": {
+      "result": "verified-in-recovery-stage",
+      "forkCreatedOnce": true,
+      "existingReturnedChildReused": true,
+      "includedBoundaryAndExcludedLaterTurns": true,
+      "childIdDistinctAndParentMatched": true
+    },
+    "mainReadOnlyPreviewSync": {
+      "result": "verified",
+      "namesSyncAutomatically": true,
+      "savedBodiesCompared": true,
+      "sourceRefreshedExplicitly": true,
+      "draftsIsolated": true,
+      "previewSubmitRejected": true
+    }
+  },
+  "driverStages": [
+    {
+      "phase": "write",
+      "result": "passed",
+      "modelRequestsAtEnd": 3,
+      "checks": [
+        "official-existing-login-route-and-inherited-settings-confirmed",
+        "real-ui-send-stream-and-completion",
+        "real-stop-on-running-and-interrupted-terminal",
+        "main-preview-real-saved-body-equality",
+        "real-rename-primary-preview-sync-and-draft-retained"
+      ]
+    },
+    {
+      "phase": "restart",
+      "result": "failed",
+      "modelRequestsAtEnd": 4,
+      "verifiedChecksBeforeFailure": [
+        "official-existing-login-route-and-inherited-settings-confirmed",
+        "restart-restores-exact-body-and-unsent-draft-no-auto-resume-or-send",
+        "real-confirmed-same-id-resume-and-continue-with-prefix-intact"
+      ],
+      "error": "test-ledger-concurrent-read-incomplete-json",
+      "closeLedgerAvailable": false
+    },
+    {
+      "phase": "resume-fork-only",
+      "result": "passed",
+      "modelRequestsAtEnd": 5,
+      "checks": [
+        "official-existing-login-route-and-inherited-settings-confirmed",
+        "real-specified-turn-fork-has-exact-included-prefix-and-excludes-later-turns-without-duplicate-fork",
+        "real-fork-continues-on-distinct-id",
+        "real-main-fork-preview-sync-source-unchanged-and-drafts-isolated",
+        "real-preview-remains-read-only"
+      ]
+    }
+  ],
+  "integrity": {
+    "restartBodyHash": "856d330faa6f30d3f491105dacfaf335560baea7325dec9ee68d5899d43db75e",
+    "restartDraftMatched": true,
+    "sameSourceIdAfterContinue": true,
+    "forkIdDistinct": true,
+    "forkParentMatched": true,
+    "forkPrefixHash": "938018a3d0c53fb67d9f980fa034fe7115bf794ce8b96e25e58945673e495fd6",
+    "expectedForkPrefixHash": "938018a3d0c53fb67d9f980fa034fe7115bf794ce8b96e25e58945673e495fd6",
+    "sourceAfterChildContinueBodyHash": "a9d4c084b9e3338f6a7fed4a6b6c44ff845bc92b6bea146f2aae62d5b34657f8",
+    "sourceBeforeChildContinueBodyHash": "a9d4c084b9e3338f6a7fed4a6b6c44ff845bc92b6bea146f2aae62d5b34657f8",
+    "forkFinalBodyHash": "6661211bf4ed90432bd91995e9375f757e623c1bd750ed0d2921b257b1095192",
+    "sourceAndForkDraftsIsolated": true
+  },
+  "closeLedgers": {
+    "write": {
+      "opened": 1,
+      "closed": 1,
+      "activeWindows": 0,
+      "activeReads": 0,
+      "coreActive": false,
+      "coreState": "disposed"
+    },
+    "fork": {
+      "opened": 2,
+      "closed": 2,
+      "activeWindows": 0,
+      "activeReads": 0,
+      "coreActive": false,
+      "coreState": "disposed"
+    }
+  },
+  "currentOwnedProcessCheck": {
+    "result": "passed",
+    "ownedTestRootProcessMatches": 0,
+    "inspectionReadOnly": true,
+    "otherProcessDetailsRecorded": false,
+    "processesSignalled": 0
+  },
+  "cleanup": {
+    "result": "passed",
+    "ownedInstancesClosed": true,
+    "authAndConfigSymlinkReferencesRemoved": 2,
+    "privateAccountFingerprintBaselinesRemoved": true,
+    "sharedCredentialOrConfigTargetsDeleted": false,
+    "syntheticTranscriptAndDraftEvidenceRetainedPrivately": true,
+    "additionalModelRequests": 0
+  },
+  "syntheticSymlinkCanary": {
+    "result": "passed",
+    "syntheticCanaryOnly": true,
+    "touchThroughAliasDenied": true,
+    "truncateThroughAliasDenied": true,
+    "targetBytesUnchanged": true,
+    "realCredentialOrConfigWritesAttempted": false,
+    "targetRootDenyAloneBlocksAliasTruncate": true
+  },
+  "isolation": {
+    "independentHomeStateAndWorkingDirectory": true,
+    "productionControllerRendererPreloadUsed": true,
+    "productionMainDerivedOnlyForOwnedProfileAndCheckInstrumentation": true,
+    "originalHistoryContentReadDeniedInFormalRuns": true,
+    "sharedAuthAndConfigFileWritesDeniedInFormalRuns": true,
+    "referenceAliasWritesDeniedInHardenedRuns": true,
+    "spawnAndExecFileProtectedInHardenedBundle": true,
+    "hardenedKeychainServiceRestrictionConfigured": true,
+    "allCredentialBackendsAbsolutelyUnchangedClaimed": false,
+    "initialReadOnlyPreflightCaveat": "Used original CODEX_HOME outside the later sandbox. Native startup may scan session-directory metadata; no private transcript RPCs or old content were used/recorded."
+  },
+  "testDriverCorrections": [
+    "Apply outer macOS protection only to native children, keeping Electron sandbox enabled",
+    "Refresh saved turns to locate existing completed A; do not resend it",
+    "Locate known A after recovery rather than assuming it is the latest reply",
+    "Add one immediate-stop check after the short-response completion race; hard total budget 5",
+    "Write test ledger atomically to avoid partial concurrent reads",
+    "Reuse the acknowledged fork after driver failure; never repeat fork RPC"
+  ],
+  "independentReview": {
+    "reviewer": "Sol xhigh",
+    "productCodeP1P2": "none found",
+    "evidenceLimitsAcknowledged": [
+      "restart stage remains failed despite prior path assertions",
+      "final run-summary passed applies to fork-only recovery",
+      "failed restart has no close ledger; separate current-process check used",
+      "delta notification count is not frame-by-frame native visual validation",
+      "initial read-only preflight not fully isolated"
+    ]
+  },
+  "priorOfflineEvidence": {
+    "productBaselineUnchanged": true,
+    "schemas": 51,
+    "offlineTests": 237,
+    "syntheticHiddenUiChecks": 146,
+    "rerunThisMilestone": false
+  },
+  "screenshotsCommitted": false,
+  "accountDetailsCredentialValuesAndPrivateHistoryIncluded": false,
+  "goalIdsPreserved": 92,
+  "newChangesPushed": false,
+  "mainChanged": false,
+  "remainingCoverage": [
+    "default user profile and single-instance lock",
+    "manual native input, IME, VoiceOver and multiscreen",
+    "large history, attachments/tools and rich-text visuals",
+    "network/quota failures",
+    "editable multiwindow"
+  ]
+}

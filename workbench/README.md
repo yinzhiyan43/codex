@@ -1,4 +1,4 @@
-# Workbench protocol, host and desktop — through M2.h
+# Workbench protocol, host and desktop — through M2.i validation
 
 This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Default npm test checks are offline and launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. An explicit isolated mode has now verified the installed official 0.162.1 binary for handshake, read errors and lifecycle; it does not log in or send model requests. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md), plus [the M1.e real connection report](../docs/workbench/core-connection-milestone.md).
 
@@ -155,3 +155,10 @@ Preferences support sidebar visibility/width, list density, reading size and gro
 The search field filters only loaded group names and session titles. Unsupported configuration and service capabilities are explanations without interactive placeholders. Full server search, themes and complete settings parity remain open.
 
 Validation: 51 schemas, 237 offline tests, new settings hidden UI 14+8, prior multiwindow/copy/editing/management 101, and synthetic desktop 23 (146 UI checks total); independent Sol xhigh review found no reproducible P1/P2. No real model/native core execution. Run `npm run desktop:settings:smoke -- /absolute/private/output`. See [report](../docs/workbench/sidebar-settings-milestone.md) and [results](../docs/workbench/sidebar-settings-results.json). This increment is local only; no push.
+
+
+## Real official core and desktop validation — M2.i
+
+The unchanged pushed product baseline `a688598b6` was exercised with the existing official ChatGPT login and isolated synthetic test sessions. Five real model requests produced four completed turns and one interrupted turn. Per-path assertions covered send/stop, saved body and draft after restart, same-ID continuation, one inclusive saved-turn fork and continuation on its returned child, and primary/read-only-preview names, saved bodies and draft isolation. Existing model/reasoning/service-tier settings were inherited; no shared configuration write or new API service was introduced.
+
+This was a recovered test sequence, not one clean end-to-end run: the restart driver passed its body/draft and continuation assertions, then failed reading its own non-atomic ledger. A later fork-only recovery used the already acknowledged child ID and passed the remaining checks without repeating the fork or earlier successful messages. The report retains the failed stage and the initial read-only preflight isolation caveat. Runtime product code was not changed, prior 237 offline/146 synthetic UI checks were not newly rerun, and only redacted documentation is committed locally this round. See the [real integration report](../docs/workbench/real-core-ui-milestone.md) and [per-path evidence](../docs/workbench/real-core-ui-results.json). Manual native input/accessibility, default user profile, large history and exceptional network/quota behavior remain unverified.
