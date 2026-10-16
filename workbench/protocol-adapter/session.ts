@@ -1,6 +1,6 @@
 import type { ThreadSectionUpdateParams, ThreadSectionUpdateResponse, ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "./contracts.ts";
 import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "./contracts.ts";
-import type { ThreadListParams, ThreadListResponse } from "./contracts.ts";
+import type { ThreadSearchParams, ThreadSearchResponse, ThreadListParams, ThreadListResponse } from "./contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "./contracts.ts";
 import type { ConfigReadParams, ConfigReadResponse, GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "./contracts.ts";
 import { JsonlDecoder } from "./jsonl.ts";
@@ -51,6 +51,7 @@ export class ProtocolSession {
   #uncertain: { id: RequestId; method: string; threadId: string | null }[] = [];
   #staleApprovals: ApprovalView[] = [];
   #timeoutMs: number;
+  #searchApi: boolean;
   #maxPending: number;
   #maxServerRequests: number;
   #maxFrameBytes: number;
@@ -61,9 +62,12 @@ export class ProtocolSession {
   #serverBytes = 0;
   #observers = new Set<() => void>();
 
-  constructor(options: { timeoutMs?: number; maxPending?: number; maxServerRequests?: number; maxFrameBytes?: number; maxOutboundBytes?: number; maxProjectionBytes?: number; maxServerRequestBytes?: number; maxRecoveryBytes?: number; maxRecoveryEntries?: number } = {}) {
-    for (const limit of Object.values(options)) {
-      if (!Number.isSafeInteger(limit) || limit! < 1 || limit! > 2147483647) throw new Error("Invalid session limit");
+  constructor(options: { searchApi?:boolean; timeoutMs?: number; maxPending?: number; maxServerRequests?: number; maxFrameBytes?: number; maxOutboundBytes?: number; maxProjectionBytes?: number; maxServerRequestBytes?: number; maxRecoveryBytes?: number; maxRecoveryEntries?: number } = {}) {
+    this.#searchApi=options.searchApi===true;
+    if(options.searchApi!==undefined&&typeof options.searchApi!=="boolean")throw new Error("Invalid search capability");
+    for (const [name,limit] of Object.entries(options)) {
+      if(name==="searchApi")continue;
+      if (typeof limit!=="number" || !Number.isSafeInteger(limit) || limit < 1 || limit > 2147483647) throw new Error("Invalid session limit");
     }
     this.#timeoutMs = options.timeoutMs ?? 30000;
     this.#maxPending = options.maxPending ?? 128;
@@ -152,7 +156,7 @@ export class ProtocolSession {
     this.#decoder = new JsonlDecoder(this.#maxFrameBytes);
     this.#outbound = []; this.#outboundBytes = 0;
     this.#setState("initializing");
-    const params = { clientInfo: manifest.client, capabilities: { experimentalApi: false, requestAttestation: false } };
+    const params = { clientInfo: manifest.client, capabilities: { experimentalApi: this.#searchApi, requestAttestation: false } };
     validate("initializeParams", params);
     try { return { epoch: this.#epoch, initialized: this.#send("initialize", params) as Promise<InitializeResponse> }; }
     catch (error) { this.disconnect(this.#epoch, "initialize-send-failed", true); throw error; }
@@ -179,6 +183,7 @@ export class ProtocolSession {
   listSections(params: ThreadSectionListParams): Promise<ThreadSectionListResponse> { return this.request("threadSection/list",params) as Promise<ThreadSectionListResponse>; }
   createSection(params: ThreadSectionCreateParams): Promise<ThreadSectionCreateResponse> { return this.request("threadSection/create",params) as Promise<ThreadSectionCreateResponse>; }
   moveToSection(params: ThreadSectionMoveParams): Promise<ThreadSectionMoveResponse> { return this.request("thread/section/move",params) as Promise<ThreadSectionMoveResponse>; }
+  searchThreads(params:ThreadSearchParams):Promise<ThreadSearchResponse>{return this.request("thread/search",params) as Promise<ThreadSearchResponse>;}
   listThreads(params: ThreadListParams): Promise<ThreadListResponse> { return this.request("thread/list", params) as Promise<ThreadListResponse>; }
   readConfiguration(params: ConfigReadParams): Promise<ConfigReadResponse> { return this.request("config/read", params) as Promise<ConfigReadResponse>; }
   getAccount(params: GetAccountParams): Promise<GetAccountResponse> { return this.request("account/read", params) as Promise<GetAccountResponse>; }
@@ -191,11 +196,11 @@ export class ProtocolSession {
       const experimental = manifest.experimental.deferredFamilies.some(prefix => method.startsWith(prefix));
       throw new ProtocolSessionError(experimental ? "experimental-disabled" : "unsupported-method");
     }
-    if (spec.experimental) throw new ProtocolSessionError("experimental-disabled");
+    if (spec.experimental && !(method==="thread/search"&&this.#searchApi&&manifest.experimental.implementedMethods.includes(method))) throw new ProtocolSessionError("experimental-disabled");
     validate(spec.params, params);
     const values = params as Record<string, unknown>;
     // The narrow M1 allowlist also rejects fields not yet reviewed, including experimental ones.
-    const fields: Record<string, string[]> = { "threadSection/update":["sectionId","name"],"threadSection/list":["cursor","limit"],"threadSection/create":["name"],"thread/section/move":["threadId","sectionId","beforeThreadId"], "thread/resume": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","excludeTurns"], "thread/fork": ["lastTurnId","threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","ephemeral","excludeTurns"], "thread/name/set": ["threadId","name"], "thread/archive": ["threadId"], "thread/unarchive": ["threadId"], "thread/list": ["sectionId","cursor", "limit", "sortKey", "sortDirection", "modelProviders", "sourceKinds", "archived"], "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
+    const fields: Record<string, string[]> = { "threadSection/update":["sectionId","name"],"threadSection/list":["cursor","limit"],"threadSection/create":["name"],"thread/section/move":["threadId","sectionId","beforeThreadId"], "thread/resume": ["threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","excludeTurns"], "thread/fork": ["lastTurnId","threadId","model","modelProvider","cwd","approvalPolicy","sandbox","baseInstructions","developerInstructions","ephemeral","excludeTurns"], "thread/name/set": ["threadId","name"], "thread/archive": ["threadId"], "thread/unarchive": ["threadId"], "thread/search":["cursor","limit","sortKey","sortDirection","sourceKinds","archived","searchTerm"], "thread/list": ["searchTerm","sectionId","cursor", "limit", "sortKey", "sortDirection", "modelProviders", "sourceKinds", "archived"], "thread/start": ["model", "modelProvider", "cwd", "approvalPolicy", "sandbox", "ephemeral", "baseInstructions", "developerInstructions"], "turn/start": ["threadId", "input", "model", "approvalPolicy", "sandboxPolicy"], "turn/interrupt": ["threadId", "turnId"], "config/read": ["includeLayers"], "account/read": ["refreshToken"], "model/list": ["cursor", "limit", "includeHidden"], "thread/read": ["threadId", "includeTurns"], "thread/turns/list": ["threadId", "cursor", "limit", "sortDirection", "itemsView"], "thread/items/list": ["threadId", "turnId", "cursor", "limit", "sortDirection"] };
     if (Object.keys(values).some(field => !fields[method]!.includes(field))) throw new ProtocolSessionError("unsupported-field");
     const validId=(value:unknown)=>typeof value==="string"&&/^[a-z0-9-]{1,64}$/.test(value);
     if(method==="thread/fork"&&values.lastTurnId!==undefined&&!validId(values.lastTurnId))throw new ProtocolSessionError("invalid-fork-boundary");
@@ -218,13 +223,14 @@ export class ProtocolSession {
     if (method === "turn/interrupt" && (typeof values.turnId !== "string" || !values.turnId.length || values.turnId.length > 64)) throw new ProtocolSessionError("invalid-turn-scope");
     if (method === "config/read" && values.includeLayers !== false) throw new ProtocolSessionError("config-layers-disabled");
     if (method === "account/read" && values.refreshToken !== undefined && values.refreshToken !== false) throw new ProtocolSessionError("explicit-refresh-disabled");
-    if (method === "thread/list") {
+    if(["thread/list","thread/search"].includes(method)&&values.searchTerm!==undefined&&(typeof values.searchTerm!=="string"||!values.searchTerm.trim()||values.searchTerm.length>128||/[\x00-\x1f]/.test(values.searchTerm)))throw new ProtocolSessionError("invalid-search-term");
+    if (method === "thread/list" || method === "thread/search") {
       if(values.sectionId!==undefined&&values.sectionId!==null&&!validId(values.sectionId))throw new ProtocolSessionError("invalid-section-filter");
       if(values.sortKey==="section_position"&&!validId(values.sectionId))throw new ProtocolSessionError("section-sort-requires-filter");
       if(values.sourceKinds!==undefined && (!Array.isArray(values.sourceKinds)||values.sourceKinds.length>10||values.sourceKinds.some(kind=>!["cli","vscode","exec","appServer","subAgent","subAgentReview","subAgentCompact","subAgentThreadSpawn","subAgentOther","unknown"].includes(kind as string))))throw new ProtocolSessionError("invalid-source-filter");
       if (values.modelProviders !== undefined && (!Array.isArray(values.modelProviders) || values.modelProviders.length > 16 || values.modelProviders.some(value => typeof value !== "string" || value.length > 64))) throw new ProtocolSessionError("invalid-provider-filter");
     }
-    if (method === "model/list" || method === "thread/list") {
+    if (method === "model/list" || method === "thread/list" || method === "thread/search") {
       if (values.limit !== undefined && values.limit !== null && (!Number.isSafeInteger(values.limit) || (values.limit as number) < 1 || (values.limit as number) > 100)) throw new ProtocolSessionError("invalid-page-limit");
       if (typeof values.cursor === "string" && values.cursor.length > 4096) throw new ProtocolSessionError("invalid-page-cursor");
     }
@@ -358,7 +364,7 @@ export class ProtocolSession {
       const result = message.result as TurnStartResponse;
       this.#projection.apply(result.turn.status === "inProgress" ? "turn/started" : "turn/completed", { threadId: pending.params.threadId, turn: result.turn }); this.#event({ type: "notification", method: pending.method });
     }
-    if (pending.method === "thread/list") { const result = message.result as ThreadListResponse; if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || [result.nextCursor, result.backwardsCursor].some(cursor => cursor !== null && (typeof cursor !== "string" || cursor.length > 4096))) throw new Error("Invalid bounded thread page"); }
+    if (pending.method === "thread/list" || pending.method === "thread/search") { const result = message.result as ThreadListResponse; if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || [result.nextCursor, result.backwardsCursor].some(cursor => cursor !== null && (typeof cursor !== "string" || cursor.length > 4096))) throw new Error("Invalid bounded thread page"); }
     if (pending.method === "model/list") { const result = message.result as ModelListResponse; if (result.data.length > (typeof pending.params.limit === "number" ? pending.params.limit : 100) || (result.nextCursor !== null && result.nextCursor.length > 4096)) throw new Error("Invalid bounded model page"); }
     this.#pending.delete(key(id)); clearTimeout(pending.timer); pending.resolve(structuredClone(message.result));
   }

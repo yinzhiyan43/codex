@@ -37,12 +37,12 @@ type Manifest = {
   requests: Record<string, MethodSpec>;
   notifications: Record<string, string>;
   serverRequests: Record<string, MethodSpec>;
-  experimental: { enabled: boolean; implementedMethods: string[]; deferredFamilies: string[] };
+  experimental: { enabled: boolean; implementedMethods: string[]; deferredFamilies: string[]; generatedSchemas?: Record<string, {path:string;sha256:string}> };
 };
 const root = new URL("../", import.meta.url);
 const manifest: Manifest = JSON.parse(readFileSync(new URL("contracts/manifest.json", root), "utf8"));
 const ajv = new Ajv({ strict: false, validateFormats: false, allErrors: false });
-const validators = new Map(Object.entries(manifest.schemas).map(([key, entry]) => {
+const validators = new Map(Object.entries({...manifest.schemas,...manifest.experimental.generatedSchemas}).map(([key, entry]) => {
   const bytes = readFileSync(new URL(entry.path, root));
   if (createHash("sha256").update(bytes).digest("hex") !== entry.sha256) throw new Error(`Contract hash mismatch: ${key}`);
   return [key, ajv.compile(JSON.parse(bytes.toString("utf8")))];
@@ -79,3 +79,8 @@ export type { ThreadArchiveParams } from "../../codex-rs/app-server-protocol/sch
 export type { ThreadArchiveResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadArchiveResponse.ts";
 export type { ThreadUnarchiveParams } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadUnarchiveParams.ts";
 export type { ThreadUnarchiveResponse } from "../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadUnarchiveResponse.ts";
+
+// Narrow reviewed subset of the official experimental export; validated against
+// the verbatim binary-generated schemas pinned in contracts/spec.json.
+export type ThreadSearchParams = Pick<import("../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadListParams.ts").ThreadListParams, "cursor"|"limit"|"sortDirection"|"sourceKinds"|"archived"> & {searchTerm:string;sortKey?:"created_at"|"updated_at"|"recency_at"};
+export type ThreadSearchResponse = {data:import("../../codex-rs/app-server-protocol/schema/typescript/v2/ThreadSearchResult.ts").ThreadSearchResult[];nextCursor:string|null;backwardsCursor:string|null};

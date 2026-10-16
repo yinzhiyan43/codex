@@ -5,12 +5,12 @@ import { ProtocolSession, ProtocolSessionError } from "../protocol-adapter/sessi
 import { contractManifest, validate } from "../protocol-adapter/contracts.ts";
 import { ready, feed, outgoing, approval, syntheticThread, syntheticTurn, fixtureBytes, fixtureMessages } from "./helpers.ts";
 
-test("pins core, UI reference, self identity and disabled experimental surface", () => {
+test("pins core, UI reference, self identity and narrowly reviewed search surface", () => {
   const manifest = contractManifest();
   assert.equal(manifest.core.commit, "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d");
   assert.equal(manifest.uiReference.version, "26.1007.30912");
-  assert.equal(manifest.experimental.enabled, false);
-  assert.deepEqual(manifest.experimental.implementedMethods, []);
+  assert.equal(manifest.experimental.enabled, true);
+  assert.deepEqual(manifest.experimental.implementedMethods, ["thread/search"]);
   manifest.client.name = "changed";
   assert.equal(contractManifest().client.name, "yinzhiyan43_codex_workbench");
 });

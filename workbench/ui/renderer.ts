@@ -1,3 +1,4 @@
+import { setupSessionSearch } from "./session-search.ts";
 import type { DesktopView } from "../desktop-host/demo-controller.ts";
 import type { DesktopCommand } from "../desktop-host/ipc-contract.ts";
 import { setupSettings, type PreferencesBridge } from "./settings.ts";
@@ -184,6 +185,7 @@ function render(next: DesktopView): void {
   if (next.pending) { el("confirm-text").textContent = next.pending; if (!dialog.open) dialog.showModal(); }
   else if (dialog.open) dialog.close();
   updateSidebar();
+  renderSessionSearch(next);
 }
 async function send(command: DesktopCommand): Promise<void> {
   try { render(await window.workbench.dispatch(command)); }
@@ -228,6 +230,7 @@ el("disconnect").addEventListener("click", () => { connectionDialog.close(); voi
 el("reconnect").addEventListener("click", () => { connectionDialog.close(); void send({ type: "reconnect" }); });
 settings = setupSettings((window.workbench as typeof window.workbench & { preferences: PreferencesBridge }).preferences, flushDraft, updateSidebar);
 el("toggle-details").addEventListener("click", () => { el("details").hidden = !el("details").hidden; el("app").classList.toggle("with-details", !el("details").hidden); });
+const renderSessionSearch=setupSessionSearch(flushDraft,render);
 el("toggle-search").addEventListener("click", () => { el("search-wrap").hidden = !el("search-wrap").hidden; if (!el("search-wrap").hidden) el("search").focus(); });
 el<HTMLInputElement>("search").addEventListener("input", event => { const text = (event.target as HTMLInputElement).value; if (view?.mode === "synthetic") void send({ type: "search", text }); else { localFilter = text; updateSidebar(); } });
 el("account").addEventListener("click", () => { el("account-menu").hidden = !el("account-menu").hidden; });

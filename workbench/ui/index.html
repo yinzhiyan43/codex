@@ -31,6 +31,7 @@
   <aside class="sidebar" aria-label="项目和会话">
     <div class="sidebar-heading"><span>Codex</span><i class="ph ph-caret-down" aria-hidden="true"></i><button id="connection-menu" aria-label="连接设置"><i class="ph ph-plugs" aria-hidden="true"></i></button><button id="toggle-search" aria-label="搜索会话"><i class="ph ph-magnifying-glass" aria-hidden="true"></i></button></div>
     <label id="search-wrap" class="search-wrap" hidden><span class="sr-only">筛选已加载会话标题，不搜索正文</span><input id="search" maxlength="128" placeholder="筛选已加载会话" title="仅筛选已加载的分组名和会话标题，不搜索正文"></label>
+    <button id="search-all-sessions" class="sidebar-action" type="button" hidden title="搜索官方已保存会话 · ⌘⇧F"><i class="ph ph-magnifying-glass" aria-hidden="true"></i>搜索全部保存会话</button>
     <button id="new" class="sidebar-action"><i class="ph ph-note-pencil" aria-hidden="true"></i>新聊天</button>
     <button id="workspace" class="sidebar-action"><i class="ph ph-circle" aria-hidden="true"></i>本地工作台</button>
     <div class="sidebar-scroll"><h2>项目与会话</h2><div id="project-list"></div></div>
@@ -58,6 +59,13 @@
   </main>
   <aside id="details" class="details" aria-label="工作台详情" hidden><div class="detail-heading"><i class="ph ph-user-circle" aria-hidden="true"></i><div><strong>本地工作台</strong><span>合成演示</span></div></div><h2>电脑</h2><div class="computer-row"><i class="ph ph-desktop" aria-hidden="true"></i><div>演示环境<span id="detail-connection"></span></div></div><h2>最近活动</h2><div class="activity"><i class="ph ph-chat-circle" aria-hidden="true"></i>检查导航与会话</div><div class="activity"><i class="ph ph-chat-circle" aria-hidden="true"></i>验证输入和取消</div><h2>输出内容</h2><div class="activity"><i class="ph ph-file-text" aria-hidden="true"></i>工作台阶段说明</div></aside>
 </div>
+<dialog id="session-search-dialog" class="session-search-dialog" aria-labelledby="session-search-title" aria-describedby="session-search-help">
+  <div class="search-dialog-heading"><h2 id="session-search-title">搜索全部保存会话</h2><button id="session-search-close" type="button">返回</button></div>
+  <p id="session-search-help">正文：官方交互会话存储中的已保存用户与助手文字，忽略大小写、按字面匹配。标题/预览：官方会话元数据。正文搜索依赖官方保存的记录文件，仅数据库中的历史及未保存实时文字可能不在范围内；结果打开为只读副窗。</p>
+  <form id="session-search-form"><label for="session-search-input" class="sr-only">搜索关键词</label><input id="session-search-input" maxlength="128" placeholder="输入关键词，按 Enter 搜索" autocomplete="off" required><label class="sr-only" for="session-search-kind">搜索内容</label><select id="session-search-kind"><option value="content">正文</option><option value="title">标题/预览</option></select><label class="sr-only" for="session-search-scope">归档范围</label><select id="session-search-scope"><option value="active">未归档</option><option value="archived">已归档</option></select><button id="session-search-submit" type="submit">搜索</button></form>
+  <p id="session-search-status" role="status" aria-live="polite"></p><ul id="session-search-results" aria-label="会话搜索结果"></ul>
+  <div class="dialog-actions"><button id="session-search-cancel" type="button">取消搜索</button><button id="session-search-more" type="button">加载更多结果</button></div>
+</dialog>
 <dialog id="connection-dialog"><form method="dialog"><h2 id="connection-title">演示连接</h2><p id="connection-description">只连接本地合成 peer，不使用真实账户或模型。</p><div class="dialog-actions"><button id="disconnect" type="button">断开</button><button id="reconnect" type="button">重连</button><button id="close-connection">返回</button></div></form></dialog>
 <section id="session-menu" class="session-menu" role="menu" hidden aria-label="会话操作">
 <button id="session-rename" role="menuitem">重命名</button><button id="session-pin" role="menuitem" title="只影响当前工作台列表">置顶</button><button id="session-unread" role="menuitem" title="仅工作台未读标记">标记为未读</button>

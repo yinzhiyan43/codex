@@ -4,6 +4,7 @@ import { SessionStore, type ManagedSession } from "./session-store.ts";
 import { FullTurnsWindow } from "../domain/full-turns-window.ts";
 import type { WorkbenchClient } from "./client.ts";
 import { HostOperationError } from "./client.ts";
+import { SessionSearch } from "./session-search.ts";
 import { HistoryBrowser } from "./history-browser.ts";
 import { CoreController } from "./core-controller.ts";
 import { validateDesktopCommand } from "./ipc-contract.ts";
@@ -17,6 +18,7 @@ export class OfficialChatController {
   #sectionOrder:NonNullable<DesktopView["sectionOrder"]>|undefined;
   #forking=false; #forkCancelled=false; #sections: NonNullable<DesktopView["sessionSections"]>={status:"unknown",rows:[],notice:"官方分区尚未读取。",canCreate:false}; #sectionCreateBlockedGeneration:number|null=null;
   #store: SessionStore; #persistenceReady = false; #currentWindow: FullTurnsWindow | null = null; #resumeNeeded = false; #legacyId: string | null = null; #asyncReads = 0; #archiveBlockedId: string | null = null;
+  #search:SessionSearch; #searchUnsubscribe:()=>void;
   #browser: HistoryBrowser; #browserUnsubscribe: () => void; #browsing = false;
   #client: WorkbenchClient; #core: CoreController; #cwd: string; #offline: boolean;
   #unsubscribe: () => void; #listeners = new Set<() => void>(); #disposed = false; #version = 0; #intent = 0;
@@ -28,6 +30,7 @@ export class OfficialChatController {
     this.#copyText=copyText;
     if (!Number.isSafeInteger(cancelTimeoutMs) || cancelTimeoutMs < 1 || cancelTimeoutMs > 60000) throw new Error("invalid-cancel-timeout"); this.#cancelTimeout = cancelTimeoutMs;
     this.#store = store; this.#client = client; this.#cwd = cwd; this.#offline = offline; this.#core = new CoreController(client, true);
+    this.#search=new SessionSearch(client);this.#searchUnsubscribe=this.#search.subscribe(()=>this.#publish());
     this.#browser = new HistoryBrowser(client); this.#browserUnsubscribe = this.#browser.subscribe(() => this.#publish());
     this.#unsubscribe = this.#core.subscribe(() => { this.#sync(); this.#publish(); });
   }
@@ -73,12 +76,12 @@ export class OfficialChatController {
   }
   snapshot(): DesktopView {
     const base = this.#core.snapshot(), messages = this.#messages(), saved = this.#browser.snapshot(),groups=sessionGroups(this.#store.snapshot().sessions);
-    if (this.#browsing) return { ...base, copyAvailable:!!this.#copyText,copyStatus:{...this.#copyStatus},sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?saved.forkTurns:[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:"历史只读；选择继续聊后，下一次确认发送才恢复官方线程。", mode: "official-chat", version: this.#version,
+    if (this.#browsing) return { ...base, sessionSearch:this.#search.snapshot(), copyAvailable:!!this.#copyText,copyStatus:{...this.#copyStatus},sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?saved.forkTurns:[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:"历史只读；选择继续聊后，下一次确认发送才恢复官方线程。", mode: "official-chat", version: this.#version,
       chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled||this.#copying&&!this.#copyCancelled,managementAction:this.#copying?"copy":this.#forking?"fork":null, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", interruptAcknowledged: false, canRefresh: !!saved.selectedId && !saved.loading && base.connection === "ready", historyMode: true },
       historyBrowser: saved, projects: [{ id: "official-history", name: "只读历史会话", threads: saved.rows.map(row => ({ id: row.id, title: row.title })) },...(saved.managedRows.length?[{id:"registered-forks",name:"已登记分叉 · 本地索引",threads:saved.managedRows.map(row=>({id:row.id,title:row.title}))}]:[])], route: { projectId: "official-history", threadId: saved.selectedId }, title: saved.title,
       messages: saved.messages, draft: "", pending: null, running: false, loading: saved.loading || base.loading || this.#asyncReads>0 || this.#phase==="managing",
       error: this.#error ?? base.error, history: { turnCount: saved.turnCount, itemCount: saved.messages.length, hasMore: saved.moreTurns, busy: saved.loading, loading: saved.loading, stale: saved.stale, notice: saved.notice } };
-    return { ...base, copyAvailable:!!this.#copyText,copyStatus:{...this.#copyStatus},sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?(this.#currentWindow?.snapshot().forkTurns??[]):[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:this.#legacyId ? "此前临时会话仅有观察缓存，不能恢复原上下文；发送会创建新的持久会话。" : "新会话默认由官方核心持久保存；重启保留记录与草稿，下一次确认发送才恢复线程。", mode: "official-chat", version: this.#version,
+    return { ...base, sessionSearch:this.#search.snapshot(), copyAvailable:!!this.#copyText,copyStatus:{...this.#copyStatus},sectionOrder:structuredClone(this.#sectionOrder), forkTurns:this.#phase==="idle"&&this.#guarded&&base.connection==="ready"?(this.#currentWindow?.snapshot().forkTurns??[]):[], sessionSections:structuredClone(this.#sections), managedSessions:this.#store.snapshot().sessions, persistenceNotice:this.#legacyId ? "此前临时会话仅有观察缓存，不能恢复原上下文；发送会创建新的持久会话。" : "新会话默认由官方核心持久保存；重启保留记录与草稿，下一次确认发送才恢复线程。", mode: "official-chat", version: this.#version,
       chatStatus: { canCancelManagement:this.#forking&&!this.#forkCancelled||this.#copying&&!this.#copyCancelled,managementAction:this.#copying?"copy":this.#forking?"fork":null, phase: this.#phase, model: this.#model, offline: this.#offline, ready: this.#guarded && !this.#archiveBlockedId && !!this.#model && base.connection === "ready", persistent:!this.#legacyId, resumePending:this.#resumeNeeded, interruptAcknowledged: this.#interruptAcknowledged, canRefresh: !!this.#thread && this.#generation === this.#client.getView().generation && this.#phase === "idle" && base.connection === "ready" },
       projects: groups,
       route: { projectId: groups.find(group=>group.threads.some(row=>row.id===(this.#thread??this.#legacyId)))?.id??"official-chat", threadId: this.#thread ?? this.#legacyId }, title: this.#store.find(this.#thread??this.#legacyId??"")?.title ?? "官方持久会话", messages,
@@ -343,6 +346,9 @@ export class OfficialChatController {
     }catch{if(this.#current(intent,generation)){if(this.#sectionOrder)this.#sectionOrder.ready=false;this.#error=requested?"分区移动未确认，保留本地原归属；官方结果可能已改变，请刷新核对。":"检测到外部更改或无法核对当前分区，未发送移动；请刷新分区和顺序后重新选择。";}}
     finally{if(intent===this.#intent)this.#phase="idle";this.#publish();}
   }
+  searchPreviewSource(id:string):import("./session-preview.ts").PreviewSource {
+    if(this.#phase!=="idle"||this.#pending||!this.#guarded)throw new Error("search-preview-unavailable");return this.#search.source(id);
+  }
   previewSource(id:string):import("./session-preview.ts").PreviewSource {
     this.#managementAvailable(id);const record=this.#store.find(id),browser=this.#browser.snapshot();if(record?.ephemeral)throw new Error("preview-persistent-required");
     return {id,title:record?.title??browser.rows.find(row=>row.id===id)?.title??"持久会话",archived:record?.archived??(browser.archived&&browser.rows.some(row=>row.id===id)),archiveUncertain:!!record?.archiveUncertain};
@@ -352,6 +358,9 @@ export class OfficialChatController {
     if(this.#phase==="managing"&&["thread","browseHistory","returnToChat","toggleArchived","refreshThreads","moreThreads","refreshHistory","history"].includes(command.type))throw new Error("session-management-busy");
     if (this.#browsing && ["draft", "submit", "confirm", "selectModel", ...(!this.#forking&&!this.#copying?["cancel"]:[])].includes(command.type)) throw new Error("saved-history-read-only");
     switch (command.type) {
+      case "searchSessions": this.#search.search(command.text,command.archived,command.kind);break;
+      case "moreSessionSearch": this.#search.more();break;
+      case "cancelSessionSearch": this.#search.cancel();break;
       case "continueSession": if(this.#browsing && this.#browser.snapshot().archived)throw new Error("archived-session-read-only"); await this.#activateSaved(command.id); break;
       case "pinSession": case "unreadSession": case "renameSession": case "archiveSession": case "unarchiveSession": await this.#manage(command); break;
       case "copySession": await this.#copySession(command.id);break;
@@ -406,5 +415,5 @@ export class OfficialChatController {
     }
     this.#publish(); return this.snapshot();
   }
-  async dispose(): Promise<void> { if (this.#disposed) return; this.#intent++; this.#disposed = true; this.#browserUnsubscribe(); this.#browser.dispose(); this.#clearCancelTimer(); this.#unsubscribe(); this.#listeners.clear(); try {if(this.#persistenceReady)await this.#save();}finally{await this.#core.dispose();} }
+  async dispose(): Promise<void> { if (this.#disposed) return; this.#intent++; this.#disposed = true; this.#searchUnsubscribe();this.#search.dispose();this.#browserUnsubscribe(); this.#browser.dispose(); this.#clearCancelTimer(); this.#unsubscribe(); this.#listeners.clear(); try {if(this.#persistenceReady)await this.#save();}finally{await this.#core.dispose();} }
 }

@@ -14,12 +14,13 @@ const turn = (id,items=[],status="inProgress") => ({id,rootTurnId:null,items,ite
 const metadata = t => ({id:t.id,sessionId:"offline",projectId:null,forkedFromId:t.parent??null,section:t.sectionId?sections.get(t.sectionId)??null:null,preview:t.parent&&!t.hasOwnTurn?"":"offline fixture",ephemeral:t.saved?false:true,name:t.title??null,path:t.saved?"/synthetic/private-never-in-renderer":null,historyMode:"legacy",modelProvider:"openai",createdAt:1,updatedAt:1,status:{type:"idle"},cwd:"/synthetic/chat",cliVersion:"0.162.1",source:"cli",turns:[...t.turns.values()].map(v=>turn(v.id,v.items,v.status))});
 const agent = (id,text) => ({type:"agentMessage",id,text,phase:null,memoryCitation:null,delivery:null,questions:null});
 const model = (name,isDefault) => ({id:name,model:name,displayName:name,description:"Offline fixture only",hidden:false,isDefault,inputModalities:["text"],supportsPersonality:false,supportedReasoningEfforts:[{reasoningEffort:"low",description:"fixture"}],defaultReasoningEffort:"low"});
-for (const [id,title] of (["many-history","large-catalog","small-page-catalog","large-section"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : (mode==="preview-history"?[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"],["saved-d","合成历史D"]]:[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]]))) {
+for (const [id,title] of (mode==="search-history"?Array.from({length:6},(_,n)=>["search-"+n,"合成搜索会话 "+n]):["many-history","large-catalog","small-page-catalog","large-section"].includes(mode) ? Array.from({length:mode!=="many-history"?210:130},(_,n)=>["saved-"+n,"合成历史"+n]) : (mode==="preview-history"?[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"],["saved-d","合成历史D"]]:[["saved-z","合成历史Z"],["saved-a","合成历史A"],["saved-b","合成历史B"],["saved-c","合成历史C"]]))) {
  const t={id,title,saved:true,turns:new Map(),...(mode==="large-section"?{sectionId:"section-large",position:threads.size}:{})};
  for (const [index,key] of [[1,"turn-z"],[2,"turn-a"],[3,"turn-m"]]) {
    const u={type:"userMessage",id:key+"-user",clientId:null,content:[{type:"text",text:title+" 用户 "+index,text_elements:[]}]};
    const a=agent(key+"-agent",title+" 回应 "+index); t.turns.set(key,{id:key,items:[u,a],status:"completed"});
  }
+ if(mode==="search-history"){t.archived=id==="search-5";t.turns.get("turn-z").items[0].content[0].text+=" BODYNEEDLE 早期记录";}
  threads.set(id,t);
 }
 if(mode==="large-section")sections.set("section-large",{id:"section-large",name:"Large synthetic section",appearance:null});
@@ -43,12 +44,17 @@ function handle(m) {
   if(m.method==="threadSection/create"){const section={id:"section-"+(++sectionCount),name:m.params.name,appearance:mode==="section-appearance"?{icon:"star",color:"blue"}:null};sections.set(section.id,section);persist();if(mode==="section-create-timeout")return;return reply(m.id,{section});}
   if(m.method==="threadSection/update"){const section=sections.get(m.params.sectionId);if(!section||mode==="section-update-error")return error(m.id,-32600);section.name=m.params.name;if(Object.hasOwn(m.params,"appearance"))section.appearance=m.params.appearance;persist();return reply(m.id,{section});}
   if(m.method==="thread/start") { const id="chat-"+(++threadCount); const t={id,saved:!m.params.ephemeral,turns:new Map()};threads.set(id,t);persist();return reply(m.id,{thread:metadata(t),model:m.params.model,modelProvider:"openai",cwd:"/synthetic/chat",approvalPolicy:"never",approvalsReviewer:"user",sandbox:{type:"readOnly",networkAccess:false},reasoningEffort:"low",instructionSources:[],disabledPluginIds:[],serviceTier:null}); }
+  if(m.method==="thread/search") {
+    const query=m.params.searchTerm.toLowerCase();
+    const values=[...threads.values()].filter(t=>t.saved&&!!t.archived===!!m.params.archived).filter(t=>[...t.turns.values()].some(v=>v.items.some(i=>(i.text??i.content?.map(c=>c.text??"").join(" ")??"").toLowerCase().includes(query)))).map(t=>({thread:{...metadata(t),turns:[]},snippet:"BODYNEEDLE 早期记录"}));
+    const page=serverPage(values,m.params.cursor,"search:",2);if(m.params.cursor&&values.length)page.data.unshift(values[0]);return mode==="search-history"?setTimeout(()=>reply(m.id,page),100):reply(m.id,page);
+  }
   if(m.method==="thread/list") {
-    const saved=[...threads.values()].filter(t=>t.saved && !!t.archived===!!m.params.archived && (!t.parent||t.hasOwnTurn||m.params.sectionId) && (m.params.sectionId===undefined||((t.sectionId??null)===m.params.sectionId))).map(t=>({...metadata(t),turns:[]}));
+    const saved=[...threads.values()].filter(t=>t.saved && (!m.params.searchTerm||(t.title??"offline fixture").toLowerCase().includes(m.params.searchTerm.toLowerCase())) && !!t.archived===!!m.params.archived && (!t.parent||t.hasOwnTurn||m.params.sectionId) && (m.params.sectionId===undefined||((t.sectionId??null)===m.params.sectionId))).map(t=>({...metadata(t),turns:[]}));
     if(m.params.sortKey==="section_position")saved.sort((a,b)=>(threads.get(a.id).position??0)-(threads.get(b.id).position??0));
     // Intentional inclusive overlap: repeat last row on continuation.
     const page=serverPage(saved,m.params.cursor,"threads:",["many-history","large-catalog","large-section"].includes(mode)?20:2);
-    if(!m.params.sectionId&&m.params.cursor&&!["many-history","large-catalog","small-page-catalog","large-section"].includes(mode))page.data.unshift(saved[1]);
+    if(!m.params.searchTerm&&!m.params.sectionId&&m.params.cursor&&!["many-history","large-catalog","small-page-catalog","large-section"].includes(mode))page.data.unshift(saved[1]);
     return reply(m.id,page);
   }
   const t=threads.get(m.params?.threadId); if(!t) return error(m.id,-32600);

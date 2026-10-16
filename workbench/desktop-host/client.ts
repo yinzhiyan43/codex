@@ -1,6 +1,6 @@
 import type { ThreadSectionUpdateParams, ThreadSectionUpdateResponse, ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "../protocol-adapter/contracts.ts";
-import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
+import type { ThreadSearchParams, ThreadSearchResponse, ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
 import type { InitializeResponse, ThreadReadParams, ThreadReadResponse, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadItemsListParams, ThreadItemsListResponse } from "../protocol-adapter/contracts.ts";
@@ -33,6 +33,7 @@ export interface WorkbenchClient {
   listSections(params: ThreadSectionListParams): Promise<ThreadSectionListResponse>;
   createSection(params: ThreadSectionCreateParams): Promise<ThreadSectionCreateResponse>;
   moveToSection(params: ThreadSectionMoveParams): Promise<ThreadSectionMoveResponse>;
+  searchThreads(params:ThreadSearchParams):Promise<ThreadSearchResponse>;
   listThreads(params: ThreadListParams): Promise<ThreadListResponse>;
   resumeThread(params: ThreadResumeParams): Promise<ThreadResumeResponse>;
   forkThread(params: ThreadForkParams): Promise<ThreadForkResponse>;

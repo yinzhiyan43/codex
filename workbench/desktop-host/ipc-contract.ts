@@ -4,6 +4,9 @@ export type DesktopCommand =
   | { type: "project" | "thread"; id: string }
   | { type: "draft"; routeId: string; text: string }
   | { type: "search"; text: string }
+  | {type:"searchSessions";text:string;archived:boolean;kind:"content"|"title"}
+  | {type:"moreSessionSearch"|"cancelSessionSearch"}
+  | {type:"openSearchResult";id:string}
   | { type: "history"; threadId: string }
   | { type: "openSessionWindow" | "copySession" | "continueSession" | "archiveSession" | "unarchiveSession" | "pinSession" | "unreadSession"; id: string }
   | { type:"forkSession"; id:string; lastTurnId?:string }
@@ -16,13 +19,14 @@ export type DesktopCommand =
   | { type: "createSection"; name: string }
   | { type: "assignSection"; id: string; sectionId: string | null; beforeThreadId?:string }
   | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
-const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections"]);
+const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections", "moreSessionSearch", "cancelSessionSearch"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-command");
   const v = value as Record<string, unknown>;
   if (typeof v.type !== "string") throw new Error("invalid-command");
   const keys = Object.keys(v).sort().join(",");
   if (simple.has(v.type) && keys === "type") return v as DesktopCommand;
+  if(v.type==="searchSessions"&&keys==="archived,kind,text,type"&&typeof v.text==="string"&&v.text.trim().length>0&&v.text.length<=128&&!/[\x00-\x1f]/.test(v.text)&&typeof v.archived==="boolean"&&["content","title"].includes(v.kind as string))return v as DesktopCommand;
   if (v.type === "selectModel" && keys === "model,type" && typeof v.model === "string" && /^gpt-[a-z0-9.-]{1,100}$/.test(v.model)) return v as DesktopCommand;
   const validId=(x:unknown)=>typeof x==="string"&&/^[a-z0-9-]{1,64}$/.test(x);
   const validName=(x:unknown)=>typeof x==="string"&&!!x.trim()&&x.length<=80&&!/[\x00-\x1f]/.test(x);
@@ -35,7 +39,7 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   if(v.type==="createSection"&&keys==="name,type"&&typeof v.name==="string"&&v.name.trim().length>0&&v.name.length<=80&&!/[\x00-\x1f]/.test(v.name))return v as DesktopCommand;
   if(v.type==="assignSection"&&["id,sectionId,type","beforeThreadId,id,sectionId,type"].includes(keys)&&(v.beforeThreadId===undefined||validId(v.beforeThreadId)&&v.beforeThreadId!==v.id&&v.sectionId!==null)&&typeof v.id==="string"&&/^[a-z0-9-]{1,64}$/.test(v.id)&&(v.sectionId===null||typeof v.sectionId==="string"&&/^[a-z0-9-]{1,64}$/.test(v.sectionId)))return v as DesktopCommand;
   if (v.type === "renameSession" && keys === "id,name,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id) && typeof v.name === "string" && v.name.trim().length > 0 && v.name.length <= 100 && !/[\x00-\x1f]/.test(v.name)) return v as DesktopCommand;
-  if (["openSessionWindow","copySession","continueSession","forkSession","archiveSession","unarchiveSession","pinSession","unreadSession"].includes(v.type) && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
+  if (["openSearchResult","openSessionWindow","copySession","continueSession","forkSession","archiveSession","unarchiveSession","pinSession","unreadSession"].includes(v.type) && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if ((v.type === "project" || v.type === "thread") && keys === "id,type" && typeof v.id === "string" && /^[a-z0-9-]{1,64}$/.test(v.id)) return v as DesktopCommand;
   if (v.type === "draft" && keys === "routeId,text,type" && typeof v.routeId === "string" && /^[a-z0-9-]{1,64}$/.test(v.routeId) && typeof v.text === "string" && v.text.length <= 4000 && !v.text.includes("\0")) return v as DesktopCommand;
   if (v.type === "search" && keys === "text,type" && typeof v.text === "string" && v.text.length <= 128 && !v.text.includes("\0")) return v as DesktopCommand;

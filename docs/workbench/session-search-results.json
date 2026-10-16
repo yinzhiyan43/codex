@@ -1,0 +1,187 @@
+{
+  "milestone": "M2.j",
+  "date": "2026-10-16",
+  "baseline": "ac92c708cbdf97d01044cc173d801367d61df81b",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "result": "passed-with-documented-scope",
+  "core": {
+    "tag": "rust-v0.162.1",
+    "commit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
+  },
+  "contracts": {
+    "stable": 51,
+    "experimentalSearch": 2,
+    "hashesVerified": true
+  },
+  "offline": {
+    "tests": 245,
+    "passed": 245,
+    "typecheck": "passed"
+  },
+  "hiddenUi": {
+    "checks": {
+      "session-window": [
+        17,
+        6
+      ],
+      "session-copy": [
+        14,
+        9
+      ],
+      "session-editing": [
+        14,
+        10
+      ],
+      "session-management": [
+        18,
+        13
+      ],
+      "sidebar-settings": [
+        14,
+        8
+      ],
+      "synthetic": 23,
+      "session-search": 14
+    },
+    "total": 160,
+    "searchChecks": [
+      "hidden-offline-start-has-no-restored-search",
+      "dialog-opens-flushes-pending-draft-and-focuses-search",
+      "official-content-search-unfiltered-interactive-sources",
+      "cross-catalog-pages-overlap-dedup-and-terminal-cursor",
+      "search-results-do-not-replace-sidebar-route-or-model",
+      "unloaded-result-opens-read-only-preview-and-recovers-older-turns",
+      "close-restores-focus",
+      "keyboard-search-entry",
+      "title-preview-scope-and-empty-state",
+      "archived-scope-open-is-still-read-only",
+      "cancel-keeps-late-response-inert",
+      "900px-dialog-no-horizontal-overflow",
+      "escape-invalidates-search",
+      "zero-model-or-config-writes-and-no-renderer-errors"
+    ],
+    "searchClose": {
+      "opened": 2,
+      "closed": 2,
+      "activeWindows": 0,
+      "activeReads": 0,
+      "coreActive": false,
+      "coreState": "disposed"
+    },
+    "rendererErrors": 0
+  },
+  "nativeCapabilityProbe": {
+    "probe": "isolated-thread-search-capability",
+    "core": {
+      "repository": "openai/codex",
+      "tag": "rust-v0.162.1",
+      "sourceCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d",
+      "binaryVersion": "0.162.1",
+      "binaryTarget": "aarch64-apple-darwin",
+      "binarySha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0"
+    },
+    "isolation": {
+      "preparedBy": "prepareIsolatedCore",
+      "networkDeniedBySandboxPolicy": true,
+      "syntheticRolloutOnly": true,
+      "loginRequests": 0,
+      "modelRequests": 0,
+      "sourceEdits": 0
+    },
+    "experimentalSchemaExport": {
+      "command": "app-server generate-json-schema --experimental --out <isolated-directory>",
+      "exitCode": 0,
+      "schemas": {
+        "ThreadSearchParams.json": "5c3bbb9d37d7d83f3f7747423427ff9c8b0f1154ac8cd7c832995a763dfa8e61",
+        "ThreadSearchResponse.json": "52db70b7c6a95f5c0bb9150104df17ab68ea6abe793951a1b3cf5efa68903313",
+        "ThreadSearchOccurrencesParams.json": "c941938fd6e89675f6a6d2a475ac4433aad64614c3954515b13bf248e1c13525",
+        "ThreadSearchOccurrencesResponse.json": "193e1f78e427a93f5a6471b7b69ea3f6d980c924ca26e20845992bc5b33d9dd9"
+      }
+    },
+    "rpcProbe": {
+      "method": "thread/search",
+      "query": "needle",
+      "withoutExperimentalApi": {
+        "errorCode": -32600,
+        "requiresCapability": true
+      },
+      "withExperimentalApi": {
+        "matchingSyntheticThreadCount": 1,
+        "snippetContainsQuery": true,
+        "nextCursor": null
+      },
+      "processExitCodes": [
+        0,
+        0
+      ]
+    },
+    "paginationProbe": {
+      "syntheticThreadCount": 3,
+      "loginRequests": 0,
+      "modelRequests": 0,
+      "networkAllowed": false,
+      "defaultInteractiveSourcesMatchedVscodeAndCustomChatgpt": true,
+      "limitOneFirstPageCount": 1,
+      "limitOneSecondPageCount": 1,
+      "secondPageHasNextCursor": false,
+      "bodyMarkerFoundInSnippets": true,
+      "bodyMarkerAbsentFromTitles": true,
+      "archivedSearchCount": 1,
+      "archivedOnlyResult": true,
+      "titleOnlySearchCount": 0,
+      "processExitCode": 0,
+      "stderrBytes": 0
+    }
+  },
+  "nativeAdapter": {
+    "check": "isolated-native-session-search",
+    "coreVersion": "0.162.1",
+    "binarySha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0",
+    "syntheticThreadCount": 3,
+    "modelRequests": 0,
+    "loginRequests": 0,
+    "networkAllowed": false,
+    "adapterSchemaValidated": true,
+    "cleanupConfirmed": true,
+    "methods": [
+      "initialize",
+      "initialized",
+      "thread/search",
+      "thread/search",
+      "thread/search",
+      "thread/list"
+    ],
+    "firstPageCount": 1,
+    "secondPageCount": 1,
+    "finalCursorNull": true,
+    "interactiveSourcesIncluded": true,
+    "bodyMarkerInSnippets": true,
+    "bodyMarkerAbsentFromTitles": true,
+    "archivedOnlyResult": true,
+    "titleOnlySearchCount": 0
+  },
+  "independentReview": {
+    "mode": "read-only",
+    "remainingP1P2": 0,
+    "searchTests": 8,
+    "searchTestsPassed": 8
+  },
+  "realModelRequests": 0,
+  "userConfigWrites": 0,
+  "upstreamSourceChanges": 0,
+  "pushPerformed": false,
+  "mainChanged": false,
+  "remainingScope": [
+    "Official default interactive sources only (cli/vscode/custom atlas/chatgpt); subagents/exec/MCP excluded.",
+    "Official saved rollout user/assistant text only; live unsaved or SQLite-only histories may not match.",
+    "Result opens existing read-only session window, not an exact matching-turn anchor.",
+    "One physical search at a time; cancel discards responses without cancelling the core scan.",
+    "100 results / 16 pages / 128 query chars; no snapshot guarantee across pages.",
+    "Experimental approval payload behavior during real model traffic remains untested; unexpected permissions fail closed.",
+    "VoiceOver/IME, multi-screen, actual private large histories and complete workbench goals remain unaccepted."
+  ],
+  "harnessNotes": [
+    "Initial search UI attempt used an insufficient history-navigation precondition; fixed driver waits.",
+    "A final Escape check initially read state before native close cancellation arrived; fixed driver to await both close and stale. Final search run passed."
+  ]
+}

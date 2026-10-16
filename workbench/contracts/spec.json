@@ -162,6 +162,11 @@
       "params": "sectionsUpdateParams",
       "result": "sectionsUpdateResult",
       "experimental": false
+    },
+    "thread/search": {
+      "params": "threadSearchParams",
+      "result": "threadSearchResult",
+      "experimental": true
     }
   },
   "notifications": {
@@ -184,8 +189,10 @@
     }
   },
   "experimental": {
-    "enabled": false,
-    "implementedMethods": [],
+    "enabled": true,
+    "implementedMethods": [
+      "thread/search"
+    ],
     "deferredFamilies": [
       "project/",
       "thread/queue/",
@@ -193,6 +200,23 @@
       "process/",
       "thread/realtime/",
       "remoteControl/"
-    ]
+    ],
+    "generatedSchemas": {
+      "threadSearchParams": {
+        "path": "contracts/experimental/ThreadSearchParams.json",
+        "sha256": "5c3bbb9d37d7d83f3f7747423427ff9c8b0f1154ac8cd7c832995a763dfa8e61"
+      },
+      "threadSearchResult": {
+        "path": "contracts/experimental/ThreadSearchResponse.json",
+        "sha256": "52db70b7c6a95f5c0bb9150104df17ab68ea6abe793951a1b3cf5efa68903313"
+      }
+    },
+    "generator": {
+      "version": "0.162.1",
+      "target": "aarch64-apple-darwin",
+      "binarySha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0",
+      "command": "codex app-server generate-json-schema --experimental --out <isolated-directory>",
+      "sourceCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
+    }
   }
 }

@@ -1,6 +1,6 @@
 import type { ThreadSectionUpdateParams, ThreadSectionUpdateResponse, ThreadSectionListParams, ThreadSectionListResponse, ThreadSectionCreateParams, ThreadSectionCreateResponse, ThreadSectionMoveParams, ThreadSectionMoveResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadResumeParams, ThreadResumeResponse, ThreadForkParams, ThreadForkResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadArchiveParams, ThreadArchiveResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse } from "../protocol-adapter/contracts.ts";
-import type { ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
+import type { ThreadSearchParams, ThreadSearchResponse, ThreadListParams, ThreadListResponse } from "../protocol-adapter/contracts.ts";
 import type { ThreadStartParams, ThreadStartResponse, TurnStartParams, TurnStartResponse, TurnInterruptParams, TurnInterruptResponse } from "../protocol-adapter/contracts.ts";
 import { assertOfficialRouteConfiguration, assertOfficialChatConfiguration, disableConfiguredMcp } from "./official-config.ts";
 import type { GetAccountParams, GetAccountResponse, ModelListParams, ModelListResponse } from "../protocol-adapter/contracts.ts";
@@ -24,7 +24,7 @@ type Context = {
   protocolQueued: boolean;
   exited: boolean;
 };
-export type HostOptions = { requestTimeoutMs?: number; shutdownGraceMs?: number; terminateGraceMs?: number; closeTimeoutMs?: number };
+export type HostOptions = { searchApi?:boolean; requestTimeoutMs?: number; shutdownGraceMs?: number; terminateGraceMs?: number; closeTimeoutMs?: number };
 
 /** Owns exactly one child and one protocol generation; reconnection is explicit. */
 export class StdioWorkbenchHost implements WorkbenchClient {
@@ -45,9 +45,9 @@ export class StdioWorkbenchHost implements WorkbenchClient {
 
   constructor(launcher: ProcessLauncher, options: HostOptions = {}) {
     if (typeof launcher !== "function") throw new HostOperationError("invalid-launcher");
-    for (const value of Object.values(options)) if (!Number.isSafeInteger(value) || value! < 1 || value! > 60000) throw new HostOperationError("invalid-host-limit");
+    for (const [name,value] of Object.entries(options)) if (name!=="searchApi") if (typeof value!=="number" || !Number.isSafeInteger(value) || value < 1 || value > 60000) throw new HostOperationError("invalid-host-limit");
     this.#launch = launcher;
-    this.#session = new ProtocolSession({ timeoutMs: options.requestTimeoutMs ?? 30000 });
+    this.#session = new ProtocolSession({ searchApi:options.searchApi, timeoutMs: options.requestTimeoutMs ?? 30000 });
     this.#grace = options.shutdownGraceMs ?? 300;
     this.#termGrace = options.terminateGraceMs ?? 300;
     this.#closeTimeout = options.closeTimeoutMs ?? 2000;
@@ -57,6 +57,7 @@ export class StdioWorkbenchHost implements WorkbenchClient {
       getView: () => this.getView(), takeDiagnostics: () => this.takeDiagnostics(), subscribe: (listener: () => void) => this.subscribe(listener),
       updateSection: (params: ThreadSectionUpdateParams) => this.updateSection(params),
       listSections: (params: ThreadSectionListParams) => this.listSections(params), createSection: (params: ThreadSectionCreateParams) => this.createSection(params), moveToSection: (params: ThreadSectionMoveParams) => this.moveToSection(params),
+      searchThreads: (params:ThreadSearchParams)=>this.searchThreads(params),
       listThreads: (params: ThreadListParams) => this.listThreads(params),
       resumeThread: (params: ThreadResumeParams) => this.resumeThread(params),
       forkThread: (params: ThreadForkParams) => this.forkThread(params),
@@ -311,6 +312,10 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   async moveToSection(params: ThreadSectionMoveParams): Promise<ThreadSectionMoveResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     try { const response = this.#session.moveToSection(params); this.#pump(this.#context); return await response; } catch (error) { throw this.#error(error); }
+  }
+  async searchThreads(params:ThreadSearchParams):Promise<ThreadSearchResponse>{
+    if(!this.#context||this.#state!=="ready")throw new HostOperationError("not-ready");
+    try{const response=this.#session.searchThreads(params);this.#pump(this.#context);return await response;}catch(error){throw this.#error(error);}
   }
   async listThreads(params: ThreadListParams): Promise<ThreadListResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
