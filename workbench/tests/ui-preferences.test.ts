@@ -30,7 +30,7 @@ test("UI preference boundary rejects config, paths, models, arbitrary keys and i
 
 test("UI preferences preserve corrupt and newer files and reject symlinks/oversized files", async t => {
   const dir = await root(t), path = join(dir, "ui-preferences.json");
-  for (const text of ["bad json", JSON.stringify({ ...defaultUiPreferences(), version: 2 }), JSON.stringify({ ...defaultUiPreferences(), unknown: true }), " ".repeat(41 * 1024)]) {
+  for (const text of ["bad json", JSON.stringify({ ...defaultUiPreferences(), version: 3 }), JSON.stringify({ ...defaultUiPreferences(), unknown: true }), " ".repeat(41 * 1024)]) {
     await writeFile(path, text); const store = new UiPreferencesStore(path);
     await assert.rejects(store.read()); await assert.rejects(store.update({ fontSize: 14 }));
     assert.equal(await readFile(path, "utf8"), text);

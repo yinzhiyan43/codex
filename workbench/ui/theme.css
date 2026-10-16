@@ -1,0 +1,24 @@
+/* Shared semantic palette for main, preview, native controls, dialogs and menus. */
+:root,[data-theme="dark"]{
+ color-scheme:dark;
+ --rail:#282828;--sidebar:#202020;--content:#181818;--card:#2b2b2b;--input:#343434;
+ --text:#ededed;--secondary:#c0c0c0;--muted:#ababab;--disabled:#aaa;
+ --line:#454545;--border:#828282;--hover:#ffffff14;--selected:#3a4c60;--selected-line:#8dbbef;
+ --button:#383838;--button-hover:#4a4a4a;--disabled-bg:#303030;--field:#303030;
+ --blue:#345a80;--on-accent:#fff;--accent:#8dbbef;--primary:#426b96;--focus:#8dbbef;
+ --success:#8fcca3;--warning-bg:#33291f;--warning:#e9c7a1;--warning-border:#94734c;--cache:#d7c49b;--danger:#ffb4ad;
+ --backdrop:#0008;--shadow:#0006;--preview-header:#242424;--assistant:#282828;
+}
+[data-theme="light"]{
+ color-scheme:light;
+ --rail:#e9e9e9;--sidebar:#f3f3f3;--content:#ffffff;--card:#f5f5f5;--input:#f0f0f0;
+ --text:#222222;--secondary:#424242;--muted:#626262;--disabled:#6b6b6b;
+ --line:#cecece;--border:#818181;--hover:#0000000c;--selected:#dce8f5;--selected-line:#3974b2;
+ --button:#e8e8e8;--button-hover:#d7d7d7;--disabled-bg:#eeeeee;--field:#fafafa;
+ --blue:#285b8e;--on-accent:#fff;--accent:#285b8e;--primary:#285b8e;--focus:#1d61a8;
+ --success:#24663b;--warning-bg:#fff4e5;--warning:#6d4316;--warning-border:#a47842;--cache:#725b25;--danger:#9f2929;
+ --backdrop:#0005;--shadow:#0002;--preview-header:#ededed;--assistant:#f0f0f0;
+}
+::selection{background:var(--selected);color:var(--text)}
+input,textarea,select{caret-color:var(--text);accent-color:var(--accent)}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}

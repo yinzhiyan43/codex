@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">
   <title>Codex Workbench — 合成演示</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="icons.css">
   <link rel="stylesheet" href="style.css">
   <script defer src="renderer.js"></script>
@@ -94,6 +96,8 @@
       <section data-settings-panel="appearance" aria-labelledby="appearance-title">
         <h2 id="appearance-title">界面与侧栏</h2>
         <p class="settings-intro">让会话列表与阅读空间适合你的习惯。</p>
+        <h3>主题</h3>
+        <div class="settings-group"><div class="settings-row"><div><label for="pref-theme">外观</label><p>主窗口与只读副窗口保持一致。跟随系统会随系统外观自动切换。</p></div><select id="pref-theme" disabled><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>
         <h3>侧栏</h3>
         <div class="settings-group">
           <div class="settings-row"><div><label for="pref-sidebar-visible">显示侧栏</label><p>也可使用标题栏中的侧栏按钮。</p></div><input id="pref-sidebar-visible" type="checkbox" role="switch" disabled></div>

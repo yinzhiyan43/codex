@@ -1,0 +1,259 @@
+{
+  "milestone": "M2.k",
+  "date": "2026-10-16",
+  "baseline": "3811174ea6e4531429ca9ce26a47bc4f94d86750",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "result": "passed-with-documented-validation-boundaries",
+  "implementedModes": [
+    "light",
+    "dark",
+    "system"
+  ],
+  "persistence": {
+    "file": "workbench-owned ui-preferences.json",
+    "schemaVersion": 2,
+    "v1Migration": "in-memory to v2, preserving existing dark appearance and all layout fields; written only on explicit update",
+    "invalidThemeFallback": "system, without rewriting original file",
+    "corruptFutureOrUnsafeFile": "system appearance fallback; preference writes disabled until valid reread",
+    "systemChangesWriteFile": false
+  },
+  "synchronization": {
+    "owner": "main process",
+    "previewBridge": "read-only initial snapshot and subscription",
+    "bootstrap": "bounded sender/frame/URL-checked synchronous preload read; blocking script before CSS",
+    "revisionGuard": true,
+    "systemObserver": "nativeTheme.shouldUseDarkColors/updated read only",
+    "setsNativeThemeSource": false
+  },
+  "offlineTests": {
+    "passed": 252,
+    "total": 252,
+    "themeTests": 7,
+    "typecheck": "passed",
+    "stableContracts": 51,
+    "experimentalSearchContracts": 2
+  },
+  "themeHiddenUi": {
+    "write": {
+      "checks": [
+        "prepaint-bootstrap-background-and-head-order-correct",
+        "settings-entry-flushes-debounced-draft",
+        "theme-select-retains-focus-and-simulated-visible-ring",
+        "new-preview-starts-correct-with-read-only-theme-bridge",
+        "cross-window-switch-preserves-session-draft-model-and-history",
+        "failed-write-retains-palette-selection-and-saved-file",
+        "light-settings-search-menu-preview-wide-narrow-and-state-colors",
+        "dark-settings-search-menu-preview-wide-narrow-and-state-colors",
+        "concurrent-window-open-and-theme-update-converge",
+        "theme-only-changes-issue-zero-core-rpcs",
+        "pending-and-offline-streaming-survive-theme-switch-without-restart",
+        "explicit-theme-and-unsent-draft-saved-for-restart",
+        "no-config-or-system-writes-no-real-models-no-renderer-errors"
+      ],
+      "count": 13,
+      "close": {
+        "opened": 2,
+        "closed": 2,
+        "activeWindows": 0,
+        "activeReads": 0,
+        "coreActive": false,
+        "coreState": "disposed"
+      },
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/search",
+        "thread/search",
+        "thread/read",
+        "thread/turns/list",
+        "config/read",
+        "account/read",
+        "thread/read",
+        "thread/resume",
+        "turn/start"
+      ],
+      "rendererErrors": []
+    },
+    "restart": {
+      "checks": [
+        "prepaint-bootstrap-background-and-head-order-correct",
+        "restart-restores-theme-route-and-unsent-draft",
+        "explicit-mode-ignores-injected-system-changes",
+        "system-mode-updates-all-windows-without-file-or-chat-writes",
+        "no-config-or-system-writes-no-real-models-no-renderer-errors"
+      ],
+      "count": 5,
+      "close": {
+        "opened": 1,
+        "closed": 1,
+        "activeWindows": 0,
+        "activeReads": 0,
+        "coreActive": false,
+        "coreState": "disposed"
+      },
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "rendererErrors": []
+    },
+    "invalid": {
+      "checks": [
+        "prepaint-bootstrap-background-and-head-order-correct",
+        "invalid-stored-theme-falls-back-without-overwrite-or-draft-loss",
+        "no-config-or-system-writes-no-real-models-no-renderer-errors"
+      ],
+      "count": 3,
+      "close": {
+        "opened": 0,
+        "closed": 0,
+        "activeWindows": 0,
+        "activeReads": 0,
+        "coreActive": false,
+        "coreState": "disposed"
+      },
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "rendererErrors": []
+    },
+    "corrupt": {
+      "checks": [
+        "prepaint-bootstrap-background-and-head-order-correct",
+        "corrupt-preferences-show-system-fallback-and-disable-writes",
+        "repaired-preferences-retry-updates-theme-without-relaunch",
+        "no-config-or-system-writes-no-real-models-no-renderer-errors"
+      ],
+      "count": 4,
+      "close": {
+        "opened": 0,
+        "closed": 0,
+        "activeWindows": 0,
+        "activeReads": 0,
+        "coreActive": false,
+        "coreState": "disposed"
+      },
+      "methods": [
+        "initialize",
+        "initialized",
+        "config/read",
+        "account/read",
+        "model/list",
+        "config/read",
+        "thread/read",
+        "thread/turns/list"
+      ],
+      "rendererErrors": []
+    }
+  },
+  "regressionHiddenUi": {
+    "session-window": [
+      17,
+      6
+    ],
+    "session-copy": [
+      14,
+      9
+    ],
+    "session-editing": [
+      14,
+      10
+    ],
+    "session-management": [
+      18,
+      13
+    ],
+    "sidebar-settings": [
+      14,
+      8
+    ],
+    "session-search": 14,
+    "synthetic": 23
+  },
+  "totalHiddenUiChecks": 185,
+  "visualChecks": {
+    "mainWidths": [
+      1536,
+      900
+    ],
+    "mainHeights": [
+      894,
+      650
+    ],
+    "previewSize": [
+      600,
+      420
+    ],
+    "surfaces": [
+      "settings",
+      "search",
+      "chat",
+      "context menu",
+      "readonly preview",
+      "preference-write-failure",
+      "synthetic preview error"
+    ],
+    "modes": [
+      "light",
+      "dark"
+    ],
+    "focusVisible": "actual CSS pseudo-state simulated using isolated window inspector; control focus restoration checked in DOM",
+    "paletteChecks": {
+      "representativeTextMinimumContrast": 4.5,
+      "focusAndControlBorderMinimumContrast": 3,
+      "allSurfaceColorLiteralsMovedToSharedPalette": true
+    }
+  },
+  "independentReview": {
+    "readOnly": true,
+    "confirmedRemainingP1P2": 0,
+    "nativeTabClaimWithdrawn": true,
+    "concurrentOpenCheck": "final convergence only; does not exhaustively prove all overlapping timing interleavings"
+  },
+  "realModelRequests": 0,
+  "officialNativeExecuted": false,
+  "offlineThemeFakeTurns": 1,
+  "sharedCodexConfigWrites": 0,
+  "systemAppearanceWrites": 0,
+  "userWindowsOrServicesTouched": false,
+  "upstreamCoreChanged": false,
+  "logoChanged": false,
+  "taskModelReasoningSpeedChanged": false,
+  "pushPerformed": false,
+  "mainChanged": false,
+  "goalCountPreserved": 92,
+  "harnessNotes": [
+    "Initial native Tab check could not establish focus-visible inside an offscreen window; replaced with explicit CSS pseudo-state simulation and retained native keyboard/IME as unaccepted.",
+    "Expected preference-write failure exercised with synthetic private fixture; sanitized main error message was observed, renderer errors remained zero."
+  ],
+  "remainingValidation": [
+    "Native keyboard/IME, VoiceOver, multiple displays, OS high-contrast/increased-contrast and reduced-transparency modes not accepted.",
+    "No real model traffic or official core execution added for this presentation-only change.",
+    "No real display frame-by-frame startup flash measurement; bootstrap order, initial state, native window background and hidden screenshots verified.",
+    "No editable multiwindow, sharing/deletion or new search capabilities added."
+  ]
+}

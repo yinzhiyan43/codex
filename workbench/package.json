@@ -37,7 +37,8 @@
     "desktop:settings:smoke": "npm run desktop:build && node scripts/sidebar-settings-ui-check.mjs",
     "desktop:window:smoke": "npm run desktop:build && node scripts/session-window-ui-check.mjs",
     "desktop:search:smoke": "npm run desktop:build && node scripts/session-search-ui-check.mjs",
-    "search:core:check": "node scripts/session-search-core-check.mjs"
+    "search:core:check": "node scripts/session-search-core-check.mjs",
+    "desktop:theme:smoke": "npm run desktop:build && node scripts/session-theme-ui-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

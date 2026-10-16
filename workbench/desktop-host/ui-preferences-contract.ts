@@ -1,6 +1,8 @@
+import { isThemeMode,type ThemeMode } from "./theme-contract.ts";
 /** Workbench-owned presentation only. Never accepts core/config/account fields. */
 export type UiPreferences = {
-  version: 1;
+  version: 2;
+  theme:ThemeMode;
   sidebarVisible: boolean;
   sidebarWidth: 220 | 259 | 300;
   density: "comfortable" | "compact";
@@ -9,14 +11,16 @@ export type UiPreferences = {
 };
 export type UiPreferencesPatch = Partial<Omit<UiPreferences, "version">>;
 export const defaultUiPreferences = (): UiPreferences => ({
-  version: 1, sidebarVisible: true, sidebarWidth: 259, density: "comfortable", fontSize: 13, collapsedGroups: [],
+  version: 2, theme:"system", sidebarVisible: true, sidebarWidth: 259, density: "comfortable", fontSize: 13, collapsedGroups: [],
 });
-const keys = ["sidebarVisible", "sidebarWidth", "density", "fontSize", "collapsedGroups"];
+const legacyKeys = ["sidebarVisible", "sidebarWidth", "density", "fontSize", "collapsedGroups"];
+const keys = ["theme","sidebarVisible", "sidebarWidth", "density", "fontSize", "collapsedGroups"];
 export function validateUiPreferencesPatch(value: unknown): UiPreferencesPatch {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-ui-preferences");
   const v = value as Record<string, unknown>, fields = Object.keys(v);
   if (!fields.length || fields.some(key => !keys.includes(key))) throw new Error("invalid-ui-preferences");
-  if (("sidebarVisible" in v && typeof v.sidebarVisible !== "boolean") ||
+  if (("theme" in v && !isThemeMode(v.theme)) ||
+      ("sidebarVisible" in v && typeof v.sidebarVisible !== "boolean") ||
       ("sidebarWidth" in v && ![220, 259, 300].includes(v.sidebarWidth as number)) ||
       ("density" in v && !["comfortable", "compact"].includes(v.density as string)) ||
       ("fontSize" in v && ![13, 14, 16].includes(v.fontSize as number))) throw new Error("invalid-ui-preferences");
@@ -28,6 +32,12 @@ export function validateUiPreferencesPatch(value: unknown): UiPreferencesPatch {
 export function validateUiPreferences(value: unknown): UiPreferences {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-ui-preferences");
   const { version, ...patch } = value as Record<string, unknown>;
-  if (version !== 1 || Object.keys(patch).length !== keys.length) throw new Error("invalid-ui-preferences");
-  return { version: 1, ...validateUiPreferencesPatch(patch) } as UiPreferences;
+  const fields=Object.keys(patch);
+  if(version===1&&fields.length===legacyKeys.length&&fields.every(key=>legacyKeys.includes(key))){
+    // Existing v1 installations retain the dark appearance they previously had.
+    return {version:2,theme:"dark",...validateUiPreferencesPatch(patch)} as UiPreferences;
+  }
+  if(version!==2||fields.length!==keys.length||fields.some(key=>!keys.includes(key)))throw new Error("invalid-ui-preferences");
+  // Invalid persisted theme falls back without rewriting the original file.
+  return {version:2,...validateUiPreferencesPatch({...patch,theme:isThemeMode(patch.theme)?patch.theme:"system"})} as UiPreferences;
 }

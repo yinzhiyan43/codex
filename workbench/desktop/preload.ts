@@ -1,9 +1,11 @@
+import { createThemeBridge } from "./theme-preload.ts";
 import { contextBridge, ipcRenderer } from "electron";
 import type { DesktopCommand } from "../desktop-host/ipc-contract.ts";
 import type { DesktopView } from "../desktop-host/demo-controller.ts";
 import type { UiPreferences, UiPreferencesPatch } from "../desktop-host/ui-preferences-contract.ts";
 let subscribers = 0;
 contextBridge.exposeInMainWorld("workbench", Object.freeze({
+  theme:createThemeBridge(),
   preferences: Object.freeze({
     read: (): Promise<UiPreferences> => ipcRenderer.invoke("workbench:preferences-read"),
     update: (patch: UiPreferencesPatch): Promise<UiPreferences> => ipcRenderer.invoke("workbench:preferences-update", patch),
