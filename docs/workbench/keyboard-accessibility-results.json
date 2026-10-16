@@ -1,0 +1,256 @@
+{
+  "milestone": "M2.l",
+  "date": "2026-10-16",
+  "baseline": "231f3aa4ba2b337e1a6a9f46cd8493b397fb1722",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "result": "passed-with-documented-manual-validation-boundaries",
+  "offlineTests": {
+    "passed": 257,
+    "total": 257,
+    "newKeyboardPolicyTests": 5,
+    "typecheck": "passed",
+    "stableContracts": 51,
+    "experimentalSearchContracts": 2
+  },
+  "keyboardHiddenUi": {
+    "result": "passed",
+    "runKind": "offline-keyboard-accessibility",
+    "officialNativeExecuted": false,
+    "realModelRequests": 0,
+    "imeCompositionSimulated": true,
+    "voiceOverExecuted": false,
+    "keyboardEvents": "DOM simulation plus Chromium native Escape",
+    "checks": [
+      "skip-link-focuses-main-without-changing-trusted-ipc-url",
+      "simulated-ime-enter-legacy229-trailing-key-and-search-shortcut-do-not-submit",
+      "modified-enter-keeps-draft-without-confirmation",
+      "explicit-pointer-send-immediately-after-ime-commit-is-accepted",
+      "plain-enter-opens-confirmation-on-cancel-and-tab-wraps-both-ends",
+      "simulated-ime-escape-protects-dialog-native-escape-restores-draft",
+      "return-to-edit-restores-draft-after-close",
+      "search-shortcut-no-nesting-ime-submit-blocked-explicit-pointer-commit-accepted",
+      "search-result-refresh-restores-input-when-result-disabled",
+      "search-escape-restores-shortcut-opener",
+      "vertical-settings-tabs-arrows-home-end-roving-order-and-escape",
+      "queued-dialog-close-does-not-steal-focus-from-later-user-action",
+      "account-popup-and-connection-dialog-restore-account-opener",
+      "connection-dialog-click-returns-to-connection-button-even-from-body",
+      "session-menu-shift-f10-focus-arrows-wrap-home-end-escape",
+      "session-action-dialog-restores-source-thread",
+      "async-section-dialog-restores-source-thread",
+      "sidebar-metadata-redraw-closes-menu-with-consistent-expanded-state",
+      "menu-tab-closes-without-trapping",
+      "sidebar-group-focus-survives-async-preference-save",
+      "read-only-preview-labelled-toolbar-and-keyboard-scroll-region",
+      "chromium-accessibility-tree-exposes-named-dialog-and-tabs",
+      "simulated-focus-visible-ring-on-settings-control",
+      "draft-route-model-messages-preserved-zero-turns-and-no-renderer-errors"
+    ],
+    "methods": [
+      "initialize",
+      "initialized",
+      "config/read",
+      "account/read",
+      "model/list",
+      "config/read",
+      "thread/list",
+      "thread/read",
+      "thread/turns/list",
+      "thread/search",
+      "threadSection/list",
+      "thread/read",
+      "thread/read",
+      "thread/turns/list"
+    ],
+    "consoleErrors": [],
+    "count": 24,
+    "close": {
+      "opened": 1,
+      "closed": 1,
+      "activeWindows": 0,
+      "activeReads": 0,
+      "coreActive": false,
+      "coreState": "disposed"
+    }
+  },
+  "regressionHiddenUi": {
+    "session-search": [
+      {
+        "phase": "single",
+        "count": 14,
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "sidebar-settings": [
+      {
+        "phase": "restart",
+        "count": 8
+      },
+      {
+        "phase": "write",
+        "count": 14
+      }
+    ],
+    "session-theme": [
+      {
+        "phase": "corrupt",
+        "count": 4,
+        "close": {
+          "opened": 0,
+          "closed": 0,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "invalid",
+        "count": 3,
+        "close": {
+          "opened": 0,
+          "closed": 0,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "restart",
+        "count": 5,
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "write",
+        "count": 13,
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "session-window": [
+      {
+        "phase": "restart",
+        "count": 6,
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "write",
+        "count": 17,
+        "close": {
+          "opened": 5,
+          "closed": 5,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "session-copy": [
+      {
+        "phase": "restart",
+        "count": 9
+      },
+      {
+        "phase": "write",
+        "count": 14
+      }
+    ],
+    "session-editing": [
+      {
+        "phase": "restart",
+        "count": 10
+      },
+      {
+        "phase": "write",
+        "count": 14
+      }
+    ],
+    "session-management": [
+      {
+        "phase": "restart",
+        "count": 13
+      },
+      {
+        "phase": "write",
+        "count": 18
+      }
+    ],
+    "synthetic": [
+      {
+        "phase": "single",
+        "count": 23
+      }
+    ]
+  },
+  "totalHiddenUiChecks": 209,
+  "hiddenAppInstances": 17,
+  "independentReview": {
+    "readOnly": true,
+    "confirmedRemainingP1P2": 0,
+    "fixedFindings": [
+      "explicit pointer submit after IME commit must remain usable",
+      "connection dialog must restore actual clicked opener",
+      "sidebar redraw closes menu to synchronize expanded state"
+    ]
+  },
+  "validationNotes": [
+    "First full offline run had one ENOTEMPTY temporary-directory cleanup failure; isolated retry and subsequent full 257/257 runs passed. No product persistence code was changed.",
+    "Initial synthetic UI regression timed out on a confirm-open wait; isolated rerun passed all 23 checks. The failed attempt is not counted as a pass.",
+    "Development harness fixture IDs, disabled-cancel stimulus and focus-close timing were corrected before final keyboard evidence.",
+    "Dialog queued close focus stealing was reproduced and fixed; final smoke has a deterministic close-then-move-focus regression."
+  ],
+  "nativeValidation": {
+    "ime": "simulated composition lifecycle, isComposing policy and legacy keyCode 229; native Chinese IME not run",
+    "keyboard": "DOM keyboard simulation; native Electron Escape only",
+    "tab": "application boundary wrap and roving tabs simulated; native Tab order not accepted",
+    "focusVisible": "actual CSS forced via isolated Chromium inspector",
+    "assistiveTree": "Chromium Accessibility.getFullAXTree; OS VoiceOver not run"
+  },
+  "realModelRequests": 0,
+  "officialNativeExecuted": false,
+  "sharedCodexConfigWrites": 0,
+  "systemSettingsChanged": false,
+  "userWindowsOrServicesTouched": false,
+  "upstreamCoreChanged": false,
+  "logoChanged": false,
+  "taskModelReasoningSpeedChanged": false,
+  "phaseTwoPushPerformed": false,
+  "remoteBranchExpected": "231f3aa4ba2b337e1a6a9f46cd8493b397fb1722",
+  "mainChanged": false,
+  "goalCountPreserved": 92,
+  "remainingValidation": [
+    "Actual Chinese input-method candidate confirmation/cancel and platform keyboard shortcuts",
+    "Native Tab traversal and system VoiceOver main flows",
+    "Multiple displays, OS increased contrast/reduced transparency and full reference parity",
+    "Previously documented experimental-search approval compatibility and other unfinished product goals remain open"
+  ]
+}

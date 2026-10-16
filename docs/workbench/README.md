@@ -37,6 +37,7 @@
 - [M2.i 真实核心与桌面组合验收](real-core-ui-milestone.md)：5次真实请求、重启/续聊/指定轮次分叉/只读副窗的逐路径证据及驱动失败边界。
 - [M2.j 官方保存会话搜索](session-search-milestone.md)：官方正文/标题预览、归档/游标、只读结果副窗、245项离线与160项后台UI证据及实际范围。
 - [M2.k 完整主题支持](theme-milestone.md)：明暗/跟随系统、首次绘制引导、主副窗同步、偏好迁移和252离线/185后台UI证据。
+- [M2.l 键盘与基础无障碍](keyboard-accessibility-milestone.md)：焦点恢复、菜单/分类键盘操作、输入法保护、257离线及209后台检查；真实IME/VoiceOver待验收。
 - [桌面容器 ADR](desktop-adr.md)：Electron 与主进程/界面边界。
 
 ## 目标与完成标准

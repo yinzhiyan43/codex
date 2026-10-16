@@ -1,3 +1,5 @@
+import { focusHandle, openModal } from "./interactions.ts";
+import { menuIndex } from "./keyboard-policy.ts";
 // UI layout adapted from solrizon-ai/open-codex (Apache-2.0), commit 3362b6bb.
 // Modified: plain DOM, workbench-only preferences, one modal, no core/config writes.
 // See ../vendor/open-codex/NOTICE.md and LICENSE.
@@ -7,7 +9,7 @@ export function setupSettings(bridge: PreferencesBridge, flushDraft: () => Promi
   const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   const dialog = el<HTMLDialogElement>("settings-dialog");
   const controls = ["pref-theme","pref-sidebar-visible", "pref-sidebar-width", "pref-density", "pref-font-size", "pref-expand-groups"];
-  let preferences = defaultUiPreferences(), ready = false, busy = false, opener: HTMLElement | null = null;
+  let preferences = defaultUiPreferences(), ready = false, busy = false;
   function refresh() {
     document.documentElement.style.setProperty("--sidebar-width", preferences.sidebarWidth + "px");
     document.documentElement.style.setProperty("--reading-size", preferences.fontSize + "px");
@@ -41,28 +43,26 @@ export function setupSettings(bridge: PreferencesBridge, flushDraft: () => Promi
   }
   async function update(patch: UiPreferencesPatch) {
     if (!ready || busy) return;
-    const focused=document.activeElement as HTMLElement|null;
+    const focused=document.activeElement as HTMLElement|null, resolveFocus=focusHandle(focused);
     busy = true; refresh();
     el("preferences-status").textContent = "正在保存…";
     try {
       preferences = await bridge.update(patch);
       el("preferences-status").textContent = "已保存界面偏好。";
     } catch { el("preferences-status").textContent = "保存失败，仍使用上次已保存的值；可再次尝试。"; }
-    finally { busy = false; refresh();if(dialog.open&&focused&&controls.includes(focused.id)&&(document.activeElement===document.body||document.activeElement===dialog))focused.focus(); }
+    finally { busy = false; refresh();if(dialog.open&&focused&&controls.includes(focused.id)&&(document.activeElement===document.body||document.activeElement===dialog))focused.focus(); else if(!dialog.open&&document.activeElement===document.body)resolveFocus()?.focus(); }
   }
   async function open(source: HTMLElement) {
     if (dialog.open) return;
-    opener = source;
+    const resolveFocus=focusHandle(source);
     await flushDraft();
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) openModal(dialog,resolveFocus);
   }
   for (const id of ["open-settings", "open-settings-toolbar"]) el(id).addEventListener("click", event => void open(event.currentTarget as HTMLElement));
   el("settings-close").addEventListener("click", () => dialog.close());
-  dialog.addEventListener("close", () => { if (opener && opener.getClientRects().length) opener.focus(); else el("open-settings-toolbar").focus(); });
-  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-settings-section]")) button.addEventListener("click", () => {
-    for (const nav of document.querySelectorAll<HTMLButtonElement>("[data-settings-section]")) nav.setAttribute("aria-pressed", String(nav === button));
-    for (const panel of document.querySelectorAll<HTMLElement>("[data-settings-panel]")) panel.hidden = panel.dataset.settingsPanel !== button.dataset.settingsSection;
-  });
+  const tabs=[...document.querySelectorAll<HTMLButtonElement>("[data-settings-section]")];
+  const selectTab=(button:HTMLButtonElement)=>{ for(const nav of tabs){nav.setAttribute("aria-selected",String(nav===button));nav.tabIndex=nav===button?0:-1;} for(const panel of document.querySelectorAll<HTMLElement>("[data-settings-panel]"))panel.hidden=panel.dataset.settingsPanel!==button.dataset.settingsSection; };
+  for(const button of tabs){button.addEventListener("click",()=>selectTab(button));button.addEventListener("keydown",event=>{const index=menuIndex(event.key,tabs.indexOf(button),tabs.length);if(index!==null){event.preventDefault();selectTab(tabs[index]!);tabs[index]!.focus();}});}
   el("preferences-retry").addEventListener("click", () => void read());
   el("pref-theme").addEventListener("change",()=>void update({theme:el<HTMLSelectElement>("pref-theme").value as UiPreferences["theme"]}));
   el("pref-sidebar-visible").addEventListener("change", () => void update({ sidebarVisible: el<HTMLInputElement>("pref-sidebar-visible").checked }));

@@ -1,0 +1,12 @@
+import { spawn } from "node:child_process";
+import { mkdir,readFile,writeFile } from "node:fs/promises";
+import { join } from "node:path";
+const output=process.argv[2];if(process.argv.length!==3||!output?.startsWith("/")||output.includes("\0"))throw new Error("absolute-output-required");
+await mkdir(output,{recursive:true,mode:0o700});const executable=join(process.cwd(),"node_modules","electron","dist",(await readFile("node_modules/electron/path.txt","utf8")).trim());
+const child=spawn(executable,[".desktop/main.mjs","--official-chat-offline","--keyboard-smoke","--smoke-output",output],{stdio:["ignore","pipe","pipe"],shell:false});let log="";
+const capture=bytes=>{log+=bytes.toString();if(log.length>32768)child.kill("SIGTERM");};child.stdout.on("data",capture);child.stderr.on("data",capture);
+const code=await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>child.kill("SIGTERM"),40000),hard=setTimeout(()=>child.kill("SIGKILL"),43000);child.once("error",reject);child.once("close",code=>{clearTimeout(timeout);clearTimeout(hard);resolve(code);});});
+await writeFile(join(output,"keyboard.log"),log);if(code!==0)throw new Error("offline-keyboard-ui-failed");
+const evidence=JSON.parse(await readFile(join(output,"smoke-results.json"),"utf8")),close=JSON.parse(await readFile(join(output,"windows-close-results.json"),"utf8"));
+if(evidence.result!=="passed"||evidence.realModelRequests!==0||evidence.officialNativeExecuted||close.opened!==close.closed||close.activeWindows!==0||close.activeReads!==0||close.coreActive)throw new Error("unexpected-keyboard-ui-evidence");
+console.log("keyboard passed "+evidence.checks.length+" checks; all "+close.closed+" previews closed");

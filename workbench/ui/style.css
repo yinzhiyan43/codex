@@ -184,7 +184,7 @@ select:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
 .settings-navigation h2 { font-size:14px; margin:0 12px; }
 .settings-navigation nav { display:flex; flex-direction:column; gap:2px; }
 .settings-navigation button { display:flex; align-items:center; gap:8px; border-radius:6px; min-height:32px; padding:6px 10px; font-size:12.5px; text-align:left; color:var(--secondary); }
-.settings-navigation button[aria-pressed="true"] { background:var(--selected); color:var(--text); }
+.settings-navigation button[aria-selected="true"] { background:var(--selected); color:var(--text); }
 .settings-navigation .ph { font-size:15px; }
 .settings-navigation-caption { color:var(--muted); font-size:11px; margin:auto 12px 0; }
 .settings-content { min-width:0; height:100%; overflow:auto; padding:36px 32px 24px; }
@@ -216,3 +216,7 @@ select:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
 #session-search-results span{color:var(--muted);font-size:13px;line-height:1.6}#session-search-results strong{font-weight:500}
 
 input:not([type="checkbox"]),select{background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px}button:disabled{color:var(--disabled)}.composer-tools .send{color:var(--on-accent)}.dialog-actions .primary{color:var(--on-accent)}.session-menu .danger:disabled{color:var(--disabled)}
+
+a:focus-visible,[tabindex]:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.skip-link { position:fixed; top:4px; left:12px; z-index:100; padding:8px 12px; background:var(--card); color:var(--text); transform:translateY(-160%); }
+.skip-link:focus { transform:none; }

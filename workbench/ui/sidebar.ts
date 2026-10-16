@@ -2,8 +2,12 @@
 // Apache-2.0, Copyright 2025 solrizon-ai; modified for the existing DOM/controller.
 // See ../vendor/open-codex/NOTICE.md. No third-party backend actions are imported.
 import type { DesktopView } from "../desktop-host/demo-controller.ts";
+let signature="";
 export function renderSidebar(next: DesktopView, query: string, collapsed: (id: string) => boolean, canUpdate: boolean): void {
   const list = document.getElementById("project-list")!;
+  const key=JSON.stringify([next.projects,next.route.threadId,next.mode,next.connection,next.chatStatus?.historyMode,query,canUpdate,next.projects.map(project=>collapsed(project.id))]);
+  if(key===signature)return;signature=key;
+  list.dispatchEvent(new Event("sidebarwillrender"));
   const focus = list.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset : null;
   const focusKey = focus?.group ?? focus?.thread ?? focus?.project;
   list.replaceChildren();
@@ -20,7 +24,7 @@ export function renderSidebar(next: DesktopView, query: string, collapsed: (id: 
     button.title = project.name; button.dataset.group = project.id;
     const expanded = !!query || !collapsed(project.id);
     button.setAttribute("aria-expanded", String(expanded)); button.setAttribute("aria-controls", "threads-" + project.id);
-    button.disabled = !!query; button.setAttribute("aria-disabled", String(!canUpdate || !!query));
+    button.disabled = !canUpdate || !!query; button.setAttribute("aria-disabled", String(!canUpdate || !!query));
     const icon = document.createElement("i"); icon.className = "ph ph-folder-open"; icon.setAttribute("aria-hidden", "true");
     const label = document.createElement("span"); label.className = "row-title"; label.textContent = project.name;
     const caret = document.createElement("i"); caret.className = "ph " + (expanded ? "ph-caret-down" : "ph-caret-right"); caret.setAttribute("aria-hidden", "true");
@@ -35,6 +39,7 @@ export function renderSidebar(next: DesktopView, query: string, collapsed: (id: 
       const thread = document.createElement("button"); thread.type = "button"; thread.className = "thread-row";
       thread.textContent = row.title; thread.title = row.title; thread.dataset.thread = row.id;
       thread.disabled = !!next.chatStatus?.historyMode && next.connection !== "ready";
+      if(next.mode==="official-chat"){thread.setAttribute("aria-haspopup","menu");thread.setAttribute("aria-controls","session-menu");thread.setAttribute("aria-expanded","false");}
       thread.setAttribute("aria-current", String(row.id === next.route.threadId)); threads.append(thread);
     }
     if (!visible.length && !query) { const empty = document.createElement("p"); empty.className = "group-empty"; empty.textContent = "暂无已加载会话"; threads.append(empty); }
