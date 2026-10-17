@@ -43,7 +43,7 @@ export async function runEditableSmoke(main:BrowserWindow,output:string,errors:s
   if(phase==="delivery"){
    await wait(async()=>await js("document.getElementById('editor-status').textContent.includes('未完成')"));assert.equal((await snap()).editor.deliveryPending,true);const after=JSON.parse(await readFile(sessionPath,"utf8"));assert.deepEqual(after.delivery,before.delivery);assert.equal(after.sessions.find((row:{id:string})=>row.id==="saved-a").draft,before.sessions.find((row:{id:string})=>row.id==="saved-a").draft);checks.push("unprovable-result-preserves-durable-journal-draft-and-lock");
   }else{
-   await wait(async()=>!(await snap()).editor.deliveryPending);assert.equal((await snap(a)).draft,"");assert.equal((await snap(a)).editor.canEdit,true);const after=JSON.parse(await readFile(sessionPath,"utf8"));assert.equal(after.delivery,null);assert.equal(after.sessions.find((row:{id:string})=>row.id==="saved-a").draft,"");checks.push("explicit-read-only-proof-atomically-clears-accepted-prompt-and-unlocks");
+   await wait(async()=>!(await snap()).editor.deliveryPending&&(await snap(a)).draft===""&&(await snap(a)).editor.canEdit);assert.equal((await snap(a)).draft,"");assert.equal((await snap(a)).editor.canEdit,true);const after=JSON.parse(await readFile(sessionPath,"utf8"));assert.equal(after.delivery,null);assert.equal(after.sessions.find((row:{id:string})=>row.id==="saved-a").draft,"");checks.push("explicit-read-only-proof-atomically-clears-accepted-prompt-and-unlocks");
   }
   assert.equal((await snap()).draft,primaryDraft);assert.equal(frames().some(f=>["turn/start","thread/start","thread/resume"].includes(f.method??"")),false);checks.push("delivery-check-retains-other-session-draft-and-uses-no-model");
  }else{

@@ -38,6 +38,7 @@ export function validateDesktopCommand(value: unknown): DesktopCommand {
   const scoped=typeof v.scope==="string"&&/^repo-[a-f0-9]{32}$/.test(v.scope);
   if(["repoStatus","repoCancel"].includes(v.type)&&keys==="scope,type"&&scoped)return v as DesktopCommand;
   if(["repoList","repoFile"].includes(v.type)&&keys==="path,scope,type"&&scoped&&relativeRepositoryPath(v.path,v.type==="repoList"))return v as DesktopCommand;
+  if(["repoVerifyReview","repoPlanIsolation","repoReviewFile"].includes(v.type)&&keys==="review,scope,type"&&scoped&&typeof v.review==="string"&&/^review-[a-f0-9]{24}$/.test(v.review))return v as DesktopCommand;
   if(v.type==="repoDiff"&&keys==="entry,scope,type"&&scoped&&typeof v.entry==="string"&&/^change-[a-f0-9]{24}$/.test(v.entry))return v as DesktopCommand;
   if (simple.has(v.type) && keys === "type") return v as DesktopCommand;
   if(v.type==="searchSessions"&&keys==="archived,kind,text,type"&&typeof v.text==="string"&&v.text.trim().length>0&&v.text.length<=128&&!/[\x00-\x1f]/.test(v.text)&&typeof v.archived==="boolean"&&["content","title"].includes(v.kind as string))return v as DesktopCommand;

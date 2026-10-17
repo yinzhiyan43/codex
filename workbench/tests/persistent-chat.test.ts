@@ -9,10 +9,11 @@ import { OfficialChatController } from "../desktop-host/official-chat-controller
 import { StdioWorkbenchHost } from "../desktop-host/stdio-host.ts";
 import { SessionStore } from "../desktop-host/session-store.ts";
 const wait=async(fn:()=>boolean)=>{for(let n=0;n<250;n++){if(fn())return;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error("persistence-condition-timeout");};
-async function root(t:{after(fn:()=>Promise<void>):void}){const directory=await mkdtemp(join(tmpdir(),"workbench-persistence-test-"));t.after(()=>rm(directory,{recursive:true,force:true}));return directory;}
+const fixtureControllers=new Map<string,OfficialChatController[]>();
+async function root(t:{after(fn:()=>Promise<void>):void}){const directory=await mkdtemp(join(tmpdir(),"workbench-persistence-test-"));fixtureControllers.set(directory,[]);t.after(async()=>{for(const controller of fixtureControllers.get(directory)??[])await controller.dispose();fixtureControllers.delete(directory);await rm(directory,{recursive:true,force:true});});return directory;}
 function create(t:{after(fn:()=>Promise<void>):void},directory:string,mode="normal"){
  const frames:{method:string;params:Record<string,unknown>}[]=[];const host=new StdioWorkbenchHost(()=>{const child=spawn(process.execPath,[fileURLToPath(new URL("../desktop/chat-fixture-peer.mjs",import.meta.url)),mode,join(directory,"offline-core.json")],{env:{},stdio:["pipe","pipe","pipe"]});const write=child.stdin.write.bind(child.stdin);child.stdin.write=((data:string|Uint8Array,...args:unknown[])=>{for(const line of String(data).trim().split("\n"))frames.push(JSON.parse(line));return Reflect.apply(write,child.stdin,[data,...args]);}) as typeof child.stdin.write;return child;},{requestTimeoutMs:1000});
- const store=new SessionStore(join(directory,"sessions.json")),client={...host.client()},controller=new OfficialChatController(client,"/synthetic/chat",true,15000,store);t.after(()=>controller.dispose());return {controller,frames,host,store,client};
+ const store=new SessionStore(join(directory,"sessions.json")),client={...host.client()},controller=new OfficialChatController(client,"/synthetic/chat",true,15000,store);fixtureControllers.get(directory)?.push(controller);t.after(()=>controller.dispose());return {controller,frames,host,store,client};
 }
 async function send(c:OfficialChatController,text:string){await c.dispatch({type:"draft",routeId:c.snapshot().route.threadId??"official-chat",text});await c.dispatch({type:"submit"});await c.dispatch({type:"confirm"});await wait(()=>!c.snapshot().running);}
 test("default persistent first turn survives child/App restart and explicit confirmation continues the same ID once",async t=>{

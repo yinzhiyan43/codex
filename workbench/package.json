@@ -43,7 +43,8 @@
     "desktop:editable:smoke": "npm run desktop:build && node scripts/editable-ui-check.mjs",
     "pretest": "node scripts/build-repository-reader.mjs",
     "desktop:repository:smoke": "npm run desktop:build && node scripts/repository-ui-check.mjs",
-    "desktop:workflow:smoke": "npm run desktop:build && node scripts/workflow-ui-check.mjs"
+    "desktop:workflow:smoke": "npm run desktop:build && node scripts/workflow-ui-check.mjs",
+    "desktop:review:smoke": "npm run desktop:build && node scripts/change-review-ui-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

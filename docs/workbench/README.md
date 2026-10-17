@@ -41,6 +41,7 @@
 - [M2.m 可编辑多窗口](multiwindow-editing-milestone.md)：每会话租约/版本、全局发送互斥、保存关闭、发送未决保护及280离线/243后台检查。
 - [M3.a 仓库上下文与只读检查](repository-context-milestone.md)：根身份/cwd绑定、有界文件与受限Git、301离线/263隐藏检查及接口边界。
 - [M3.b 工具展示、审批和补充输入](tool-workflow-milestone.md)：轮次/窗口归属、单次答复、跳过/停止区分与合成验收；真实工具仍禁用。
+- [M3.c1 本地变更审阅与隔离计划](change-review-milestone.md)：有界差异快照、显式核对及不可执行计划；生产worktree生命周期未开放。
 - [日常使用说明](daily-use.md)：启动、编辑权、发送与异常恢复、已验证能力和剩余缺口。
 - [桌面容器 ADR](desktop-adr.md)：Electron 与主进程/界面边界。
 

@@ -140,3 +140,5 @@ M2.m 基于本地2f664907b实现可编辑多窗口：每会话租约与版本、
 M3.a基于本地256db6173实现显式目录授权、持久cwd/设备/inode绑定、有界只读文件与Git面板。官方fs接口的绝对路径/整文件/整目录语义不直接开放给renderer；本地openat助手与macOS受限系统Git承担此阶段读取，官方thread metadata与start/resume/fork仍核对真实cwd。官方project实验接口未接入，不把标签或授权目录冒充官方项目。301项离线、20项新仓库及243项既有隐藏检查通过；原生目录对话框为受限夹具模拟，人工选择器/VoiceOver/多屏、文件编辑/完整项目服务等仍待实现。见[M3.a报告](repository-context-milestone.md)和[范围方案](repository-context-plan.md)。不push，原92目标保留。
 
 M3.b基于02eaee06f增加工具/计划/推理摘要的有界状态展示、固定官方问题schema、一次性审批与输入回包。仅离线假服务可验收accept；真实纯文本工具守卫/never/readOnly保持。skip空答不等于取消，stop精确interrupt；秘密输入不收集，MCP/动态执行/权限扩展仍unsupported。窗口/会话/轮次/代次和唯一请求键阻止串线，关窗后明确接管只影响本轮请求，不抢草稿权。独立真实编码模式、工具feature和写沙箱是后续具体授权/验收动作，本轮未启用。见[范围方案](tool-workflow-plan.md)与[阶段报告](tool-workflow-milestone.md)。原92目标及未完成范围保留，仅本地提交。
+
+M3.c1基于90c62a59f交付有界本地变更审阅快照、旧/新行号、显式核对与过期句柄撤销，以及只在内存生成的固定HEAD隔离计划。产品Git沙箱仍只读，无worktree创建/清理IPC；实际生命周期只在全新可丢弃夹具测试。普通remove会删除忽略文件，生产清理需另行内容保护/确认/恢复与竞态设计，不复用测试preflight冒称原子安全。见[方案](change-review-plan.md)和[报告](change-review-milestone.md)。原92ID及未完成范围保持，仅本地提交。

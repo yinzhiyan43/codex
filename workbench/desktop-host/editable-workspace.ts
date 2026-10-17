@@ -107,12 +107,12 @@ export class EditableWorkspace {
   async dispatch(value:unknown):Promise<DesktopView>{return this.dispatchOwner("main",value);}
   async dispatchOwner(owner:string,value:unknown):Promise<DesktopView>{
     if(this.#disposed)throw new Error("workspace-unavailable");const command=validateDesktopCommand(value),entry=this.#entries.get(owner);if(entry?.closing)throw new Error("window-closing");if(owner!=="main"&&!entry)throw new Error("unknown-window");
-    if(entry&&!['claimEditor','releaseEditor','editDraft','submit','confirm','cancel','refreshHistory','history','cancelHistory','clearError','retryPersistence','claimWorkflow','workflowReply','repoList','repoFile','repoStatus','repoDiff','repoCancel'].includes(command.type))throw new Error("fixed-session-command-rejected");
+    if(entry&&!['claimEditor','releaseEditor','editDraft','submit','confirm','cancel','refreshHistory','history','cancelHistory','clearError','retryPersistence','claimWorkflow','workflowReply','repoList','repoFile','repoStatus','repoDiff','repoCancel','repoVerifyReview','repoPlanIsolation','repoReviewFile'].includes(command.type))throw new Error("fixed-session-command-rejected");
     this.#syncMain();const key=entry?.id??this.#key(),state=this.#leases.state(key);
     try{
       if(command.type==="claimWorkflow"){if(!this.#canClaimWorkflow(owner,key,!!this.snapshotOwner(owner).chatStatus?.historyMode))throw new Error("workflow-claim-unavailable");this.#gate!.reviewer=owner;}
       else if(command.type==="workflowReply"){const access=this.#workflowAccess(owner,key,!!this.snapshotOwner(owner).chatStatus?.historyMode);if(command.action==="accept"){if(!this.#offline)throw new Error("workflow-approval-not-allowed");if(!access.root)throw new Error("workflow-root-required");await this.#reader.check(access.root);}const stop=this.#workflow.reply(command,this.#workflowAccess(owner,key,!!this.snapshotOwner(owner).chatStatus?.historyMode));if(stop==="stop"){this.#publish();await this.#gate!.runtime.dispatch({type:"cancel"});}}
-      else if(command.type==="repoList"||command.type==="repoFile"||command.type==="repoStatus"||command.type==="repoDiff"||command.type==="repoCancel"){this.snapshotOwner(owner);await this.#panels.dispatch(owner,command);}
+      else if(command.type==="repoList"||command.type==="repoFile"||command.type==="repoStatus"||command.type==="repoDiff"||command.type==="repoCancel"||command.type==="repoVerifyReview"||command.type==="repoPlanIsolation"||command.type==="repoReviewFile"){this.snapshotOwner(owner);await this.#panels.dispatch(owner,command);}
       else if(command.type==="chooseDirectory")throw new Error("native-directory-picker-required");
       else if(command.type==="retryPersistence"){
         const runtime=owner==="main"?this.#main:entry?.runtime;if(runtime)await runtime.flushDraftState();

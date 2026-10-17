@@ -197,3 +197,11 @@ Input uses the pinned official question schema: single choice plus `user_note`, 
 Production stays text-only with tool features disabled, read-only sandbox and approvalPolicy=never. Accept is blocked in real sessions; only the offline fake peer exercises approval success. No terminal, arbitrary execution, persistent grants or new real coding mode is enabled. A future independent coding mode needs explicit scope and sandbox/feature validation. MCP/dynamic execution and permission grants remain unsupported.
 
 Run `npm run desktop:workflow:smoke -- /absolute/private/output`. See [the report](../docs/workbench/tool-workflow-milestone.md), [machine evidence](../docs/workbench/tool-workflow-results.json), and [daily use](../docs/workbench/daily-use.md). This milestone is a protocol/UI workflow foundation, not acceptance of real coding execution.
+
+## Local change review and isolation plans — M3.c1
+
+Bounded snapshots distinguish HEAD-to-index from index-to-working-file diffs with old/new hunk numbers and observation time. Explicit rechecks detect observed status/HEAD/selected-content changes, permanently expire stale review handles and clear plans. Reads are sequential observations, not atomic snapshots or continuous monitoring. Unexpanded directories cannot be verified; untracked source and unsupported combined hunks do not invent line navigation. Current-file preview is explicitly a different version.
+
+Isolation plans bind the current window/session/root/review and fixed HEAD. They are memory-only and non-executable; no production worktree creation, removal, handoff or terminal IPC exists. Plans explain detached checkout, excluded unsaved/ignored files and shared Git metadata. Real add/remove is tested only in newly generated disposable fixtures, never personal repositories. Ordinary Git removal may delete ignored files; the test preflight includes ignored content, but is not atomic removal or recoverable archival. Production lifecycle needs a separate design and validation.
+
+Run `npm run desktop:review:smoke -- /absolute/private/output`. See [scope](../docs/workbench/change-review-plan.md), [report](../docs/workbench/change-review-milestone.md), and [machine evidence](../docs/workbench/change-review-results.json). Real model review and coding execution remain disabled for this milestone.
