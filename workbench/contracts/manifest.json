@@ -269,6 +269,16 @@
       "upstreamPath": "codex-rs/app-server-protocol/schema/json/v2/ThreadSectionUpdateResponse.json",
       "path": "contracts/schemas/sectionsUpdateResult.json",
       "sha256": "4588cbf0374204c17f02f15eecb5390cd5346bc551675e07e541bbfd28d020bf"
+    },
+    "userInputParams": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/ToolRequestUserInputParams.json",
+      "path": "contracts/schemas/userInputParams.json",
+      "sha256": "fda15b62e7446105b59c8ed85c908abed2a47db70653e57c92c47a2f204fa77a"
+    },
+    "userInputResult": {
+      "upstreamPath": "codex-rs/app-server-protocol/schema/json/ToolRequestUserInputResponse.json",
+      "path": "contracts/schemas/userInputResult.json",
+      "sha256": "5073b245f741fa8ce62ec52e4dd1809b7831f9c4284c279a78abc9b171f8e3f2"
     }
   },
   "requests": {
@@ -390,6 +400,10 @@
     "item/fileChange/requestApproval": {
       "params": "fileApprovalParams",
       "result": "fileApprovalResult"
+    },
+    "item/tool/requestUserInput": {
+      "params": "userInputParams",
+      "result": "userInputResult"
     }
   },
   "experimental": {
@@ -423,5 +437,5 @@
       "sourceCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d"
     }
   },
-  "specSha256": "3982176a33ac22ff6f14244f30c6b0c77726037c7e2d02586273ed977f4ff9ed"
+  "specSha256": "3d8817b75c0ce7e2b3a102b067344cbb87dcedec484ebe1075d110756de1046e"
 }

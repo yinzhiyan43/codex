@@ -1,8 +1,8 @@
 import {relativeRepositoryPath} from "./repository-reader.ts";
 import type {RepositoryCommand} from "./repository-panels.ts";
-export type DesktopCommand = RepositoryCommand
+export type DesktopCommand = import("../domain/tool-workflow.ts").WorkflowReply | RepositoryCommand
   | {type:"chooseDirectory"}
-  | {type:"claimEditor"|"releaseEditor"|"retryPersistence"|"reconcileDelivery"}
+  | {type:"claimWorkflow"|"claimEditor"|"releaseEditor"|"retryPersistence"|"reconcileDelivery"}
   | {type:"editDraft";routeId:string;text:string;revision:number;lease:string}
   | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" | "browseHistory" | "returnToChat" | "refreshThreads" | "moreThreads" | "refreshHistory" | "toggleArchived" }
   | { type: "selectModel"; model: string }
@@ -24,12 +24,17 @@ export type DesktopCommand = RepositoryCommand
   | { type: "createSection"; name: string }
   | { type: "assignSection"; id: string; sectionId: string | null; beforeThreadId?:string }
   | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
-const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections", "moreSessionSearch", "cancelSessionSearch", "chooseDirectory", "claimEditor", "releaseEditor", "retryPersistence", "reconcileDelivery"]);
+const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections", "moreSessionSearch", "cancelSessionSearch", "chooseDirectory", "claimWorkflow", "claimEditor", "releaseEditor", "retryPersistence", "reconcileDelivery"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-command");
   const v = value as Record<string, unknown>;
   if (typeof v.type !== "string") throw new Error("invalid-command");
   const keys = Object.keys(v).sort().join(",");
+  if(v.type==="workflowReply"&&typeof v.key==="string"&&/^flow-[a-f0-9]{32}$/.test(v.key)&&typeof v.action==="string"){
+    if(["accept","decline","cancel","skip","stop"].includes(v.action)&&keys==="action,key,type")return v as DesktopCommand;
+    if(v.action==="answer"&&keys==="action,answers,key,type"&&Array.isArray(v.answers)&&v.answers.length>=1&&v.answers.length<=3&&v.answers.every(r=>!!r&&typeof r==="object"&&Object.keys(r).sort().join() ==="choice,id,note"&&typeof r.id==="string"&&/^[a-zA-Z0-9_-]{1,64}$/.test(r.id)&&(r.choice===null||Number.isSafeInteger(r.choice)&&r.choice>=0&&r.choice<=8)&&typeof r.note==="string"&&r.note.length<=1000&&!r.note.includes("\0")))return v as DesktopCommand;
+    throw new Error("invalid-workflow-reply");
+  }
   const scoped=typeof v.scope==="string"&&/^repo-[a-f0-9]{32}$/.test(v.scope);
   if(["repoStatus","repoCancel"].includes(v.type)&&keys==="scope,type"&&scoped)return v as DesktopCommand;
   if(["repoList","repoFile"].includes(v.type)&&keys==="path,scope,type"&&scoped&&relativeRepositoryPath(v.path,v.type==="repoList"))return v as DesktopCommand;

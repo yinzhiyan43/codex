@@ -26,7 +26,7 @@ for (const [id,title] of (mode==="search-history"?Array.from({length:6},(_,n)=>[
 }
 if(mode==="large-section")sections.set("section-large",{id:"section-large",name:"Large synthetic section",appearance:null});
 if(statePath&&existsSync(statePath)){const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;sectionCount=v.sectionCount??0;sections=new Map((v.sections??[]).map(s=>[s.id,s]));threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));}
-if(mode==="repository")for(const t of threads.values())if(!t.cwd)t.cwd=join(dirname(statePath),"roots",t.id==="saved-a"?"b":"a");
+if(["repository","workflow"].includes(mode))for(const t of threads.values())if(!t.cwd)t.cwd=join(dirname(statePath),"roots",t.id==="saved-a"?"b":"a");
 const reloadShared=()=>{if(mode!=="shared-management"||!statePath||!existsSync(statePath))return;const v=JSON.parse(readFileSync(statePath,"utf8"));threadCount=v.threadCount;turnCount=v.turnCount;sectionCount=v.sectionCount??0;sections=new Map((v.sections??[]).map(s=>[s.id,s]));threads=new Map(v.threads.map(t=>[t.id,{...t,turns:new Map(t.turns.map(v=>[v.id,v]))}]));};
 if(mode==="shared-management"&&!existsSync(statePath))persist();
 function serverPage(values,cursor,prefix,limit=2) {
@@ -35,7 +35,9 @@ function serverPage(values,cursor,prefix,limit=2) {
  return {data,nextCursor:end<values.length?prefix+end:null,backwardsCursor:data.length?prefix+start:null};
 }
 function finish(t,v,status) { if (v.status!=="inProgress") return; v.status=status; clearInterval(v.timer);persist(); notify("turn/completed",{threadId:t.id,turn:turn(v.id,v.items,status)}); }
+const workflowReplies=new Map();
 function handle(m) {
+  if(!m.method){workflowReplies.get(m.id)?.(m);return;}
   reloadShared();if(mode==="shared-management"&&m.method==="turn/start")return error(m.id,-32600);
   if(m.method==="initialize") return reply(m.id,{userAgent:"OFFLINE-chat-fixture",codexHome:"/synthetic/home",platformFamily:"unix",platformOs:"macos"});
   if(m.method==="initialized") return;
@@ -96,6 +98,15 @@ function handle(m) {
     notify("turn/started",{threadId:t.id,turn:turn(id,[user])});
     notify("item/started",{threadId:t.id,turnId:id,startedAtMs:1000,item:user}); notify("item/started",{threadId:t.id,turnId:id,startedAtMs:1000,item:a});
     setTimeout(()=>reply(m.id,{turn:turn(id,[],"inProgress")}),text.includes("[slow]")?350:25);
+    if(mode==="workflow"&&text.includes("[workflow")){
+      const input=text.includes("input")||text.includes("secret"),file=text.includes("file")||text.includes("grant-root");
+      const itemId=id+"-tool",requestId="workflow-"+id;
+      const item=file?{type:"fileChange",id:itemId,status:"inProgress",changes:[{path:join(t.cwd,"tracked.txt"),kind:{type:"update",move_path:null},diff:"--- a/tracked.txt\n+++ b/tracked.txt\n@@ -1 +1 @@\n-old\n+synthetic change\n"}]}:input?{type:"plan",id:itemId,text:"等待合成补充输入"}:{type:"commandExecution",id:itemId,pluginId:null,scriptPath:null,command:"printf 'synthetic workflow'",cwd:t.cwd,processId:null,source:"agent",status:"inProgress",commandActions:[],aggregatedOutput:null,exitCode:null,durationMs:null};
+      v.items.push(item);const params={threadId:t.id,turnId:id,itemId,startedAtMs:1000};
+      const request=input?{id:requestId,method:"item/tool/requestUserInput",params:{threadId:t.id,turnId:id,itemId,isBlocking:!text.includes("nonblocking"),autoResolutionMs:null,questions:[{id:"choice",header:"合成选择",question:"选择处理方式",isOther:true,isSecret:text.includes("secret"),options:[{label:"先审查",description:"只核对"},{label:"稍后处理",description:"保留任务"}]},{id:"note",header:"合成说明",question:"写一句补充",isOther:false,isSecret:false,options:null}]}}:{id:requestId,method:file?"item/fileChange/requestApproval":"item/commandExecution/requestApproval",params:file?{...params,reason:"仅合成补丁，未写文件",grantRoot:text.includes("grant-root")?t.cwd:null}:{...params,kind:text.includes("stdin")?"writeStdin":"command",environmentId:null,command:item.command,cwd:t.cwd,reason:"仅合成命令，未执行",...(text.includes("stdin")?{approvalId:"synthetic-stdin"}:{})}};
+      workflowReplies.set(requestId,response=>{if(v.status!=="inProgress")return;workflowReplies.delete(requestId);setTimeout(()=>{notify("serverRequest/resolved",{threadId:t.id,requestId});if(!input){item.status=response.result?.decision==="accept"?"completed":"declined";if(item.type==="commandExecution"){item.aggregatedOutput="SYNTHETIC ONLY — no command executed";item.exitCode=null;}notify("item/completed",{threadId:t.id,turnId:id,completedAtMs:1000,item});}a.text="合成工具交互已结束。";notify("item/completed",{threadId:t.id,turnId:id,completedAtMs:1000,item:a});finish(t,v,response.result?.decision==="cancel"?"interrupted":"completed");},60);});
+      setTimeout(()=>{if(v.status!=="inProgress")return;notify("item/started",{threadId:t.id,turnId:id,startedAtMs:1000,item});send(request);if(text.includes("duplicate"))send(request);if(text.includes("expired")){notify("serverRequest/resolved",{threadId:t.id,requestId});send(request);}if(text.includes("disconnect"))setTimeout(()=>process.exit(0),80);},60);return;
+    }
     let chunks=["离线协议","流式验证","已完成。"],count=0;
     v.timer=setInterval(()=>{
       if(v.status!=="inProgress") return;

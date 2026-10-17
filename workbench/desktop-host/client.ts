@@ -51,6 +51,7 @@ export interface WorkbenchClient {
   readThread(params: ThreadReadParams): Promise<ThreadReadResponse>;
   listTurns(params: ThreadTurnsListParams): Promise<ThreadTurnsListResponse>;
   listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse>;
+  respondUserInput?(handle:ApprovalHandle,answers:import("../protocol-adapter/session.ts").UserInputAnswers):void;
   respondApproval(handle: ApprovalHandle, decision: ApprovalDecision): void;
   acknowledgeRecovery(): void;
 }

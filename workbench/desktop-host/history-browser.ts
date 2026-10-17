@@ -3,7 +3,7 @@ import { HostOperationError } from "./client.ts";
 import { FullTurnsWindow } from "../domain/full-turns-window.ts";
 import type { DemoMessage } from "./demo-controller.ts";
 export type HistoryRow = { id: string; title: string };
-export type HistoryBrowserView = { forkTurns: {id:string;messageId:string}[]; archived: boolean; rows: HistoryRow[]; managedRows: HistoryRow[]; selectedId: string | null; title: string; messages: DemoMessage[]; turnCount: number; moreThreads: boolean; moreTurns: boolean; loading: boolean; inflight: boolean; listStale: boolean; stale: boolean; notice: string };
+export type HistoryBrowserView = { tools:import("../domain/tool-workflow.ts").ToolCard[]; forkTurns: {id:string;messageId:string}[]; archived: boolean; rows: HistoryRow[]; managedRows: HistoryRow[]; selectedId: string | null; title: string; messages: DemoMessage[]; turnCount: number; moreThreads: boolean; moreTurns: boolean; loading: boolean; inflight: boolean; listStale: boolean; stale: boolean; notice: string };
 /** Persisted archived/unarchived sessions. Browsing never resumes execution. */
 export class HistoryBrowser {
   #client: WorkbenchClient; #unsubscribe: () => void; #listeners = new Set<() => void>(); #disposed = false;
@@ -29,7 +29,7 @@ export class HistoryBrowser {
   cancel(): void { this.#listIntent++; this.#readIntent++; this.#listBusy = false; this.#readBusy = false; this.#publish(); }
   snapshot(): HistoryBrowserView {
     const snapshot = this.#selected ? this.#windows.get(this.#selected)?.snapshot() : null;
-    return { forkTurns:snapshot?.forkTurns??[], archived:this.#archived, rows: structuredClone(this.#rows), managedRows:this.#managed.filter(row=>row.archived===this.#archived&&!this.#rows.some(native=>native.id===row.id)).map(row=>({id:row.id,title:row.title})), selectedId: this.#selected, title: this.#rows.find(row => row.id === this.#selected)?.title ?? this.#selectedRow?.title ?? (this.#archived ? "归档历史会话" : "未归档历史会话"), messages: snapshot?.messages ?? [], turnCount: snapshot?.turnCount ?? 0,
+    return { tools:snapshot?.tools??[],forkTurns:snapshot?.forkTurns??[], archived:this.#archived, rows: structuredClone(this.#rows), managedRows:this.#managed.filter(row=>row.archived===this.#archived&&!this.#rows.some(native=>native.id===row.id)).map(row=>({id:row.id,title:row.title})), selectedId: this.#selected, title: this.#rows.find(row => row.id === this.#selected)?.title ?? this.#selectedRow?.title ?? (this.#archived ? "归档历史会话" : "未归档历史会话"), messages: snapshot?.messages ?? [], turnCount: snapshot?.turnCount ?? 0,
       moreThreads: !this.#listLimited && this.#listCursor !== null, moreTurns: snapshot?.hasMore ?? false, loading: this.#listBusy || this.#readBusy, inflight: this.#inflight > 0, listStale: this.#listStale, stale: this.#client.getView().state !== "ready" || (snapshot?.stale ?? this.#listStale), notice: this.#notice };
   }
   #ready(): void { if (this.#disposed || this.#client.getView().state !== "ready") throw new Error("history-offline"); if (this.#inflight >= 4) throw new Error("history-read-budget"); }

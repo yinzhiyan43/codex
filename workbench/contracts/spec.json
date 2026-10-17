@@ -65,7 +65,9 @@
     "sectionMoveParams": "v2/ThreadSectionMoveParams.json",
     "sectionMoveResult": "v2/ThreadSectionMoveResponse.json",
     "sectionsUpdateParams": "v2/ThreadSectionUpdateParams.json",
-    "sectionsUpdateResult": "v2/ThreadSectionUpdateResponse.json"
+    "sectionsUpdateResult": "v2/ThreadSectionUpdateResponse.json",
+    "userInputParams": "ToolRequestUserInputParams.json",
+    "userInputResult": "ToolRequestUserInputResponse.json"
   },
   "requests": {
     "thread/read": {
@@ -186,6 +188,10 @@
     "item/fileChange/requestApproval": {
       "params": "fileApprovalParams",
       "result": "fileApprovalResult"
+    },
+    "item/tool/requestUserInput": {
+      "params": "userInputParams",
+      "result": "userInputResult"
     }
   },
   "experimental": {

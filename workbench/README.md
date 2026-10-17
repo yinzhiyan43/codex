@@ -1,4 +1,4 @@
-# Workbench protocol, host and desktop — through M3.a repository context
+# Workbench protocol, host and desktop — through M3.b tool workflow interactions
 
 This package contains a local protocol engine, a stdio process host and an Electron desktop shell with restricted IPC. Default npm test checks are offline and launch only synthetic Node peers; they do not launch Codex, access credentials, open user files, use the network, or start a model turn. A trusted main process can supply a validated Codex launcher. An explicit isolated mode has now verified the installed official 0.162.1 binary for handshake, read errors and lifecycle; it does not log in or send model requests. See [the M1.b report](../docs/workbench/transport-milestone.md), [the M1.c desktop report](../docs/workbench/desktop-milestone.md), and [the M1.d pagination/approval report](../docs/workbench/pagination-milestone.md), plus [the M1.e real connection report](../docs/workbench/core-connection-milestone.md).
 
@@ -187,3 +187,13 @@ Main and fixed-session windows offer an explicit native folder picker, a bounded
 The local broker opens each path component relative to the granted root with openat/O_NOFOLLOW. Listings stop at200 entries, UTF-8 text at256 KiB, and helper processes at4 seconds/512 KiB output with4 total in flight. Fixed system Git runs under a macOS sandbox with network, writes and other executables denied; external diff/textconv/fsmonitor/hooks are disabled. Unsupported Git layouts fail closed. This is a local folder grant, not the experimental official project service. No editing, terminal, automatic scan, arbitrary RPC or tool execution is added.
 
 Node26, installed dependencies and Xcode command-line tools are required to build the native helper; nothing is installed automatically. Run `npm run desktop:repository:smoke -- /absolute/private/output` for temporary synthetic-root checks. See [the report](../docs/workbench/repository-context-milestone.md), [machine results](../docs/workbench/repository-context-results.json) and [daily use](../docs/workbench/daily-use.md). The original92 goals retain their IDs and remaining scope. Local commit only; no push, real model request or shared configuration change.
+
+## Tool activity, one-shot approvals and supplemental input — M3.b
+
+Main and fixed windows show bounded tool/plan/reasoning-summary activity and canonical pending requests. Replies bind the actual sender, thread, turn, generation and opaque request key. Observers cannot answer; after the execution window closes, explicit same-session takeover grants only this turn's request handling. Duplicate, resolved, terminal and disconnected requests cannot be replayed. Submitted forms are cleared without being added to the private session store or logs.
+
+Input uses the pinned official question schema: single choice plus `user_note`, free text, explicit skip, and exact-turn stop. Empty answers mean skip and may let the model continue; stop uses interrupt. Secret values are not collected. Required answers are a product rule, not a claim about the upstream schema. The official core may retain ordinary submitted answers.
+
+Production stays text-only with tool features disabled, read-only sandbox and approvalPolicy=never. Accept is blocked in real sessions; only the offline fake peer exercises approval success. No terminal, arbitrary execution, persistent grants or new real coding mode is enabled. A future independent coding mode needs explicit scope and sandbox/feature validation. MCP/dynamic execution and permission grants remain unsupported.
+
+Run `npm run desktop:workflow:smoke -- /absolute/private/output`. See [the report](../docs/workbench/tool-workflow-milestone.md), [machine evidence](../docs/workbench/tool-workflow-results.json), and [daily use](../docs/workbench/daily-use.md). This milestone is a protocol/UI workflow foundation, not acceptance of real coding execution.

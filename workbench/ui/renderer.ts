@@ -1,3 +1,4 @@
+import {setupToolWorkflow} from "./tool-workflow.ts";
 import {setupRepository} from "./repository.ts";
 import {DraftEditor} from "./draft-editor.ts";
 import {setupClose,type CloseBridge} from "./close-ui.ts";
@@ -15,6 +16,7 @@ installInteractions();
 let view: DesktopView | null = null; let version = -1; let routeKey = ""; let draftTimer: ReturnType<typeof setTimeout> | null = null;
 let inputSequence = 0;
 const draftEditor=new DraftEditor(draft,el("editor-status"),command=>window.workbench.dispatch(command),render);
+const workflowUI=setupToolWorkflow(el("tool-workflow"),command=>window.workbench.dispatch(command),render);
 const repositoryUI=setupRepository(el("repository-panel"),command=>window.workbench.dispatch(command),render,flushDraft);
 setupClose(window.workbench.close,flushDraft,()=>window.workbench.snapshot(),el("close-status"));
 const dialog = el<HTMLDialogElement>("confirm-dialog");
@@ -24,6 +26,7 @@ let settings: ReturnType<typeof setupSettings> | null = null;
 const updateSidebar = () => { if (view) renderSidebar(view, view.mode === "synthetic" ? view.search : localFilter, id => settings?.collapsed(id) ?? false, settings?.canUpdate() ?? false); };
 function render(next: DesktopView): void {
   if (next.version < version) return;
+  workflowUI.render(next.workflow);
   repositoryUI.render(next.mode==="official-chat"&&!next.chatStatus?.historyMode?next.repository:undefined);
   version = next.version; view = next;
   const key = next.route.threadId ?? next.route.projectId;

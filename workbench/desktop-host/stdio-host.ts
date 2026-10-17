@@ -70,6 +70,7 @@ export class StdioWorkbenchHost implements WorkbenchClient {
       readThreadMetadata: (params: Pick<ThreadReadParams, "threadId">) => this.readThreadMetadata(params),
       readThread: (params: ThreadReadParams) => this.readThread(params),
       listTurns: (params: ThreadTurnsListParams) => this.listTurns(params), listItems: (params: ThreadItemsListParams) => this.listItems(params),
+      respondUserInput:(handle:ApprovalHandle,answers:import("../protocol-adapter/session.ts").UserInputAnswers)=>this.respondUserInput(handle,answers),
       respondApproval: (handle: ApprovalHandle, decision: ApprovalDecision) => this.respondApproval(handle, decision),
       acknowledgeRecovery: () => this.acknowledgeRecovery() });
   }
@@ -388,6 +389,10 @@ export class StdioWorkbenchHost implements WorkbenchClient {
   async listItems(params: ThreadItemsListParams): Promise<ThreadItemsListResponse> {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");
     try { const result = this.#session.listItems(params); this.#pump(this.#context); return await result; } catch (error) { throw this.#error(error); }
+  }
+  respondUserInput(handle:ApprovalHandle,answers:import("../protocol-adapter/session.ts").UserInputAnswers):void{
+    if(this.#state!=="ready"||!this.#context||this.#disposeRequested)throw new HostOperationError("not-ready");
+    try{this.#session.respondUserInput(handle,answers);this.#pump(this.#context);}catch(error){throw this.#error(error);}
   }
   respondApproval(handle: ApprovalHandle, decision: ApprovalDecision): void {
     if (this.#state !== "ready" || !this.#context || this.#disposeRequested) throw new HostOperationError("not-ready");

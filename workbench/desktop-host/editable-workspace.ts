@@ -1,3 +1,4 @@
+import {ToolWorkflow,type WorkflowAccess} from "../domain/tool-workflow.ts";
 import {fileURLToPath} from "node:url";
 import {RepositoryReader} from "./repository-reader.ts";
 import {RepositoryPanels} from "./repository-panels.ts";
@@ -9,16 +10,17 @@ import type {DesktopView} from "./demo-controller.ts";
 import type {SessionStore} from "./session-store.ts";
 import type {WorkbenchClient} from "./client.ts";
 type Entry={id:string;source:PreviewSource;preview:SessionPreview;runtime?:OfficialChatController;off:()=>void;runtimeOff?:()=>void;attaching:boolean;closed:boolean;closing:boolean};
-type Gate={key:string;owner:string;runtime:OfficialChatController;inflight:number;finishing:boolean;unknown:boolean};
+type Gate={key:string;owner:string;reviewer?:string;runtime:OfficialChatController;inflight:number;finishing:boolean;unknown:boolean};
 const mutations=new Set(["copySession","forkSession","archiveSession","unarchiveSession","renameSession","assignProject","renameProject","renameSection","createSection","assignSection"]);
 /** One process owns all leases, durable writes, execution admission and borrowed runtimes. */
 export class EditableWorkspace {
+  #workflow:ToolWorkflow;
   #reader:RepositoryReader;#panels:RepositoryPanels;
   #client:WorkbenchClient;#cwd:string;#offline:boolean;#store:SessionStore;#leases:DraftLeases;
   #main:OfficialChatController;#mainKey="";#suppressed=new Set<string>();#entries=new Map<string,Entry>();#retired=new Map<string,Entry>();
   #gate:Gate|null=null;#version=0;#listeners=new Map<string,Set<()=>void>>();#notices=new Map<string,string>();#off:()=>void;#storeOff:()=>void;#disposed=false;
   constructor(client:WorkbenchClient,cwd:string,offline:boolean,store:SessionStore,copy:((text:string)=>void)|null=null,repositoryHelper=fileURLToPath(new URL("../.desktop/repository-reader",import.meta.url))){
-    this.#reader=new RepositoryReader(repositoryHelper);this.#panels=new RepositoryPanels(repositoryHelper,()=>this.#publish());
+    this.#workflow=new ToolWorkflow(client);this.#reader=new RepositoryReader(repositoryHelper);this.#panels=new RepositoryPanels(repositoryHelper,()=>this.#publish());
     this.#client=client;this.#cwd=cwd;this.#offline=offline;this.#store=store;this.#leases=new DraftLeases(store);
     this.#main=new OfficialChatController(client,cwd,offline,15000,store,copy,{validateDirectory:root=>this.#reader.check(root),canWriteDraft:key=>this.#mainWriteAllowed(key)});
     this.#off=this.#main.subscribe(()=>{this.#syncSources();this.#reconcile();this.#publish();});
@@ -61,10 +63,13 @@ export class EditableWorkspace {
     const draft=same&&active.running?active.draft:state.text;
     const binding=key==="official-chat"?this.#store.snapshot().freshRoot:this.#store.find(key)?.root??null;
     const repository=this.#panels.snapshot(owner,key,binding,!browsing&&!this.#gate&&!view.loading&&!view.running&&!view.pending&&!entry?.closing&&(key!=="official-chat"||own));
-    const common={...view,repository,version:this.#version,draft,editor:{key,revision:state.revision,lease:own?state.token:null,owner:own?"self"as const:state.owner?"other"as const:"none"as const,notice,canEdit,canSend,deliveryPending:!!delivery&&(owner==="main"||delivery.key===key),execution:this.#gate?(this.#gate.unknown?"unknown":this.#gate.key):null}};
+    const workflow={...this.#workflow.snapshot(this.#workflowAccess(owner,key,browsing),view.toolActivity),canClaim:this.#canClaimWorkflow(owner,key,browsing)};
+    const common={...view,workflow,repository,version:this.#version,draft,editor:{key,revision:state.revision,lease:own?state.token:null,owner:own?"self"as const:state.owner?"other"as const:"none"as const,notice,canEdit,canSend,deliveryPending:!!delivery&&(owner==="main"||delivery.key===key),execution:this.#gate?(this.#gate.unknown?"unknown":this.#gate.key):null}};
     if(!entry)return common;
     return {...common,title:entry.source.title,projects:[{id:"preview",name:"会话副窗口",threads:[{id:entry.id,title:entry.source.title}]}],route:{projectId:"preview",threadId:entry.id},coreStatus:undefined,managedSessions:undefined,sessionSearch:undefined,sessionSections:undefined,sectionOrder:undefined,copyAvailable:false,sessionPreview:{id:entry.id,archived:entry.source.archived,archiveUncertain:!!entry.source.archiveUncertain,notice},pending:state.owner===owner?view.pending:null};
   }
+  #canClaimWorkflow(owner:string,key:string,browsing=false):boolean{const gate=this.#gate,target=gate?.runtime.workflowTarget(),reviewer=gate?.reviewer??gate?.owner;return !browsing&&!this.#disposed&&!!gate&&!gate.unknown&&!!reviewer&&reviewer!=="main"&&!this.#entries.has(reviewer)&&target?.threadId===key&&!!target.turnId&&target.generation===this.#client.getView().generation&&this.#client.getView().state==="ready"&&(owner==="main"||this.#entries.has(owner));}
+  #workflowAccess(owner:string,key:string,browsing=false):WorkflowAccess{const gate=this.#gate,target=gate?.runtime.workflowTarget();return {threadId:key==="official-chat"?null:key,turnId:target?.threadId===key?target.turnId:null,generation:this.#client.getView().generation,root:this.#store.find(key)?.root??null,synthetic:this.#offline,canRespond:!browsing&&!this.#disposed&&(owner==="main"||!!this.#entries.get(owner)&&!this.#entries.get(owner)!.closing)&&!!gate&&!gate.unknown&&target?.threadId===key&&target.generation===this.#client.getView().generation&&(gate.reviewer??gate.owner)===owner};}
   previewSource(id:string):PreviewSource{return this.#main.previewSource(id);}
   searchPreviewSource(id:string):PreviewSource{return this.#main.searchPreviewSource(id);}
   registerPreview(owner:string,source:PreviewSource,budget:PreviewReadBudget):EditableSessionSurface{
@@ -102,10 +107,12 @@ export class EditableWorkspace {
   async dispatch(value:unknown):Promise<DesktopView>{return this.dispatchOwner("main",value);}
   async dispatchOwner(owner:string,value:unknown):Promise<DesktopView>{
     if(this.#disposed)throw new Error("workspace-unavailable");const command=validateDesktopCommand(value),entry=this.#entries.get(owner);if(entry?.closing)throw new Error("window-closing");if(owner!=="main"&&!entry)throw new Error("unknown-window");
-    if(entry&&!['claimEditor','releaseEditor','editDraft','submit','confirm','cancel','refreshHistory','history','cancelHistory','clearError','retryPersistence','repoList','repoFile','repoStatus','repoDiff','repoCancel'].includes(command.type))throw new Error("fixed-session-command-rejected");
+    if(entry&&!['claimEditor','releaseEditor','editDraft','submit','confirm','cancel','refreshHistory','history','cancelHistory','clearError','retryPersistence','claimWorkflow','workflowReply','repoList','repoFile','repoStatus','repoDiff','repoCancel'].includes(command.type))throw new Error("fixed-session-command-rejected");
     this.#syncMain();const key=entry?.id??this.#key(),state=this.#leases.state(key);
     try{
-      if(command.type==="repoList"||command.type==="repoFile"||command.type==="repoStatus"||command.type==="repoDiff"||command.type==="repoCancel"){this.snapshotOwner(owner);await this.#panels.dispatch(owner,command);}
+      if(command.type==="claimWorkflow"){if(!this.#canClaimWorkflow(owner,key,!!this.snapshotOwner(owner).chatStatus?.historyMode))throw new Error("workflow-claim-unavailable");this.#gate!.reviewer=owner;}
+      else if(command.type==="workflowReply"){const access=this.#workflowAccess(owner,key,!!this.snapshotOwner(owner).chatStatus?.historyMode);if(command.action==="accept"){if(!this.#offline)throw new Error("workflow-approval-not-allowed");if(!access.root)throw new Error("workflow-root-required");await this.#reader.check(access.root);}const stop=this.#workflow.reply(command,this.#workflowAccess(owner,key,!!this.snapshotOwner(owner).chatStatus?.historyMode));if(stop==="stop"){this.#publish();await this.#gate!.runtime.dispatch({type:"cancel"});}}
+      else if(command.type==="repoList"||command.type==="repoFile"||command.type==="repoStatus"||command.type==="repoDiff"||command.type==="repoCancel"){this.snapshotOwner(owner);await this.#panels.dispatch(owner,command);}
       else if(command.type==="chooseDirectory")throw new Error("native-directory-picker-required");
       else if(command.type==="retryPersistence"){
         const runtime=owner==="main"?this.#main:entry?.runtime;if(runtime)await runtime.flushDraftState();

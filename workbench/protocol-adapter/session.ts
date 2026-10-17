@@ -9,6 +9,7 @@ import type { InitializeResponse, ThreadReadParams, ThreadReadResponse, ThreadTu
 import { Projection } from "./projection.ts";
 import { createHash } from "node:crypto";
 
+export type UserInputAnswers = Record<string,{answers:string[]}>;
 export type RequestId = string | number;
 export type ConnectionState = "stopped" | "initializing" | "ready" | "disconnected" | "failed";
 export type ApprovalDecision = "accept" | "decline" | "cancel";
@@ -387,6 +388,8 @@ export class ProtocolSession {
       this.#event({ type: "approval-resolved", id });
     } else {
       const applied = this.#projection.apply(method, values);
+      if(method==="turn/completed")for(const entry of this.#server.values()){const view=entry.view;if(view&&view.threadId===values.threadId&&view.params.turnId===(values.turn as TurnStartResponse["turn"]).id&&view.status!=="resolved"){this.#dropQueued(view.id,"response");view.status="resolved";view.params={};this.#refreshServerBytes(view.id,entry);}}
+
       this.#event({ type: applied ? "notification" : "notification-obsolete", method });
     }
   }
@@ -422,16 +425,32 @@ export class ProtocolSession {
     const values = params as Record<string, unknown>;
     // These fields are gated in 0.162.1; this client does not opt into them.
     if (own(values, "additionalPermissions") || own(values, "availableDecisions")) throw new Error("Unexpected experimental approval field");
+    if(method==="item/tool/requestUserInput"){
+      const questions=values.questions as {id:string;header:string;question:string;options:{label:string;description:string}[]|null}[];
+      if(questions.length<1||questions.length>3||new Set(questions.map(q=>q.id)).size!==questions.length||questions.some(q=>! /^[a-zA-Z0-9_-]{1,64}$/.test(q.id)||["__proto__","constructor","prototype"].includes(q.id)||q.header.length>80||q.question.length>2000||q.options!==null&&(q.options.length<1||q.options.length>8||new Set(q.options.map(o=>o.label)).size!==q.options.length||q.options.some(o=>!o.label.trim()||o.label.length>160||o.description.length>500))))throw new Error("Unbounded user input request");
+    }
     const view: ApprovalView = { epoch: this.#epoch, id, threadId: values.threadId as string, method,
       params: structuredClone(values), status: "pending" };
+    const projected=this.#projection.snapshot().find(t=>t.id===view.threadId),ended=projected&&!projected.stale&&projected.turns.some(t=>!t.stale&&t.id===values.turnId&&t.status!=="inProgress");
+    if(ended){view.status="resolved";this.#storeServer(id,{signature,view,threadId:view.threadId});this.#enqueue({id,error:{code:-32800,message:"Request turn already ended"}});this.#event({type:"approval-resolved",id});return;}
     this.#reserveRecovery(view);
     this.#storeServer(id, { signature, view, threadId: view.threadId });
     this.#event({ type: "approval-pending", method, id });
   }
+  respondUserInput(handle:ApprovalHandle,answers:UserInputAnswers):void{
+    if(this.#state!=="ready"||handle.epoch!==this.#epoch)throw new ProtocolSessionError("stale-user-input");
+    const entry=this.#server.get(key(handle.id)),view=entry?.view;
+    if(!view||view.method!=="item/tool/requestUserInput"||view.threadId!==handle.threadId||view.status!=="pending")throw new ProtocolSessionError("user-input-not-pending");
+    const questions=view.params.questions as {id:string;isOther:boolean;isSecret:boolean;options:{label:string}[]|null}[];
+    if(!object(answers)||Object.keys(answers).some(id=>!questions.some(q=>q.id===id)))throw new ProtocolSessionError("invalid-user-input-answer");
+    const skip=Object.keys(answers).length===0;
+    if(!skip&&(questions.length!==Object.keys(answers).length||questions.some(q=>{const a=answers[q.id];if(q.isSecret||!a||Object.keys(a).join()!=="answers"||!Array.isArray(a.answers)||a.answers.length<1||a.answers.length>2||a.answers.some(v=>typeof v!=="string"||v.length>1011||v.includes("\0")))return true;const note=(v:string|undefined)=>!!v&&v.startsWith("user_note: ")&&!!v.slice(11).trim();return q.options?!(q.options.some(o=>o.label===a.answers[0])||q.isOther&&a.answers[0]==="None of the above"&&note(a.answers[1]))||a.answers.length===2&&!note(a.answers[1]):a.answers.length!==1||!note(a.answers[0]);})||Buffer.byteLength(JSON.stringify(answers))>16000))throw new ProtocolSessionError("invalid-user-input-answer");
+    const result={answers};validate(manifest.serverRequests[view.method]!.result,result);this.#enqueue({id:handle.id,result});view.status="responded";this.#refreshServerBytes(handle.id,entry!);this.#event({type:"approval-responded",id:handle.id});
+  }
   respondApproval(handle: ApprovalHandle, decision: ApprovalDecision): void {
     if (this.#state !== "ready" || handle.epoch !== this.#epoch) throw new ProtocolSessionError("stale-approval");
     const view = this.#server.get(key(handle.id))?.view;
-    if (!view || view.threadId !== handle.threadId || view.status !== "pending") throw new ProtocolSessionError("approval-not-pending");
+    if (!view || view.method==="item/tool/requestUserInput" || view.threadId !== handle.threadId || view.status !== "pending") throw new ProtocolSessionError("approval-not-pending");
     if (decision !== "accept" && decision !== "decline" && decision !== "cancel") throw new ProtocolSessionError("unsupported-approval-decision");
     const result = { decision };
     validate(manifest.serverRequests[view.method]!.result, result);

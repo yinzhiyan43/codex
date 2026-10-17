@@ -1,6 +1,7 @@
+import {toolCards,type ToolCard} from "./tool-workflow.ts";
 import type { ThreadTurnsListResponse, Turn } from "../protocol-adapter/contracts.ts";
 import type { DemoMessage } from "../desktop-host/demo-controller.ts";
-type SavedTurn = { id: string; status: Turn["status"]; messages: DemoMessage[] };
+type SavedTurn = { id: string; status: Turn["status"]; messages: DemoMessage[];tools:ToolCard[] };
 /** Consumes actual descending server pages with full items. Never slices a full transcript into fake pages. */
 export class FullTurnsWindow {
   #threadId: string; #turns = new Map<string, SavedTurn>(); #order: string[] = [];
@@ -27,7 +28,7 @@ export class FullTurnsWindow {
         if (item.type === "agentMessage") messages.set(id, { id, role: "assistant", text: item.text, status: turn.status === "inProgress" ? "unknown" : turn.status === "interrupted" ? "cancelled" : turn.status });
       }
       const previous = turns.get(turn.id);
-      if (!previous || previous.status === "inProgress" || turn.status !== "inProgress") turns.set(turn.id, { id: turn.id, status: turn.status, messages: [...messages.values()] });
+      if (!previous || previous.status === "inProgress" || turn.status !== "inProgress") turns.set(turn.id, { id: turn.id, status: turn.status, messages: [...messages.values()],tools:toolCards(this.#threadId,[{...turn,items:turn.items.map(value=>({value}))}]) });
     }
     const oldOrder = this.#started ? this.#order : [];
     const order = [...pageOrder.filter(id => !oldOrder.includes(id)), ...oldOrder];
@@ -36,5 +37,5 @@ export class FullTurnsWindow {
     this.#turns = turns; this.#order = order; this.#cursor = page.nextCursor; this.#seen.add(requestKey); this.#started = true; this.#stale = false; this.#limited = page.nextCursor !== null && (turns.size >= 256 || this.#seen.size >= 64 || normalizedBytes >= 2 * 1024 * 1024);
   }
   limited(): boolean { return this.#limited; }
-  snapshot() { return { forkTurns:this.#stale?[]:this.#order.flatMap(id=>{const turn=this.#turns.get(id)!;const message=turn.messages.at(-1);return turn.status!=="inProgress"&&message?[{id,messageId:message.id}]:[];}), turnIds:[...this.#order], messages: this.#order.flatMap(id => this.#turns.get(id)!.messages.map(message => ({ ...message, stale: this.#stale }))), turnCount: this.#turns.size, hasMore: this.hasMore(), stale: this.#stale }; }
+  snapshot() { return { tools:this.#order.flatMap(id=>this.#turns.get(id)!.tools.map(c=>({...c,status:this.#stale?"缓存待核对":c.status}))),forkTurns:this.#stale?[]:this.#order.flatMap(id=>{const turn=this.#turns.get(id)!;const message=turn.messages.at(-1);return turn.status!=="inProgress"&&message?[{id,messageId:message.id}]:[];}), turnIds:[...this.#order], messages: this.#order.flatMap(id => this.#turns.get(id)!.messages.map(message => ({ ...message, stale: this.#stale }))), turnCount: this.#turns.size, hasMore: this.hasMore(), stale: this.#stale }; }
 }
