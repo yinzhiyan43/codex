@@ -95,3 +95,7 @@ M3.b结果见[工具工作流报告](tool-workflow-milestone.md)和[机器结果
 “生成隔离工作区计划”先核对当前审阅版本，再显示固定HEAD、来源会话/根、detached模式和建议目录名。目标父目录尚未选择，计划尚未创建任何目录，当前会话cwd及草稿保持。计划不复制暂存/未暂存/未跟踪/忽略文件，并提示Git元数据共享，不能当作安全沙箱。本轮创建、绑定、清理、归档和恢复均未开放；没有可执行的清理按钮。Git普通worktree remove可能删除忽略文件，未来实现必须单独保护内容并显式确认，不能仅依赖不加force。
 
 重启/切换清除内存快照及计划，不保存补丁或自动重放worktree操作。可用`npm run desktop:review:smoke -- /absolute/private/output`验证新合成根的界面。详见[本轮报告](change-review-milestone.md)与[机器证据](change-review-results.json)。真实模型审查、生产隔离及编码执行均未在本轮开放。
+
+## 编码准备层（M3.d0）
+
+当前界面没有可执行编码模式入口，默认纯文本保持。新增模块只在内存核对合成配置/线程/轮次，恒canExecute=false，不能通过验证标志解锁。开发验证用`npm run coding:simulation:check`；该命令有意排除含原生仓库/worktree测试的全量npm test/check及所有UI。191项纯模拟通过不代表操作系统隔离通过。见[报告](coding-preparation-milestone.md)；原生无模型探针、真实编码和推送仍需各自明确授权，未开始。

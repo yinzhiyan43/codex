@@ -142,3 +142,5 @@ M3.a基于本地256db6173实现显式目录授权、持久cwd/设备/inode绑定
 M3.b基于02eaee06f增加工具/计划/推理摘要的有界状态展示、固定官方问题schema、一次性审批与输入回包。仅离线假服务可验收accept；真实纯文本工具守卫/never/readOnly保持。skip空答不等于取消，stop精确interrupt；秘密输入不收集，MCP/动态执行/权限扩展仍unsupported。窗口/会话/轮次/代次和唯一请求键阻止串线，关窗后明确接管只影响本轮请求，不抢草稿权。独立真实编码模式、工具feature和写沙箱是后续具体授权/验收动作，本轮未启用。见[范围方案](tool-workflow-plan.md)与[阶段报告](tool-workflow-milestone.md)。原92目标及未完成范围保留，仅本地提交。
 
 M3.c1基于90c62a59f交付有界本地变更审阅快照、旧/新行号、显式核对与过期句柄撤销，以及只在内存生成的固定HEAD隔离计划。产品Git沙箱仍只读，无worktree创建/清理IPC；实际生命周期只在全新可丢弃夹具测试。普通remove会删除忽略文件，生产清理需另行内容保护/确认/恢复与竞态设计，不复用测试preflight冒称原子安全。见[方案](change-review-plan.md)和[报告](change-review-milestone.md)。原92ID及未完成范围保持，仅本地提交。
+
+M3.d0基于940e092b9增加独立不可执行编码准备层，固定源码实验契约子集、精确配置白名单、owner/root/thread/turn/generation绑定及未知结果锁仅供模拟。191项精选纯协议/假服务回归（新增23）与独立复审通过；没有生产入口/原生探针/真实模型/GUI。本地提交不纳入此前固定止于940e092b9的待批准推送范围。原生隔离须另行授权并验证，详见[报告](coding-preparation-milestone.md)。原92ID及通过标准保留。

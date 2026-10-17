@@ -1,0 +1,48 @@
+{
+  "coreCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d",
+  "purpose": "coding-preparation-simulation-only",
+  "liveTransportEnabled": false,
+  "nativeValidationAuthorized": false,
+  "sourceSubsetsAreBinaryGenerated": false,
+  "entries": {
+    "PermissionProfileListParams": {
+      "path": "contracts/coding/PermissionProfileListParams.json",
+      "source": "codex-rs/app-server-protocol/schema/json/v2/PermissionProfileListParams.json",
+      "sha256": "576d405f6c94cbde982a9f65c9301717043683b83ca35d564247907feb16b1b4",
+      "kind": "verbatim-pinned-export"
+    },
+    "PermissionProfileListResponse": {
+      "path": "contracts/coding/PermissionProfileListResponse.json",
+      "source": "codex-rs/app-server-protocol/schema/json/v2/PermissionProfileListResponse.json",
+      "sha256": "4a290b5b9d47c2fc671033e22754671161bc563027ba387e861bd935398f0def",
+      "kind": "verbatim-pinned-export"
+    },
+    "sourceSubsets": {
+      "path": "contracts/coding/source-subsets.json",
+      "sha256": "4887463a7b5123bc1625549879008e70e34ec5d1d134698615a4da2871658c0c",
+      "kind": "workbench-source-derived-subset-not-generated"
+    }
+  },
+  "sources": {
+    "codex-rs/app-server-protocol/src/protocol/v2/thread.rs": "553d99d01eed0c7a9073f481938f7dd68ef633879be0e1ffd8373778c937b158",
+    "codex-rs/app-server-protocol/src/protocol/v2/turn.rs": "eb1a99cc72a65af84f933073881bfc0440288fb629de7ec92b7c1b50d3530779",
+    "codex-rs/app-server-protocol/src/protocol/v2/permissions.rs": "fb60ae2f9babce22ca326b457c22b41e6fa24f71ad05429a8921074cc0ca5598",
+    "codex-rs/app-server-protocol/schema/typescript/v2/ActivePermissionProfile.ts": "9d137fa5e3cdbd3392e9a6d373b45e50f2f2643662a735ac90c6f1103e0f97a7",
+    "codex-rs/core/src/config/permissions.rs": "cda9109f6a5405dbf2abbe7d53883b755419c5b6d0b3e7f5834c65710db3479a",
+    "codex-rs/protocol/src/shell_environment.rs": "158bdcedab562769d7bab4c5bfedefdf08c6c5379fe88d1c8836d1cd160099cf",
+    "codex-rs/config/src/shell_environment_policy.rs": "93a3c447504f940a266a50ecbb0467dcf08fd7e920f5434455c6e09fad2b25c5"
+  },
+  "experimentalFields": [
+    "thread/start.permissions",
+    "thread/start.runtimeWorkspaceRoots",
+    "thread/start.activePermissionProfile",
+    "turn/start.permissions",
+    "turn/start.runtimeWorkspaceRoots"
+  ],
+  "mutuallyExclusiveLegacyFields": [
+    "sandbox",
+    "sandboxPolicy"
+  ],
+  "defaultModeUnchanged": "text-only",
+  "pendingPushCutoff": "940e092b90708b8533bb56160d9b508c818adb1c"
+}

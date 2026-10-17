@@ -1,0 +1,90 @@
+{
+  "description": "Workbench-only SOURCE-DERIVED EXPERIMENTAL SUBSETS. Not binary-generated full schemas; not approved for live transport.",
+  "schemas": {
+    "profileSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permissions",
+        "runtimeWorkspaceRoots"
+      ],
+      "properties": {
+        "permissions": {
+          "type": "string",
+          "pattern": "^wb-coding-[a-f0-9]{24}$"
+        },
+        "runtimeWorkspaceRoots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        }
+      }
+    },
+    "activeProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "extends"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "extends": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        }
+      }
+    },
+    "profileProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activePermissionProfile",
+        "runtimeWorkspaceRoots"
+      ],
+      "properties": {
+        "activePermissionProfile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "extends"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "extends": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            }
+          }
+        },
+        "runtimeWorkspaceRoots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        }
+      }
+    }
+  }
+}

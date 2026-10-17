@@ -1,0 +1,125 @@
+{
+  "milestone": "M3.d0",
+  "date": "2026-10-17",
+  "baseline": "940e092b90708b8533bb56160d9b508c818adb1c",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "result": "simulation-only-preparation-passed-runtime-unvalidated",
+  "simulation": {
+    "command": "npm --prefix workbench run coding:simulation:check",
+    "selectedFiles": 15,
+    "total": 191,
+    "passed": 191,
+    "failed": 0,
+    "newPreparationTests": 23,
+    "existingSelectedTests": 168,
+    "typecheck": "passed",
+    "existingPinnedStableSchemas": 53,
+    "existingExperimentalSearchSchemas": 2,
+    "newVerbatimPinnedExports": 2,
+    "sourceDerivedExperimentalSubset": "passed; not binary-generated; not wire-validated",
+    "pinnedSourceHashes": 7,
+    "fullNpmTestOrCheckRun": false,
+    "previousMilestoneResultsReusedAsCurrentPasses": false
+  },
+  "mode": {
+    "default": "text-only",
+    "preparationMode": "coding-preparation",
+    "canExecute": false,
+    "transportWired": false,
+    "productionImportsAdded": false,
+    "productionIpcAdded": false,
+    "runtimeValidation": "awaiting-user-authorization",
+    "unknownRecoveryUnlockImplemented": false
+  },
+  "boundaries": {
+    "observationsOnly": true,
+    "exactConfigurationWhitelist": true,
+    "modelSettingsMutated": false,
+    "scope": [
+      "owner",
+      "generation",
+      "root-id-path-device-inode",
+      "thread",
+      "turn"
+    ],
+    "oneShotTickets": true,
+    "elevationDecision": "decline-classification-only; transmit=false",
+    "automaticReplay": false,
+    "disconnectBeforeAckRetainsUnknown": true,
+    "repeatedDisconnectRetainsUnknown": true,
+    "lateOldRequestCannotClearNewUnknown": true,
+    "diagnostics": "bounded fixed reason codes; no raw config, env, command, patch or answer"
+  },
+  "contractProvenance": {
+    "coreCommit": "092d3acd6bec3e3a14bdc7e7a2810ab628ab759d",
+    "manifest": "workbench/contracts/coding/manifest.json",
+    "nativeGeneratorRun": false,
+    "manualSubsetIsOfficialCompleteSchema": false,
+    "existingProtocolSessionExperimentalExecutionEnabled": false
+  },
+  "independentReview": {
+    "readOnly": true,
+    "confirmedRemainingP1P2": 0,
+    "fixedP2": [
+      "unreviewed top-level configuration accepted",
+      "late terminal-turn request cleared next pending turn unknown lock"
+    ],
+    "finalIncrementalReview": "valid-shape config and in-memory late-request replay confirmed both fixes",
+    "reviewerNativeOrModelRuns": 0
+  },
+  "actionsNotAttempted": [
+    {
+      "action": "Official core or native isolation probes",
+      "status": "not-attempted; authorization absent",
+      "reason": "Current scope is code and pure simulation only"
+    },
+    {
+      "action": "Real model coding/tool execution",
+      "status": "not-attempted; unavailable",
+      "reason": "No production integration or validated runtime"
+    },
+    {
+      "action": "Public push",
+      "status": "not-attempted; authorization absent",
+      "reason": "Existing pending range remains fixed through baseline; this commit excluded"
+    }
+  ],
+  "officialCoreRuns": 0,
+  "nativeIsolationProbes": 0,
+  "repositoryNativeHelperRuns": 0,
+  "actualGitWorktreeTests": 0,
+  "guiRuns": 0,
+  "realModelRequests": 0,
+  "realToolExecutions": 0,
+  "productionWorktreeMutations": 0,
+  "sharedConfigWrites": 0,
+  "pushPerformed": false,
+  "pendingPushCutoff": "940e092b90708b8533bb56160d9b508c818adb1c",
+  "newCommitIncludedInPendingPush": false,
+  "upstreamCoreChanged": false,
+  "mainChanged": false,
+  "logoChanged": false,
+  "licenseNoticeAndLockUnchanged": true,
+  "goalCountPreserved": 92,
+  "limitations": [
+    "No native filesystem/network/environment isolation proof",
+    "No actual configuration or trust-persistence write proof",
+    "System-runtime reads are not project-exclusive reads",
+    "Source-derived experimental subset is not full binary-generated schema",
+    "No executable mode, UI selector or general terminal",
+    "Real native isolation needs separate authorization before a bounded real model test",
+    "Original 92 goals remain open where not fully verified"
+  ],
+  "materialAudit": {
+    "textFiles": 20,
+    "allowedNamespaces": [
+      "workbench/",
+      "docs/workbench/"
+    ],
+    "originalGoalOrderAndCount": 92,
+    "privatePathAndCredentialPatternMatches": 0,
+    "productionEntrypointsUnchanged": true,
+    "mainAndRemoteTrackingUnchanged": true,
+    "rootLicenseNoticeAndDependencyLocksUnchanged": true
+  }
+}
