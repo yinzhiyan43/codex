@@ -1,0 +1,5 @@
+export type DirectoryBinding={id:string;path:string;device:string;inode:string};
+export const validDirectoryBinding=(v:unknown):v is DirectoryBinding=>{if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).sort().join(",")!=="device,id,inode,path")return false;const b=v as DirectoryBinding;return typeof b.id==="string"&&/^root-[a-f0-9]{32}$/.test(b.id)&&typeof b.path==="string"&&b.path.startsWith("/")&&b.path.length<=4096&&!/[\x00-\x1f\\]/.test(b.path)&&[b.device,b.inode].every(s=>typeof s==="string"&&/^\d{1,30}$/.test(s));};
+export type RepositoryEntry={name:string;path:string;kind:"directory"|"file"|"link"|"unsupported"};
+export type GitEntry={id:string;path:string;original:string|null;index:string;worktree:string};
+export type RepositoryView={scope:string;key:string;binding:DirectoryBinding|null;canChoose:boolean;busy:boolean;notice:string;directory:string;entries:RepositoryEntry[];limited:boolean;file:{path:string;text:string}|null;git:{state:"idle"|"ready"|"unavailable";entries:GitEntry[];limited:boolean;notice:string};diff:{path:string;staged:string;unstaged:string}|null;projectApi:"not-connected"};

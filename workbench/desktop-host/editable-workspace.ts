@@ -1,3 +1,6 @@
+import {fileURLToPath} from "node:url";
+import {RepositoryReader} from "./repository-reader.ts";
+import {RepositoryPanels} from "./repository-panels.ts";
 import {OfficialChatController} from "./official-chat-controller.ts";
 import {DraftLeases} from "./draft-leases.ts";
 import {SessionPreview,PreviewReadBudget,type PreviewSource} from "./session-preview.ts";
@@ -10,12 +13,14 @@ type Gate={key:string;owner:string;runtime:OfficialChatController;inflight:numbe
 const mutations=new Set(["copySession","forkSession","archiveSession","unarchiveSession","renameSession","assignProject","renameProject","renameSection","createSection","assignSection"]);
 /** One process owns all leases, durable writes, execution admission and borrowed runtimes. */
 export class EditableWorkspace {
+  #reader:RepositoryReader;#panels:RepositoryPanels;
   #client:WorkbenchClient;#cwd:string;#offline:boolean;#store:SessionStore;#leases:DraftLeases;
   #main:OfficialChatController;#mainKey="";#suppressed=new Set<string>();#entries=new Map<string,Entry>();#retired=new Map<string,Entry>();
   #gate:Gate|null=null;#version=0;#listeners=new Map<string,Set<()=>void>>();#notices=new Map<string,string>();#off:()=>void;#storeOff:()=>void;#disposed=false;
-  constructor(client:WorkbenchClient,cwd:string,offline:boolean,store:SessionStore,copy:((text:string)=>void)|null=null){
+  constructor(client:WorkbenchClient,cwd:string,offline:boolean,store:SessionStore,copy:((text:string)=>void)|null=null,repositoryHelper=fileURLToPath(new URL("../.desktop/repository-reader",import.meta.url))){
+    this.#reader=new RepositoryReader(repositoryHelper);this.#panels=new RepositoryPanels(repositoryHelper,()=>this.#publish());
     this.#client=client;this.#cwd=cwd;this.#offline=offline;this.#store=store;this.#leases=new DraftLeases(store);
-    this.#main=new OfficialChatController(client,cwd,offline,15000,store,copy,{canWriteDraft:key=>this.#mainWriteAllowed(key)});
+    this.#main=new OfficialChatController(client,cwd,offline,15000,store,copy,{validateDirectory:root=>this.#reader.check(root),canWriteDraft:key=>this.#mainWriteAllowed(key)});
     this.#off=this.#main.subscribe(()=>{this.#syncSources();this.#reconcile();this.#publish();});
     this.#storeOff=store.subscribe(()=>{this.#syncSources();this.#reconcile();this.#publish();});
   }
@@ -54,7 +59,9 @@ export class EditableWorkspace {
     const canSend=canEdit&&available&&!busyRuntime&&!!runtime?.snapshot().chatStatus?.ready&&view.connection==="ready";
     const notice=this.#notices.get(owner)??(delivery?"上次发送结果待核对；草稿保留且发送锁定。请在主窗口核对保存记录，不会自动重发。":archived?"此会话已归档或状态待核实，只读。":state.owner&&state.owner!==owner?"另一窗口正在编辑；请先在该窗口保存并释放编辑权。":this.#gate?this.#gate.unknown?"发送结果或保存状态待核实；请在主窗口重连，不会自动重发。":same?"此会话正在确认或生成，所有窗口同步查看。":"另一会话正在确认或生成；此处可继续保存草稿，请等待后再发送。":own?"此窗口持有编辑权；草稿保存后可安全关闭。":"当前只读；可请求编辑权，不会强制覆盖其他窗口。");
     const draft=same&&active.running?active.draft:state.text;
-    const common={...view,version:this.#version,draft,editor:{key,revision:state.revision,lease:own?state.token:null,owner:own?"self"as const:state.owner?"other"as const:"none"as const,notice,canEdit,canSend,deliveryPending:!!delivery&&(owner==="main"||delivery.key===key),execution:this.#gate?(this.#gate.unknown?"unknown":this.#gate.key):null}};
+    const binding=key==="official-chat"?this.#store.snapshot().freshRoot:this.#store.find(key)?.root??null;
+    const repository=this.#panels.snapshot(owner,key,binding,!browsing&&!this.#gate&&!view.loading&&!view.running&&!view.pending&&!entry?.closing&&(key!=="official-chat"||own));
+    const common={...view,repository,version:this.#version,draft,editor:{key,revision:state.revision,lease:own?state.token:null,owner:own?"self"as const:state.owner?"other"as const:"none"as const,notice,canEdit,canSend,deliveryPending:!!delivery&&(owner==="main"||delivery.key===key),execution:this.#gate?(this.#gate.unknown?"unknown":this.#gate.key):null}};
     if(!entry)return common;
     return {...common,title:entry.source.title,projects:[{id:"preview",name:"会话副窗口",threads:[{id:entry.id,title:entry.source.title}]}],route:{projectId:"preview",threadId:entry.id},coreStatus:undefined,managedSessions:undefined,sessionSearch:undefined,sessionSections:undefined,sectionOrder:undefined,copyAvailable:false,sessionPreview:{id:entry.id,archived:entry.source.archived,archiveUncertain:!!entry.source.archiveUncertain,notice},pending:state.owner===owner?view.pending:null};
   }
@@ -74,7 +81,7 @@ export class EditableWorkspace {
     this.#publish();
     try{
       if(!entry.runtime){const borrowed:WorkbenchClient={...this.#client,start:async()=>{if(this.#client.getView().state!=="ready")throw new Error("main-reconnect-required");},reconnect:async()=>{throw new Error("main-reconnect-required");},dispose:async()=>{}};
-        entry.runtime=new OfficialChatController(borrowed,this.#cwd,this.#offline,15000,this.#store,null,{fixedThreadId:key,persistSelection:false,canWriteDraft:id=>id===key&&this.#leases.owns(key,owner)});
+        entry.runtime=new OfficialChatController(borrowed,this.#cwd,this.#offline,15000,this.#store,null,{fixedThreadId:key,persistSelection:false,validateDirectory:root=>this.#reader.check(root),canWriteDraft:id=>id===key&&this.#leases.owns(key,owner)});
         entry.runtimeOff=entry.runtime.subscribe(()=>{this.#reconcile();this.#publish();});
       }
       if(!entry.runtime.snapshot().chatStatus?.ready||entry.runtime.snapshot().route.threadId!==key)await entry.runtime.dispatch({type:"connect"});
@@ -83,13 +90,24 @@ export class EditableWorkspace {
     }catch(error){this.#leases.release(key,owner);throw error;}
     finally{entry.attaching=false;this.#publish();}
   }
+  directoryFailure(owner:string,capture:{key:string;scope:string},code:string):DesktopView{try{this.snapshotOwner(owner);this.#panels.notice(owner,capture.scope,code==="session-directory-is-immutable"?"此会话已绑定的目录身份不能替换；请恢复原目录或创建新会话，草稿未改变。":code==="directory-must-match-official-cwd"?"文件夹与此会话官方cwd不一致，未改变绑定或草稿；其他目录请创建新会话。":"目录选择未完成或会话已切换，未改变绑定或草稿；请核对权限和原目录后重试。");}catch{}return this.snapshotOwner(owner);}
+  captureDirectory(owner:string):{key:string;scope:string}{const view=this.snapshotOwner(owner);if(!view.repository?.canChoose)throw new Error("directory-selection-unavailable");return {key:view.repository.key,scope:view.repository.scope};}
+  async selectDirectory(owner:string,capture:{key:string;scope:string},path:string):Promise<DesktopView>{
+    const current=()=>{const now=this.captureDirectory(owner);if(now.key!==capture.key||now.scope!==capture.scope)throw new Error("directory-selection-obsolete");};
+    current();const binding=await this.#reader.select(path);current();const key=capture.key,generation=this.#client.getView().generation;
+    if(key!=="official-chat"){if(this.#client.getView().state!=="ready")throw new Error("directory-verification-requires-connection");const metadata=await this.#client.readThreadMetadata({threadId:key});current();if(this.#client.getView().generation!==generation||this.#client.getView().state!=="ready"||metadata.thread.id!==key||metadata.thread.ephemeral||metadata.thread.cwd!==binding.path)throw new Error("directory-must-match-official-cwd");}
+    await this.#store.transaction(()=>{current();if(key==="official-chat")this.#store.freshRoot(binding);else{const previous=this.#store.find(key)?.root;if(previous&&(previous.path!==binding.path||previous.device!==binding.device||previous.inode!==binding.inode))throw new Error("session-directory-is-immutable");this.#store.upsert(key,{cwd:binding.path,root:previous&&previous.device===binding.device&&previous.inode===binding.inode?previous:binding});}});
+    this.#publish();return this.snapshotOwner(owner);
+  }
   async dispatch(value:unknown):Promise<DesktopView>{return this.dispatchOwner("main",value);}
   async dispatchOwner(owner:string,value:unknown):Promise<DesktopView>{
     if(this.#disposed)throw new Error("workspace-unavailable");const command=validateDesktopCommand(value),entry=this.#entries.get(owner);if(entry?.closing)throw new Error("window-closing");if(owner!=="main"&&!entry)throw new Error("unknown-window");
-    if(entry&&!['claimEditor','releaseEditor','editDraft','submit','confirm','cancel','refreshHistory','history','cancelHistory','clearError','retryPersistence'].includes(command.type))throw new Error("fixed-session-command-rejected");
+    if(entry&&!['claimEditor','releaseEditor','editDraft','submit','confirm','cancel','refreshHistory','history','cancelHistory','clearError','retryPersistence','repoList','repoFile','repoStatus','repoDiff','repoCancel'].includes(command.type))throw new Error("fixed-session-command-rejected");
     this.#syncMain();const key=entry?.id??this.#key(),state=this.#leases.state(key);
     try{
-      if(command.type==="retryPersistence"){
+      if(command.type==="repoList"||command.type==="repoFile"||command.type==="repoStatus"||command.type==="repoDiff"||command.type==="repoCancel"){this.snapshotOwner(owner);await this.#panels.dispatch(owner,command);}
+      else if(command.type==="chooseDirectory")throw new Error("native-directory-picker-required");
+      else if(command.type==="retryPersistence"){
         const runtime=owner==="main"?this.#main:entry?.runtime;if(runtime)await runtime.flushDraftState();
         if(owner==="main")for(const item of [...this.#entries.values(),...this.#retired.values()])await item.runtime?.flushDraftState();
         await this.#store.settled();
@@ -149,7 +167,7 @@ export class EditableWorkspace {
     entry.closing=true;this.#publish();
     try{await this.#store.settled();if(this.#leases.busy(entry.id))throw new Error("draft-save-inflight");}
     catch(error){entry.closing=false;this.#publish();throw error;}
-    entry.closed=true;entry.off();entry.preview.dispose();this.#entries.delete(owner);this.#listeners.delete(owner);
+    this.#panels.close(owner);entry.closed=true;entry.off();entry.preview.dispose();this.#entries.delete(owner);this.#listeners.delete(owner);
     if(this.#gate?.runtime===entry.runtime)this.#retired.set(owner,entry);else{this.#leases.release(entry.id,owner);entry.runtimeOff?.();entry.runtime?.detach();}
     this.#publish();
   }
@@ -160,7 +178,7 @@ export class EditableWorkspace {
     if(value.key!==editor.key||value.revision!==editor.revision||value.lease!==editor.lease||value.text!==view.draft||this.#leases.busy(editor.key))throw new Error("close-save-not-confirmed");
   }
   async settled():Promise<void>{await this.#store.settled();}
-  async dispose():Promise<void>{if(this.#disposed)return;this.#disposed=true;this.#off();this.#storeOff();for(const entry of [...this.#entries.values(),...this.#retired.values()]){entry.off();entry.runtimeOff?.();entry.preview.dispose();entry.runtime?.detach();}this.#entries.clear();this.#retired.clear();this.#listeners.clear();try{await this.#store.settled();}finally{await this.#main.disposeSaved();}}
+  async dispose():Promise<void>{if(this.#disposed)return;this.#disposed=true;const reads=this.#panels.dispose();this.#reader.cancel();this.#off();this.#storeOff();for(const entry of [...this.#entries.values(),...this.#retired.values()]){entry.off();entry.runtimeOff?.();entry.preview.dispose();entry.runtime?.detach();}this.#entries.clear();this.#retired.clear();this.#listeners.clear();try{await Promise.all([this.#store.settled(),reads,this.#reader.settled()]);}finally{await this.#main.disposeSaved();}}
 
 }
 export class EditableSessionSurface {

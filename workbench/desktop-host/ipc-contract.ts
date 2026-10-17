@@ -1,4 +1,7 @@
-export type DesktopCommand =
+import {relativeRepositoryPath} from "./repository-reader.ts";
+import type {RepositoryCommand} from "./repository-panels.ts";
+export type DesktopCommand = RepositoryCommand
+  | {type:"chooseDirectory"}
   | {type:"claimEditor"|"releaseEditor"|"retryPersistence"|"reconcileDelivery"}
   | {type:"editDraft";routeId:string;text:string;revision:number;lease:string}
   | { type: "connect" | "reconnect" | "disconnect" | "new" | "back" | "submit" | "confirm" | "cancel" | "clearError" | "cancelHistory" | "probeCore" | "browseHistory" | "returnToChat" | "refreshThreads" | "moreThreads" | "refreshHistory" | "toggleArchived" }
@@ -21,12 +24,16 @@ export type DesktopCommand =
   | { type: "createSection"; name: string }
   | { type: "assignSection"; id: string; sectionId: string | null; beforeThreadId?:string }
   | { type: "approval"; key: string; decision: "accept" | "decline" | "cancel" };
-const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections", "moreSessionSearch", "cancelSessionSearch", "claimEditor", "releaseEditor", "retryPersistence", "reconcileDelivery"]);
+const simple = new Set(["connect", "reconnect", "disconnect", "new", "back", "submit", "confirm", "cancel", "clearError", "cancelHistory", "probeCore", "browseHistory", "returnToChat", "refreshThreads", "moreThreads", "refreshHistory", "toggleArchived", "loadSections", "moreSessionSearch", "cancelSessionSearch", "chooseDirectory", "claimEditor", "releaseEditor", "retryPersistence", "reconcileDelivery"]);
 export function validateDesktopCommand(value: unknown): DesktopCommand {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid-command");
   const v = value as Record<string, unknown>;
   if (typeof v.type !== "string") throw new Error("invalid-command");
   const keys = Object.keys(v).sort().join(",");
+  const scoped=typeof v.scope==="string"&&/^repo-[a-f0-9]{32}$/.test(v.scope);
+  if(["repoStatus","repoCancel"].includes(v.type)&&keys==="scope,type"&&scoped)return v as DesktopCommand;
+  if(["repoList","repoFile"].includes(v.type)&&keys==="path,scope,type"&&scoped&&relativeRepositoryPath(v.path,v.type==="repoList"))return v as DesktopCommand;
+  if(v.type==="repoDiff"&&keys==="entry,scope,type"&&scoped&&typeof v.entry==="string"&&/^change-[a-f0-9]{24}$/.test(v.entry))return v as DesktopCommand;
   if (simple.has(v.type) && keys === "type") return v as DesktopCommand;
   if(v.type==="searchSessions"&&keys==="archived,kind,text,type"&&typeof v.text==="string"&&v.text.trim().length>0&&v.text.length<=128&&!/[\x00-\x1f]/.test(v.text)&&typeof v.archived==="boolean"&&["content","title"].includes(v.kind as string))return v as DesktopCommand;
   if (v.type === "selectModel" && keys === "model,type" && typeof v.model === "string" && /^gpt-[a-z0-9.-]{1,100}$/.test(v.model)) return v as DesktopCommand;

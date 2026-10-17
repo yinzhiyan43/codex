@@ -1,3 +1,4 @@
+import {setupRepository} from "./repository.ts";
 import {installInteractions,setText,openModal,focusHandle} from "./interactions.ts";
 import {plainEnter} from "./keyboard-policy.ts";
 import {DraftEditor} from "./draft-editor.ts";
@@ -7,6 +8,7 @@ import type {DesktopCommand} from "../desktop-host/ipc-contract.ts";
 declare global{interface Window{workbench:{close:CloseBridge;snapshot():Promise<DesktopView>;dispatch(command:DesktopCommand):Promise<DesktopView>;subscribe(listener:(view:DesktopView)=>void):()=>void}}}
 installInteractions();
 const el=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id)as T;let version=-1,view:DesktopView|null=null,editor:DraftEditor|null=null;
+const repositoryUI=setupRepository(el("repository-panel"),command=>window.workbench.dispatch(command),render,async()=>{await editor?.flush();});
 setupClose(window.workbench.close,async()=>{await editor?.flush();},()=>window.workbench.snapshot(),el("close-status"));
 function createEditor():void{
  if(editor)return;
@@ -23,7 +25,7 @@ function createEditor():void{
  input.focus();
 }
 function render(next:DesktopView):void{
- if(next.version<version)return;version=next.version;view=next;
+ if(next.version<version)return;repositoryUI.render(next.repository);version=next.version;view=next;
  const editable=next.editor?.owner==="self";el("title").textContent=next.title;document.title=next.title+" — Codex Workbench "+(editable?"会话编辑":"只读");
  setText(el("state"),(next.sessionPreview?.archiveUncertain?"归档结果待核实 · ":next.sessionPreview?.archived?"已归档 · ":"")+(next.loading?"正在读取 · ":"")+(next.running?"正在生成 · ":"")+(next.stale?"缓存待刷新 · ":"")+next.history.turnCount+"个保存轮次 · "+(next.connection==="ready"?"已连接":"连接未就绪"));
  setText(el("notice"),next.editor?.notice??next.sessionPreview?.notice??"只读副窗口");el("error").hidden=!next.error;setText(el("error"),next.error??"");

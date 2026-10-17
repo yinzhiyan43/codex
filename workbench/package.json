@@ -40,7 +40,9 @@
     "search:core:check": "node scripts/session-search-core-check.mjs",
     "desktop:theme:smoke": "npm run desktop:build && node scripts/session-theme-ui-check.mjs",
     "desktop:keyboard:smoke": "npm run desktop:build && node scripts/keyboard-ui-check.mjs",
-    "desktop:editable:smoke": "npm run desktop:build && node scripts/editable-ui-check.mjs"
+    "desktop:editable:smoke": "npm run desktop:build && node scripts/editable-ui-check.mjs",
+    "pretest": "node scripts/build-repository-reader.mjs",
+    "desktop:repository:smoke": "npm run desktop:build && node scripts/repository-ui-check.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

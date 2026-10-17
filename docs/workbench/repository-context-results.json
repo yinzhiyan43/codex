@@ -1,0 +1,666 @@
+{
+  "milestone": "M3.a",
+  "date": "2026-10-17",
+  "baseline": "256db6173e0ec55138b13cf8b95828dce4e7cedc",
+  "branch": "workbench/desktop-stable-0.162.1",
+  "result": "passed-with-documented-manual-validation-boundaries",
+  "offlineTests": {
+    "passed": 301,
+    "total": 301,
+    "newTests": 21,
+    "newReaderTests": 13,
+    "newWorkspaceTests": 8,
+    "stableContracts": 51,
+    "experimentalSearchContracts": 2,
+    "typecheck": "passed",
+    "contracts": "passed"
+  },
+  "hiddenUi": {
+    "repository": [
+      {
+        "phase": "restart",
+        "count": 4,
+        "checks": [
+          "restart-restores-root-identity-and-draft-without-file-cache-or-window-replay",
+          "explicit-secondary-reopen-restores-its-own-root-and-draft",
+          "directory-inspection-sends-no-model-or-lifecycle-requests",
+          "no-renderer-console-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "write",
+        "count": 16,
+        "checks": [
+          "cancel-native-picker-retains-unbound-state",
+          "existing-cwd-mismatch-is-visible-without-retargeting",
+          "explicit-root-tree-hides-git-and-disables-links",
+          "bounded-text-renders-as-inert-plain-text",
+          "two-roots-and-same-session-window-do-not-spill-file-contents",
+          "directory-queries-preserve-independent-editor-drafts",
+          "git-staged-unstaged-and-renamed-status-visible",
+          "binary-encoding-permission-size-removed-and-link-errors-visible",
+          "repository-markup-never-executes",
+          "renderer-cannot-request-parent-or-absolute-paths",
+          "large-directory-discloses-incomplete-two-hundred-item-bound",
+          "new-route-clears-old-content-and-nonrepository-fails-closed",
+          "fresh-draft-can-explicitly-replace-root-without-losing-text",
+          "return-to-original-session-restores-its-binding-and-draft",
+          "directory-inspection-sends-no-model-or-lifecycle-requests",
+          "no-renderer-console-errors"
+        ],
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "editable": [
+      {
+        "phase": "delivered",
+        "count": 5,
+        "checks": [
+          "restart-pending-delivery-locks-all-sends-without-model-replay",
+          "pending-session-draft-remains-frozen-in-secondary-editor",
+          "explicit-read-only-proof-atomically-clears-accepted-prompt-and-unlocks",
+          "delivery-check-retains-other-session-draft-and-uses-no-model",
+          "no-shared-config-credential-delete-share-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "delivery",
+        "count": 5,
+        "checks": [
+          "restart-pending-delivery-locks-all-sends-without-model-replay",
+          "pending-session-draft-remains-frozen-in-secondary-editor",
+          "unprovable-result-preserves-durable-journal-draft-and-lock",
+          "delivery-check-retains-other-session-draft-and-uses-no-model",
+          "no-shared-config-credential-delete-share-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "failure",
+        "count": 4,
+        "checks": [
+          "failed-child-save-aborts-main-close-with-all-window-bindings-live",
+          "failed-save-blocks-close-keeps-live-window-lease-and-local-text",
+          "same-window-retry-then-close-and-reopen-recovers-draft",
+          "no-shared-config-credential-delete-share-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "long",
+        "count": 3,
+        "checks": [
+          "ninety-turn-secondary-pagination-dedup-and-independent-primary-window",
+          "long-history-refresh-keeps-session-draft-without-resume",
+          "no-shared-config-credential-delete-share-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "restart",
+        "count": 3,
+        "checks": [
+          "restart-primary-draft-no-window-or-model-replay",
+          "explicit-reopen-restores-independent-secondary-drafts-and-main-selection",
+          "no-shared-config-credential-delete-share-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "write",
+        "count": 14,
+        "checks": [
+          "preview-stays-read-only-until-exclusive-claim",
+          "different-session-drafts-and-account-data-isolation",
+          "explicit-transfer-synchronizes-draft-and-rejects-stale-owner",
+          "simultaneous-sends-admit-one-confirmation",
+          "one-synthetic-turn-shared-generation-and-stop-other-session-still-edits",
+          "releasing-secondary-and-reclaiming-main-keeps-durable-draft",
+          "closing-generator-retains-runtime-gate-and-clears-only-after-terminal",
+          "offline-edit-and-explicit-reverify-without-replay",
+          "search-result-upgrades-fixed-persistent-session-after-claim",
+          "editable-windows-share-themes-without-model-change",
+          "preview-simulated-ime-protects-enter-and-escape-confirmation-restores-focus",
+          "close-handshake-flushes-latest-text-before-window-destruction",
+          "main-close-will-save-every-open-editor-with-primary-selection-preserved",
+          "no-shared-config-credential-delete-share-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 5,
+          "closed": 5,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "keyboard": [
+      {
+        "phase": "single",
+        "count": 24,
+        "checks": [
+          "skip-link-focuses-main-without-changing-trusted-ipc-url",
+          "simulated-ime-enter-legacy229-trailing-key-and-search-shortcut-do-not-submit",
+          "modified-enter-keeps-draft-without-confirmation",
+          "explicit-pointer-send-immediately-after-ime-commit-is-accepted",
+          "plain-enter-opens-confirmation-on-cancel-and-tab-wraps-both-ends",
+          "simulated-ime-escape-protects-dialog-native-escape-restores-draft",
+          "return-to-edit-restores-draft-after-close",
+          "search-shortcut-no-nesting-ime-submit-blocked-explicit-pointer-commit-accepted",
+          "search-result-refresh-restores-input-when-result-disabled",
+          "search-escape-restores-shortcut-opener",
+          "vertical-settings-tabs-arrows-home-end-roving-order-and-escape",
+          "queued-dialog-close-does-not-steal-focus-from-later-user-action",
+          "account-popup-and-connection-dialog-restore-account-opener",
+          "connection-dialog-click-returns-to-connection-button-even-from-body",
+          "session-menu-shift-f10-focus-arrows-wrap-home-end-escape",
+          "session-action-dialog-restores-source-thread",
+          "async-section-dialog-restores-source-thread",
+          "sidebar-metadata-redraw-closes-menu-with-consistent-expanded-state",
+          "menu-tab-closes-without-trapping",
+          "sidebar-group-focus-survives-async-preference-save",
+          "read-only-preview-labelled-toolbar-and-keyboard-scroll-region",
+          "chromium-accessibility-tree-exposes-named-dialog-and-tabs",
+          "simulated-focus-visible-ring-on-settings-control",
+          "draft-route-model-messages-preserved-zero-turns-and-no-renderer-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "search": [
+      {
+        "phase": "single",
+        "count": 14,
+        "checks": [
+          "hidden-offline-start-has-no-restored-search",
+          "dialog-opens-flushes-pending-draft-and-focuses-search",
+          "official-content-search-unfiltered-interactive-sources",
+          "cross-catalog-pages-overlap-dedup-and-terminal-cursor",
+          "search-results-do-not-replace-sidebar-route-or-model",
+          "unloaded-result-opens-read-only-preview-and-recovers-older-turns",
+          "close-restores-focus",
+          "keyboard-search-entry",
+          "title-preview-scope-and-empty-state",
+          "archived-scope-open-is-still-read-only",
+          "cancel-keeps-late-response-inert",
+          "900px-dialog-no-horizontal-overflow",
+          "escape-invalidates-search",
+          "zero-model-or-config-writes-and-no-renderer-errors"
+        ],
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "theme": [
+      {
+        "phase": "corrupt",
+        "count": 4,
+        "checks": [
+          "prepaint-bootstrap-background-and-head-order-correct",
+          "corrupt-preferences-show-system-fallback-and-disable-writes",
+          "repaired-preferences-retry-updates-theme-without-relaunch",
+          "no-config-or-system-writes-no-real-models-no-renderer-errors"
+        ],
+        "close": {
+          "opened": 0,
+          "closed": 0,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "invalid",
+        "count": 3,
+        "checks": [
+          "prepaint-bootstrap-background-and-head-order-correct",
+          "invalid-stored-theme-falls-back-without-overwrite-or-draft-loss",
+          "no-config-or-system-writes-no-real-models-no-renderer-errors"
+        ],
+        "close": {
+          "opened": 0,
+          "closed": 0,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "restart",
+        "count": 5,
+        "checks": [
+          "prepaint-bootstrap-background-and-head-order-correct",
+          "restart-restores-theme-route-and-unsent-draft",
+          "explicit-mode-ignores-injected-system-changes",
+          "system-mode-updates-all-windows-without-file-or-chat-writes",
+          "no-config-or-system-writes-no-real-models-no-renderer-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "write",
+        "count": 13,
+        "checks": [
+          "prepaint-bootstrap-background-and-head-order-correct",
+          "settings-entry-flushes-debounced-draft",
+          "theme-select-retains-focus-and-simulated-visible-ring",
+          "new-preview-starts-correct-with-read-only-theme-bridge",
+          "cross-window-switch-preserves-session-draft-model-and-history",
+          "failed-write-retains-palette-selection-and-saved-file",
+          "light-settings-search-menu-preview-wide-narrow-and-state-colors",
+          "dark-settings-search-menu-preview-wide-narrow-and-state-colors",
+          "concurrent-window-open-and-theme-update-converge",
+          "theme-only-changes-issue-zero-core-rpcs",
+          "pending-and-offline-streaming-survive-theme-switch-without-restart",
+          "explicit-theme-and-unsent-draft-saved-for-restart",
+          "no-config-or-system-writes-no-real-models-no-renderer-errors"
+        ],
+        "close": {
+          "opened": 2,
+          "closed": 2,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "settings": [
+      {
+        "phase": "restart",
+        "count": 8,
+        "checks": [
+          "offline-synthetic-preferences",
+          "all-ui-preferences-restored-after-app-restart",
+          "session-draft-and-route-restored-independently",
+          "settings-accessible-with-sidebar-hidden",
+          "expand-all-works-after-restart",
+          "escape-closes-settings",
+          "restart-and-settings-never-send-or-resume",
+          "no-config-writes-share-delete-or-renderer-errors"
+        ]
+      },
+      {
+        "phase": "write",
+        "count": 14,
+        "checks": [
+          "offline-synthetic-preferences",
+          "opening-settings-flushes-pending-draft-and-preserves-route",
+          "width-density-reading-size-affect-real-layout",
+          "ui-settings-do-not-call-core-or-change-model-pending",
+          "write-failure-visible-and-values-rolled-back",
+          "write-retry-succeeds",
+          "preload-preferences-reject-config-model-speed-path-and-invalid-input",
+          "unsupported-capabilities-have-no-fake-controls",
+          "group-collapse-persists-with-keyboard-focus",
+          "loaded-list-filter-reveals-collapsed-matches-without-changing-preference",
+          "read-only-preview-has-no-preference-bridge",
+          "900px-settings-no-horizontal-overflow-and-return-visible",
+          "sidebar-hide-preserves-draft-no-send-resume",
+          "no-config-writes-share-delete-or-renderer-errors"
+        ]
+      }
+    ],
+    "window": [
+      {
+        "phase": "restart",
+        "count": 6,
+        "checks": [
+          "offline-synthetic-windows",
+          "no-auto-preview-on-app-start",
+          "primary-draft-restored-no-auto-send",
+          "explicit-reopen-same-saved-history",
+          "preview-small-window-no-overflow",
+          "no-share-delete-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 1,
+          "closed": 1,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      },
+      {
+        "phase": "write",
+        "count": 17,
+        "checks": [
+          "offline-synthetic-windows",
+          "no-auto-preview-on-app-start",
+          "selected-menu-id-not-primary-route",
+          "primary-draft-unchanged",
+          "duplicate-open-reuses-window",
+          "same-thread-main-and-read-only-preview",
+          "confirmed-draft-observer-without-editor-or-sender",
+          "renderer-isolation",
+          "preview-ipc-mutations-and-other-thread-denied",
+          "independent-pagination",
+          "primary-rename-archive-restore-sync",
+          "cancel-only-preview-read",
+          "disconnect-stale-cache-explicit-refresh",
+          "closing-preview-keeps-primary-core",
+          "four-preview-capacity-no-extra-window",
+          "only-primary-confirms-one-synthetic-turn",
+          "no-share-delete-or-renderer-errors"
+        ],
+        "close": {
+          "opened": 5,
+          "closed": 5,
+          "activeWindows": 0,
+          "activeReads": 0,
+          "repositoryReads": 0,
+          "coreActive": false,
+          "coreState": "disposed"
+        }
+      }
+    ],
+    "copy": [
+      {
+        "phase": "restart",
+        "count": 9,
+        "checks": [
+          "offline-memory-clipboard-only",
+          "renderer-isolation",
+          "restart-does-not-replay-clipboard",
+          "source-draft-restored",
+          "explicit-copy-after-restart",
+          "narrow-layout",
+          "copy-status-visible-inside-viewport",
+          "no-model-share-delete-or-project-rpc",
+          "console-errors"
+        ]
+      },
+      {
+        "phase": "write",
+        "count": 14,
+        "checks": [
+          "offline-memory-clipboard-only",
+          "renderer-isolation",
+          "dismiss-no-copy",
+          "fixed-confirm-target",
+          "complete-three-turn-copy",
+          "double-confirm-one-write",
+          "no-draft-or-pagination-change",
+          "cancel-active-history-copy",
+          "external-rename-preserved-no-stale-write",
+          "external-reorder-preserved-no-stale-write",
+          "original-chat-draft-preserved",
+          "copy-status-visible-inside-viewport",
+          "no-model-share-delete-or-project-rpc",
+          "console-errors"
+        ]
+      }
+    ],
+    "editing": [
+      {
+        "phase": "restart",
+        "count": 10,
+        "checks": [
+          "explicit-offline-label",
+          "renderer-isolation",
+          "same-fork-boundary-after-app-restart",
+          "source-child-drafts-restored",
+          "global-project-rename-restored",
+          "official-section-rename-order-restored",
+          "reorder-after-app-restart",
+          "narrow-layout",
+          "no-model-resume-project-share-delete-rpc",
+          "console-errors"
+        ]
+      },
+      {
+        "phase": "write",
+        "count": 14,
+        "checks": [
+          "explicit-offline-label",
+          "renderer-isolation",
+          "turn-fork-cancel-no-rpc",
+          "inclusive-turn-two-boundary",
+          "later-turn-three-excluded",
+          "double-confirm-one-fork",
+          "source-draft-preserved",
+          "global-local-label-rename",
+          "source-body-draft-unchanged",
+          "official-anchor-order",
+          "official-rename-by-id",
+          "all-owned-section-mirrors-updated",
+          "no-model-resume-project-share-delete-rpc",
+          "console-errors"
+        ]
+      }
+    ],
+    "management": [
+      {
+        "phase": "restart",
+        "count": 13,
+        "checks": [
+          "explicit-offline-label",
+          "renderer-isolation",
+          "same-fork-after-app-restart",
+          "fork-and-source-drafts-preserved",
+          "project-section-metadata-restored",
+          "no-auto-fork-resume-model",
+          "original-source-openable-and-unchanged",
+          "local-project-clear",
+          "official-section-clear",
+          "confirmed-continuation-uses-fork-id-once",
+          "narrow-layout",
+          "no-official-project-share-delete-rpc",
+          "console-errors"
+        ]
+      },
+      {
+        "phase": "write",
+        "count": 18,
+        "checks": [
+          "explicit-offline-label",
+          "renderer-isolation",
+          "local-project-clear-source-label",
+          "local-project-assignment",
+          "duplicate-section-name-binds-returned-id",
+          "official-section-create",
+          "official-section-assignment",
+          "group-labels-visible",
+          "fork-dialog-cancel-no-rpc",
+          "fork-confirm-once",
+          "fork-new-id-relationship",
+          "source-draft-not-copied-or-overwritten",
+          "local-project-inherited",
+          "complete-inherited-text",
+          "empty-preview-fork-visible-in-history",
+          "explicit-reopen-without-model",
+          "no-official-project-share-delete-rpc",
+          "console-errors"
+        ]
+      }
+    ],
+    "desktop": [
+      {
+        "phase": "single",
+        "count": 23,
+        "checks": [
+          "selected-app-icon",
+          "ready-synthetic-peer",
+          "renderer-isolation",
+          "project-thread-navigation",
+          "draft-preservation",
+          "repeated-clicks",
+          "confirm-return",
+          "cancel-running",
+          "complete-synthetic-response",
+          "disconnect-stale",
+          "explicit-reconnect",
+          "new-back",
+          "search-empty",
+          "narrow-controls",
+          "console-errors",
+          "history-overlap-and-order",
+          "stable-message-dom",
+          "history-cancel",
+          "approval-once",
+          "approval-decline",
+          "approval-cancel",
+          "approval-expiry",
+          "approval-disconnect"
+        ]
+      }
+    ]
+  },
+  "newRepositoryUiChecks": 20,
+  "existingHiddenUiChecks": 243,
+  "totalHiddenUiChecks": 263,
+  "hiddenAppInstances": 25,
+  "realModelRequests": 0,
+  "officialNativeExecuted": false,
+  "nativeFileAndGitHelperExecuted": true,
+  "nativePickerSimulated": true,
+  "nativePickerFixtureRestricted": true,
+  "limits": {
+    "directoryEntries": 200,
+    "textBytes": 262144,
+    "helperOutputBytes": 524288,
+    "helperTimeoutMs": 4000,
+    "globalActiveHelpers": 4
+  },
+  "officialInterfaces": {
+    "threadCwd": "verified metadata and start/resume/fork facts",
+    "fsRpc": "not exposed; local bounded fd-relative broker",
+    "projectApi": "not connected; experimental service requires SQLite state"
+  },
+  "independentReview": {
+    "readOnly": true,
+    "confirmedRemainingP1P2": 0,
+    "reviewerGuiExecuted": false,
+    "reviewerRealModelRequests": 0,
+    "temporaryDiagnosticDirectoryRemoved": true,
+    "fixedFindings": [
+      "Persisted cwd without a root grant cannot silently follow changed metadata",
+      "Same path with changed device/inode cannot replace an existing session grant",
+      "Renderer rejects stale versions before repository rendering",
+      "Failed or invalidated root refresh clears previously displayed Git patches",
+      "Legacy and archive-uncertain activation loads target directory fields rather than a previous session",
+      "Resume rechecks exact thread ID and cwd before RPC",
+      "Git sandbox grants only root directory literal plus selected root and required runtime paths"
+    ]
+  },
+  "validationNotes": [
+    "Initial sandboxed Git startup failed until required literal root-directory access was added; no unsandboxed fallback was used.",
+    "Unreadable file errors now map EACCES explicitly; failure-injection tests restore the committed storage barrier before cleanup.",
+    "Hidden picker driver now waits for asynchronous native-selection completion.",
+    "Existing IME smoke explicitly holds composition while checking native Escape; it no longer assumes durable persistence completes within50ms.",
+    "Existing read-only preview smoke excludes the new repository path-query form while continuing to reject chat editing and sending controls before ownership.",
+    "Only final successful run evidence is counted; development failures are not counted as passed."
+  ],
+  "remainingValidation": [
+    "Actual native folder dialog interaction",
+    "Real Chinese IME and native Tab/VoiceOver",
+    "Multiple displays, full size and reference visual parity",
+    "Official project CRUD/import/move and worktrees",
+    "File editing, watch, full file search, line/diff navigation and branch comparison",
+    "Real very-large-repository performance",
+    "Cross-client CAS, idempotency and atomicity across metadata check and official RPC"
+  ],
+  "sharedCodexConfigWrites": 0,
+  "systemSettingsChanged": false,
+  "userWindowsOrServicesTouched": false,
+  "personalProjectsScanned": false,
+  "upstreamCoreChanged": false,
+  "logoChanged": false,
+  "licenseNoticeAndLockUnchanged": true,
+  "taskModelReasoningSpeedChanged": false,
+  "pushPerformed": false,
+  "remoteTrackingBranchExpected": "231f3aa4ba2b337e1a6a9f46cd8493b397fb1722",
+  "remoteTrackingMainExpected": "4ef836f883c38ba6d39e6920f335ce6452b7de33",
+  "mainChanged": false,
+  "goalCountPreserved": 92
+}

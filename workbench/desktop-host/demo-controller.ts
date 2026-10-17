@@ -12,6 +12,7 @@ export const demoProjects = [
 ];
 export type DemoMessage = { id: string; stale?: boolean; role: "user" | "assistant"; text: string; status?: "running" | "completed" | "cancelled" | "failed" | "unknown" };
 export type DesktopView = {
+  repository?:import("../domain/repository.ts").RepositoryView;
   editor?:{key:string;revision:number;lease:string|null;owner:"self"|"other"|"none";notice:string;canEdit:boolean;canSend:boolean;execution:string|null;deliveryPending:boolean};
   sessionSearch?:import("./session-search.ts").SessionSearchView;
   sessionPreview?:{id:string;archived:boolean;archiveUncertain:boolean;notice:string};

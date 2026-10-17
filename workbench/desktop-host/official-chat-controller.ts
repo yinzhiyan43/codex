@@ -1,3 +1,4 @@
+import type {DirectoryBinding} from "../domain/repository.ts";
 import { createHash, randomBytes } from "node:crypto";
 import { sessionGroups } from "../domain/session-groups.ts";
 import { SessionStore, type ManagedSession } from "./session-store.ts";
@@ -11,9 +12,11 @@ import { validateDesktopCommand } from "./ipc-contract.ts";
 import type { DesktopView, DemoMessage } from "./demo-controller.ts";
 const historyNotice = "只显示当前临时会话；临时会话只核对元数据，正文保留已观察缓存。持久历史请打开历史会话；不使用 items 分页。";
 type Phase = "disconnecting" | "connecting" | "idle" | "starting" | "running" | "cancelling" | "reading" | "restoring" | "managing" | "unknown";
-export type ChatRuntimeOptions={fixedThreadId?:string;persistSelection?:boolean;canWriteDraft?:(key:string)=>boolean};
+export type ChatRuntimeOptions={fixedThreadId?:string;persistSelection?:boolean;validateDirectory?:(root:DirectoryBinding)=>Promise<void>;canWriteDraft?:(key:string)=>boolean};
 /** Durable official conversations; restart reads history and never replays model turns. */
 export class OfficialChatController {
+  #threadRoot:DirectoryBinding|null=null;
+  #threadCwd:string|null=null;
   #deliveryResolved:string|null=null;
   #options:ChatRuntimeOptions;
   #copying=false;#copyCancelled=false;#copyText:((text:string)=>void)|null;#copyStatus:NonNullable<DesktopView["copyStatus"]>={state:"idle",notice:""};
@@ -120,18 +123,25 @@ export class OfficialChatController {
       const account = await this.#client.getAccount({ refreshToken: false }); if (!this.#current(intent, generation)) return;
       if (account.account?.type !== "chatgpt") throw new HostOperationError("core-chatgpt-login-required");
       if (this.#cancelWanted) { this.#phase = "idle"; return; }
+      const root=this.#thread?this.#store.find(this.#thread)?.root??null:this.#store.snapshot().freshRoot;
+      const cwd=this.#thread?(this.#store.find(this.#thread)?.cwd??this.#threadCwd):(root?.path??this.#cwd);
+      if(!cwd||root&&root.path!==cwd)throw new HostOperationError("session-cwd-unverified");
+      if(root)await this.#options.validateDirectory?.(root);
+      if(!this.#current(intent,generation))return;
+      if(this.#thread){const check=await this.#client.readThreadMetadata({threadId:this.#thread});if(!this.#current(intent,generation))return;if(check.thread.id!==this.#thread||check.thread.cwd!==cwd)throw new HostOperationError("session-cwd-mismatch");}
       if (this.#thread && this.#resumeNeeded) {
         const metadata = await this.#client.readThreadMetadata({threadId:this.#thread}); if(!this.#current(intent,generation))return;
-        if(metadata.thread.ephemeral || metadata.thread.modelProvider!=="openai" || !["idle","notLoaded"].includes(metadata.thread.status.type)) throw new HostOperationError("session-not-safe-to-resume");
-        const resumed = await this.#client.resumeThread({threadId:this.#thread,model,modelProvider:"openai",cwd:this.#cwd,approvalPolicy:"never",sandbox:"read-only",excludeTurns:true,baseInstructions:"You are a text-only chat assistant. Do not use tools or access files.",developerInstructions:"Only provide text. Never call tools, inspect credentials, or external services."});
-        if(!this.#current(intent,generation))return;if(resumed.thread.id!==this.#thread)throw new HostOperationError("resume-thread-mismatch");this.#generation=generation;this.#resumeNeeded=false;
+        if(metadata.thread.id!==this.#thread || metadata.thread.cwd!==cwd || metadata.thread.ephemeral || metadata.thread.modelProvider!=="openai" || !["idle","notLoaded"].includes(metadata.thread.status.type)) throw new HostOperationError("session-not-safe-to-resume");
+        const resumed = await this.#client.resumeThread({threadId:this.#thread,model,modelProvider:"openai",cwd,approvalPolicy:"never",sandbox:"read-only",excludeTurns:true,baseInstructions:"You are a text-only chat assistant. Do not use tools or access files.",developerInstructions:"Only provide text. Never call tools, inspect credentials, or external services."});
+        if(!this.#current(intent,generation))return;if(resumed.thread.id!==this.#thread||resumed.thread.cwd!==cwd)throw new HostOperationError("resume-thread-mismatch");this.#generation=generation;this.#resumeNeeded=false;
       }
       if (!this.#thread) {
         if (this.#created >= 8) throw new HostOperationError("chat-session-limit");
-        const started = await this.#client.startThread({ model, modelProvider: "openai", cwd: this.#cwd, approvalPolicy: "never", sandbox: "read-only", ephemeral: false,
+        const started = await this.#client.startThread({ model, modelProvider: "openai", cwd, approvalPolicy: "never", sandbox: "read-only", ephemeral: false,
           baseInstructions: "You are a text-only chat assistant. Answer the user's message. Do not use tools, inspect files, or access projects.", developerInstructions: "Only provide text responses. Never call any tool or access files, credentials or external services." });
         if (!this.#current(intent, generation)) return;
-        this.#thread = started.thread.id; this.#generation = generation; this.#created++; this.#cached = []; this.#legacyId=null; this.#currentWindow=null; this.#resumeNeeded=false; this.#prompts.clear(); await this.#save();
+        if(started.thread.cwd!==cwd)throw new HostOperationError("start-thread-cwd-mismatch");
+        this.#thread = started.thread.id;this.#threadRoot=root;this.#threadCwd=cwd; this.#generation = generation; this.#created++; this.#cached = []; this.#legacyId=null; this.#currentWindow=null; this.#resumeNeeded=false; this.#prompts.clear(); await this.#save({cwd,root});
       }
       if (!this.#current(intent,generation)) return;
       if (this.#cancelWanted) { this.#phase = "idle"; return; }
@@ -170,7 +180,7 @@ export class OfficialChatController {
     if(!this.#persistenceReady)return;
     const resolved=this.#deliveryResolved;
     const id=this.#thread??this.#legacyId,draft=this.#draft,model=this.#model,legacy=!!this.#legacyId,cache=structuredClone(this.#cached);
-    await this.#mutate(()=>{const writable=this.#options.canWriteDraft?.(id??"official-chat")??true,selection=this.#options.persistSelection!==false;if(id){if(selection&&writable)this.#store.freshDraft("");this.#store.upsert(id,{...update,...(writable?{draft,model}:{}),ephemeral:legacy});if(selection)this.#store.select(id);if(legacy)this.#store.preserveTemporary(id,cache);if(writable&&resolved&&this.#store.snapshot().delivery?.token===resolved)this.#store.pendingDelivery(null);}else if(selection){this.#store.select(null);if(writable)this.#store.freshDraft(draft);}});
+    await this.#mutate(()=>{const writable=this.#options.canWriteDraft?.(id??"official-chat")??true,selection=this.#options.persistSelection!==false;if(id){if(selection&&writable){this.#store.freshDraft("");this.#store.freshRoot(null);}this.#store.upsert(id,{...(!this.#store.find(id)?.root&&this.#threadRoot?{root:this.#threadRoot}:{}),...(this.#threadCwd?{cwd:this.#threadCwd}:{}),...update,...(writable?{draft,model}:{}),ephemeral:legacy});if(selection)this.#store.select(id);if(legacy)this.#store.preserveTemporary(id,cache);if(writable&&resolved&&this.#store.snapshot().delivery?.token===resolved)this.#store.pendingDelivery(null);}else if(selection){this.#store.select(null);if(writable)this.#store.freshDraft(draft);}});
   }
   async flushDraftState():Promise<void>{await this.#save();}
   syncDraftFromStore(key:string):void{if((this.#thread??this.#legacyId??"official-chat")===key){this.#draft=this.#store.confirmedDraft(key);this.#publish();}}
@@ -179,15 +189,15 @@ export class OfficialChatController {
   async #activateSaved(id:string, startup=false, cancelled:()=>boolean=()=>false,beforeCommit:()=>void=()=>{}): Promise<void> {
     if(!this.#known(id))throw new Error("unknown-managed-session");
     if(!["idle","restoring"].includes(this.#phase)||this.#pending||this.#browser.snapshot().inflight||this.#asyncReads>=4||!this.#guarded)throw new Error("session-switch-busy");
-    const record=this.#store.find(id);if(record?.archiveUncertain){if(!startup){await this.#save();throw new Error("archive-outcome-unresolved");}this.#archiveBlockedId=id;this.#thread=id;this.#generation=this.#client.getView().generation;this.#currentWindow=null;this.#prompts.clear();this.#legacyId=null;if(this.#cachedId!==id)this.#cached=[];this.#resumeNeeded=true;this.#draft=record.draft;this.#browsing=false;this.#error="归档结果待核实；请显式恢复归档后再选择继续聊，当前不能发送。";return;}if(record?.archived)throw new Error("archived-session-read-only");
+    const record=this.#store.find(id);if(record?.archiveUncertain){if(!startup){await this.#save();throw new Error("archive-outcome-unresolved");}this.#archiveBlockedId=id;this.#thread=id;this.#threadRoot=record.root??null;this.#threadCwd=record.cwd??null;this.#generation=this.#client.getView().generation;this.#currentWindow=null;this.#prompts.clear();this.#legacyId=null;if(this.#cachedId!==id)this.#cached=[];this.#resumeNeeded=true;this.#draft=record.draft;this.#browsing=false;this.#error="归档结果待核实；请显式恢复归档后再选择继续聊，当前不能发送。";return;}if(record?.archived)throw new Error("archived-session-read-only");
     if(!startup)await this.#save();
-    if(record?.ephemeral){this.#legacyId=id;this.#thread=null;this.#currentWindow=null;this.#cached=this.#store.snapshot().temporary?.id===id?this.#store.snapshot().temporary!.messages:[];this.#draft=record.draft;this.#browsing=false;await this.#save();return;}
+    if(record?.ephemeral){this.#threadRoot=record.root??null;this.#threadCwd=record.cwd??null;this.#legacyId=id;this.#thread=null;this.#currentWindow=null;this.#cached=this.#store.snapshot().temporary?.id===id?this.#store.snapshot().temporary!.messages:[];this.#draft=record.draft;this.#browsing=false;await this.#save();return;}
     const intent=++this.#intent,generation=this.#client.getView().generation;this.#phase="restoring";this.#asyncReads++;this.#publish();
     try{
       const metadata=await this.#client.readThreadMetadata({threadId:id});if(!this.#current(intent,generation)||cancelled())return;
-      if(metadata.thread.ephemeral||metadata.thread.modelProvider!=="openai"||!["idle","notLoaded"].includes(metadata.thread.status.type))throw new Error("session-not-safe-to-resume");
+      if(metadata.thread.id!==id||(record?.cwd!=null&&record.cwd!==metadata.thread.cwd||record?.root&&record.root.path!==metadata.thread.cwd)||metadata.thread.ephemeral||metadata.thread.modelProvider!=="openai"||!["idle","notLoaded"].includes(metadata.thread.status.type))throw new Error("session-not-safe-to-resume");
       const page=await this.#client.listTurns({threadId:id,limit:20,sortDirection:"desc",itemsView:"full"});if(!this.#current(intent,generation)||cancelled())return;
-      if(page.data.some(turn=>turn.status==="inProgress"))throw new Error("unresolved-persisted-turn");beforeCommit();const window=new FullTurnsWindow(id);window.commit(page,null);this.#currentWindow=window;this.#thread=id;this.#archiveBlockedId=null;this.#legacyId=null;this.#generation=generation;this.#resumeNeeded=true;this.#cached=[];this.#prompts.clear();this.#draft=record?.draft??"";
+      if(page.data.some(turn=>turn.status==="inProgress"))throw new Error("unresolved-persisted-turn");beforeCommit();const window=new FullTurnsWindow(id);window.commit(page,null);this.#currentWindow=window;this.#thread=id;this.#threadCwd=metadata.thread.cwd;this.#threadRoot=record?.root??null;this.#archiveBlockedId=null;this.#legacyId=null;this.#generation=generation;this.#resumeNeeded=true;this.#cached=[];this.#prompts.clear();this.#draft=record?.draft??"";
       if(record?.model&&this.#core.snapshot().coreStatus?.models.includes(record.model))this.#model=record.model;
       this.#browsing=false;this.#browser.cancel();this.#error=null;await this.#save({title:(metadata.thread.name||record?.title||metadata.thread.preview||"持久会话").replace(/\s+/g," ").slice(0,100),unread:false,sectionPosition:(record?.sectionId??null)===(metadata.thread.section?.id??null)?record?.sectionPosition:undefined,sectionId:metadata.thread.section?.id??null,sectionName:metadata.thread.section?.name.replace(/[\x00-\x1f]/g," ").slice(0,200)??null});
     }catch{if(this.#current(intent,generation)){this.#error="持久记录读取未完成，已保留原聊天与草稿；未恢复执行或重发。";if(startup&&record)this.#draft=record.draft;}}
@@ -236,7 +246,8 @@ export class OfficialChatController {
       await this.#save();if(cancelled())return;
       await this.#client.checkModelConfiguration();if(cancelled())return;
       const meta=await this.#client.readThreadMetadata({threadId:id});if(cancelled())return;
-      if(meta.thread.ephemeral||meta.thread.modelProvider!=="openai"||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("fork-source-active");
+      if(meta.thread.id!==id||(source?.cwd!=null&&source.cwd!==meta.thread.cwd||source?.root&&source.root.path!==meta.thread.cwd)||meta.thread.ephemeral||meta.thread.modelProvider!=="openai"||!["idle","notLoaded"].includes(meta.thread.status.type))throw new Error("fork-source-active");
+      const cwd=meta.thread.cwd;if(source?.root)await this.#options.validateDirectory?.(source.root);if(cancelled())return;
       if(lastTurnId){
         // Revalidate the actual saved page at this generation before the creating RPC.
         const verified=new FullTurnsWindow(id);let found=false;
@@ -246,10 +257,10 @@ export class OfficialChatController {
       const title=(meta.thread.name||source?.title||meta.thread.preview||"持久会话").replace(/\s+/g," ").slice(0,100);
       await this.#mutate(()=>this.#store.upsert(id,{title,forkUncertain:true}));if(cancelled()){await this.#mutate(()=>this.#store.upsert(id,{forkUncertain:false}));return;}
       requested=true;
-      const result=await this.#client.forkThread({threadId:id,...(lastTurnId?{lastTurnId}:{}),model,modelProvider:"openai",cwd:this.#cwd,approvalPolicy:"never",sandbox:"read-only",ephemeral:false,excludeTurns:true,baseInstructions:"You are a text-only chat assistant. Do not use tools or access files.",developerInstructions:"Only provide text. Never call tools or access files, credentials or external services."});
+      const result=await this.#client.forkThread({threadId:id,...(lastTurnId?{lastTurnId}:{}),model,modelProvider:"openai",cwd,approvalPolicy:"never",sandbox:"read-only",ephemeral:false,excludeTurns:true,baseInstructions:"You are a text-only chat assistant. Do not use tools or access files.",developerInstructions:"Only provide text. Never call tools or access files, credentials or external services."});
       acknowledged=true;const childId=result.thread.id;
-      if(childId===id||result.thread.forkedFromId!==id||this.#store.find(childId))throw new Error("fork-identity-conflict");
-      await this.#mutate(()=>{this.#store.upsert(childId,{title:(result.thread.name||title+" · 分叉").slice(0,100),model,localProject:source?.localProject??null,sectionId:result.thread.section?.id??null,sectionName:result.thread.section?.name.replace(/[\x00-\x1f]/g," ").slice(0,200)??null,forkedFromId:id});this.#store.upsert(id,{forkUncertain:false});},true);
+      if(childId===id||result.thread.cwd!==cwd||result.thread.forkedFromId!==id||this.#store.find(childId))throw new Error("fork-identity-conflict");
+      await this.#mutate(()=>{this.#store.upsert(childId,{cwd,root:source?.root??null,title:(result.thread.name||title+" · 分叉").slice(0,100),model,localProject:source?.localProject??null,sectionId:result.thread.section?.id??null,sectionName:result.thread.section?.name.replace(/[\x00-\x1f]/g," ").slice(0,200)??null,forkedFromId:id});this.#store.upsert(id,{forkUncertain:false});},true);
       if(cancelled())return;
       this.#phase="idle";await this.#activateSaved(childId,true,()=>this.#forkCancelled,()=>{this.#forking=false;this.#publish();});
     }catch(error){
@@ -424,7 +435,7 @@ export class OfficialChatController {
       case "submit": if (!this.#store.snapshot().delivery && !this.#archiveBlockedId && !this.#browser.snapshot().inflight && this.#asyncReads===0 && this.#phase === "idle" && !this.#pending && this.#guarded && this.#model && this.#client.getView().state === "ready" && this.#draft.trim()) this.#pending = this.#draft.trim(); break;
       case "confirm": await this.#confirm(); break;
       case "cancel": if(this.#copying){this.#copyCancelled=true;this.#copyStatus={state:"cancelled",notice:"复制已取消，未写入剪贴板。"};break;} if(this.#forking){this.#forkCancelled=true;this.#error="已取消自动打开；已发送的官方分叉仍可能完成，将登记返回ID，不会重复请求。";break;} if (this.#pending) this.#pending = null; else if (["starting", "running", "cancelling"].includes(this.#phase)) { this.#cancelWanted = true; await this.#interrupt(); } break;
-      case "new": if (!["idle", "unknown"].includes(this.#phase)) throw new Error("chat-busy"); await this.#save(); this.#archiveBlockedId=null; this.#legacyId=null;this.#currentWindow=null;this.#resumeNeeded=false; this.#browser.cancel(); this.#browsing = false; this.#intent++; this.#thread = null; this.#turn = null; this.#cached = []; this.#prompts.clear(); this.#draft = ""; this.#pending = null; this.#error = null; if (this.#guarded) this.#phase = "idle"; await this.#save(); break;
+      case "new": if (!["idle", "unknown"].includes(this.#phase)) throw new Error("chat-busy"); await this.#save(); this.#archiveBlockedId=null; this.#legacyId=null;this.#currentWindow=null;this.#resumeNeeded=false; this.#browser.cancel(); this.#browsing = false; this.#intent++; this.#thread = null; this.#turn = null; this.#cached = []; this.#prompts.clear(); this.#threadCwd=null;this.#threadRoot=null;this.#draft = ""; this.#pending = null; this.#error = null; if (this.#guarded) this.#phase = "idle"; await this.#save(); break;
       case "thread": if (this.#browsing) await this.#browser.select(command.id, true); else if (command.id !== (this.#thread??this.#legacyId)) await this.#activateSaved(command.id); break;
       case "history": {
         if (this.#browsing) { if (command.threadId !== this.#browser.snapshot().selectedId) throw new Error("invalid-history-route"); await this.#browser.select(command.threadId, false); break; }

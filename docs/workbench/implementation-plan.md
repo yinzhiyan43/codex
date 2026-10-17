@@ -136,3 +136,5 @@ M2.l 基于已公开231f3aa补主窗/只读副窗的键盘与基础无障碍：�
 
 
 M2.m 基于本地2f664907b实现可编辑多窗口：每会话租约与版本、独立草稿/全局一个执行门、同会话生成和停止同步、保存证明关闭；发送前落盘、ACK原子清稿及跨重启未决锁/明确只读核对。280离线、34新专项+209既有后台检查通过，独立复审确认问题已修；真实IME/Tab/VoiceOver、多屏、跨客户端CAS和完整功能对照仍有边界。见[M2.m报告](multiwindow-editing-milestone.md)和[日常使用说明](daily-use.md)。仅本地提交、不push；92目标保留。
+
+M3.a基于本地256db6173实现显式目录授权、持久cwd/设备/inode绑定、有界只读文件与Git面板。官方fs接口的绝对路径/整文件/整目录语义不直接开放给renderer；本地openat助手与macOS受限系统Git承担此阶段读取，官方thread metadata与start/resume/fork仍核对真实cwd。官方project实验接口未接入，不把标签或授权目录冒充官方项目。301项离线、20项新仓库及243项既有隐藏检查通过；原生目录对话框为受限夹具模拟，人工选择器/VoiceOver/多屏、文件编辑/完整项目服务等仍待实现。见[M3.a报告](repository-context-milestone.md)和[范围方案](repository-context-plan.md)。不push，原92目标保留。

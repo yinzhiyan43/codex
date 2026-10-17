@@ -1,3 +1,5 @@
+import {runRepositorySmoke} from "./repository-smoke.ts";
+import {repositoryActiveReads} from "../desktop-host/repository-reader.ts";
 import {runEditableSmoke} from "./editable-smoke.ts";
 import {randomBytes} from "node:crypto";
 import {EditableWorkspace,type EditableSessionSurface} from "../desktop-host/editable-workspace.ts";
@@ -16,7 +18,7 @@ import { runEditingSmoke } from "./editing-smoke.ts";
 import { runManagementSmoke } from "./management-smoke.ts";
 import { runPersistenceSmoke } from "./persistence-smoke.ts";
 import { SessionStore } from "../desktop-host/session-store.ts";
-import { app, BrowserWindow, ipcMain, protocol, session, nativeImage, clipboard, nativeTheme } from "electron";
+import { app, BrowserWindow, ipcMain, protocol, session, nativeImage, clipboard, nativeTheme, dialog } from "electron";
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,6 +37,8 @@ import { IpcBudget, validateDesktopSender } from "../desktop-host/ipc-contract.t
 import { runDesktopSmoke } from "./smoke.ts";
 const directory = dirname(fileURLToPath(import.meta.url));
 const offlineChat = process.argv.includes("--official-chat-offline");
+const repositoryIndex=process.argv.indexOf("--repository-smoke"),repositoryPhase=repositoryIndex<0?null:process.argv[repositoryIndex+1];
+if(repositoryIndex>=0&&(!offlineChat||!process.argv.includes("--smoke-output")||!process.argv.includes("--persistence-root")||!["write","restart"].includes(repositoryPhase??"")))throw new Error("repository-smoke-is-offline-fixture-only");
 const editableIndex=process.argv.indexOf("--editable-smoke"),editablePhase=editableIndex<0?null:process.argv[editableIndex+1];
 if(editableIndex>=0&&(!offlineChat||!process.argv.includes("--smoke-output")||!process.argv.includes("--persistence-root")||!["write","restart","failure","long","delivery","delivered"].includes(editablePhase??"")))throw new Error("editable-smoke-is-offline-fixture-only");
 const keyboardSmoke=process.argv.includes("--keyboard-smoke");
@@ -85,6 +89,7 @@ const applicationIcon = nativeImage.createFromPath(join(directory, "workbench-ic
 if (applicationIcon.isEmpty()) throw new Error("Selected application icon is unreadable");
 app.dock?.setIcon(applicationIcon);
 const assets = new Map([
+  ["/repository.css",["repository.css","text/css; charset=utf-8"]],
   ["/theme.js",["theme.js","text/javascript; charset=utf-8"]],
   ["/theme.css",["theme.css","text/css; charset=utf-8"]],
   ["/preview.html", ["preview.html", "text/html; charset=utf-8"]],
@@ -109,8 +114,8 @@ let launch = () => spawn(process.execPath, [join(directory, "peer.cjs")], {
   cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"],
 });
 if (offlineChat) launch = () => {
-  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), editablePhase==="long"?"editable-long":(searchSmoke||keyboardSmoke)?"search-history":windowSmoke?"preview-history":copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
-  if (editablePhase || keyboardSmoke || themePhase || searchSmoke || historySmoke || persistencePhase) {
+  const child = spawn(process.execPath, [join(directory, "chat-peer.cjs"), repositoryPhase?"repository":editablePhase==="long"?"editable-long":(searchSmoke||keyboardSmoke)?"search-history":windowSmoke?"preview-history":copySmoke?"shared-management":historySmoke ? "slow-history" : "normal", join(stateRoot,"offline-core.json")], { cwd: directory, env: { ELECTRON_RUN_AS_NODE: "1" }, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+  if (repositoryPhase || editablePhase || keyboardSmoke || themePhase || searchSmoke || historySmoke || persistencePhase) {
     const write = child.stdin.write.bind(child.stdin);
     child.stdin.write = ((data: string | Uint8Array, ...args: unknown[]) => { for (const line of String(data).trim().split("\n")) { if (offlineFrames.length >= 512) throw new Error("offline-frame-budget"); offlineFrames.push(JSON.parse(line)); } return Reflect.apply(write, child.stdin, [data, ...args]); }) as typeof child.stdin.write;
   }
@@ -131,7 +136,7 @@ const appearance:SystemAppearance=themePhase?{isDark:()=>simulatedDark,subscribe
 const themes=new ThemeController(initialMode,appearance);
 const simulateAppearance=(dark:boolean)=>{if(!themePhase||typeof dark!=="boolean")throw new Error("theme-simulation-unavailable");simulatedDark=dark;for(const fn of systemObservers)fn();};
 const host = new StdioWorkbenchHost(launch, { searchApi:chatMode, requestTimeoutMs: chatMode ? 30000 : 5000, shutdownGraceMs: 1000, closeTimeoutMs: 3000 });
-controller = chatMode ? new EditableWorkspace(host.client(), chatCwd, offlineChat,new SessionStore(join(stateRoot,"sessions.json")),text=>{if(isSmoke){copyProbe.writes++;copyProbe.text=text;}else clipboard.writeText(text);}) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
+controller = chatMode ? new EditableWorkspace(host.client(), chatCwd, offlineChat,new SessionStore(join(stateRoot,"sessions.json")),text=>{if(isSmoke){copyProbe.writes++;copyProbe.text=text;}else clipboard.writeText(text);},join(directory,"repository-reader")) : official ? new CoreController(host.client(), accountMode) : new DemoController(host.client());
 const window = new BrowserWindow({ width: 1536, height: 894, minWidth: 900, minHeight: 650,
   icon: applicationIcon,
   backgroundColor: themeBackground(themes.snapshot().resolved), title: chatMode ? "Codex Workbench — " + (offlineChat ? "官方聊天协议离线验证" : "官方ChatGPT聊天") : official ? (accountMode ? "Codex Workbench — 官方核心原生账户状态" : "Codex Workbench — 官方核心隔离连接") : "Codex Workbench — 合成演示", titleBarStyle: "hiddenInset",
@@ -163,7 +168,7 @@ ipcMain.handle("workbench:preferences-update", async (event, patch: unknown) => 
 ipcMain.handle("workbench:snapshot", event => { verify(event); const release = budget.acquire(); try { return controller!.snapshot(); } finally { release(); } });
 ipcMain.handle("workbench:command", async (event, value: unknown) => {
   verify(event); const release = budget.acquire();
-  try { const command=validateDesktopCommand(value);if(offlineChat&&isSmoke&&controller instanceof EditableWorkspace&&command.type==="draft"){const editor=controller.snapshot().editor!;return await controller.dispatch({type:"editDraft",routeId:command.routeId,text:command.text,revision:editor.revision,lease:editor.lease!});}if(command.type==="openSessionWindow"||command.type==="openSearchResult"){await openPreview(command.id,command.type==="openSearchResult");return controller!.snapshot();}return await controller!.dispatch(command); }
+  try { const command=validateDesktopCommand(value);if(command.type==="chooseDirectory")return await chooseDirectory("main",window);if(offlineChat&&isSmoke&&controller instanceof EditableWorkspace&&command.type==="draft"){const editor=controller.snapshot().editor!;return await controller.dispatch({type:"editDraft",routeId:command.routeId,text:command.text,revision:editor.revision,lease:editor.lease!});}if(command.type==="openSessionWindow"||command.type==="openSearchResult"){await openPreview(command.id,command.type==="openSearchResult");return controller!.snapshot();}return await controller!.dispatch(command); }
   catch { throw new Error("workbench-command-rejected"); }
   finally { release(); }
 });
@@ -181,7 +186,16 @@ const broadcastTheme=()=>{const state=themes.snapshot();for(const pane of [windo
 const offTheme=themes.subscribe(broadcastTheme);
 const previewBinding=(event:Electron.IpcMainInvokeEvent)=>{const entry=[...previews.values()].find(row=>row.window.webContents===event.sender);if(!entry)throw new Error("untrusted-sender");validateDesktopSender({owner:true,mainFrame:event.senderFrame===entry.window.webContents.mainFrame,url:event.senderFrame?.url??"",surface:"preview"});return entry;};
 ipcMain.handle("preview:snapshot",event=>{const entry=previewBinding(event),release=entry.budget.acquire();try{return entry.controller.snapshot();}finally{release();}});
-ipcMain.handle("preview:command",async(event,value:unknown)=>{const entry=previewBinding(event),release=entry.budget.acquire();try{return await entry.controller.dispatch(value);}catch{throw new Error("preview-command-rejected");}finally{release();}});
+ipcMain.handle("preview:command",async(event,value:unknown)=>{const entry=previewBinding(event),release=entry.budget.acquire();try{const command=validateDesktopCommand(value);if(command.type==="chooseDirectory")return await chooseDirectory(entry.owner,entry.window);return await entry.controller.dispatch(command);}catch{throw new Error("preview-command-rejected");}finally{release();}});
+let directoryChoosing=false,repositoryPick:string|null|undefined,repositoryPickDone:(()=>void)|undefined;
+const queueRepositoryPick=(path:string|null)=>{if(!repositoryPhase||!fixtureRoot||repositoryPick!==undefined||path!==null&&![join(fixtureRoot,"roots","a"),join(fixtureRoot,"roots","b"),join(fixtureRoot,"roots","a","nested")].includes(path))throw new Error("invalid-synthetic-picker");repositoryPick=path;return new Promise<void>(resolve=>{repositoryPickDone=resolve;});};
+async function chooseDirectory(owner:string,pane:BrowserWindow){
+ if(!(controller instanceof EditableWorkspace)||closing||directoryChoosing)throw new Error("directory-picker-unavailable");
+ const workspace=controller,capture=workspace.captureDirectory(owner);directoryChoosing=true;
+ try{const queued=repositoryPick;repositoryPick=undefined;if(repositoryPhase&&queued===undefined)throw new Error("synthetic-picker-empty");const picked=repositoryPhase?{canceled:queued===null,filePaths:queued?[queued]:[]}:await dialog.showOpenDialog(pane,{title:"选择会话工作目录（只读浏览）",properties:["openDirectory"]});if(picked.canceled||picked.filePaths.length!==1)return workspace.snapshotOwner(owner);return await workspace.selectDirectory(owner,capture,picked.filePaths[0]!);}
+ catch(error){return workspace.directoryFailure(owner,capture,error instanceof Error?error.message:"");}
+ finally{directoryChoosing=false;repositoryPickDone?.();repositoryPickDone=undefined;}
+}
 async function openPreview(id:string,fromSearch=false):Promise<void>{
   if(closing||!(controller instanceof EditableWorkspace))throw new Error("preview-unavailable");const source=fromSearch?controller.searchPreviewSource(id):controller.previewSource(id),existing=previews.get(id);if(existing&&!existing.window.isDestroyed()){if(!isSmoke){existing.window.show();existing.window.focus();}return;}
   if(previews.size>=4)throw new Error("preview-window-limit");
@@ -226,7 +240,7 @@ window.on("close",event=>{
     closing=true;offTheme();themes.dispose();ipcMain.off("workbench:theme-bootstrap",themeBootstrap);
     unsubscribe();ipcMain.removeHandler("preview:snapshot");ipcMain.removeHandler("preview:command");for(const entry of previews.values()){entry.off();if(!entry.window.isDestroyed())entry.window.destroy();}previews.clear();ipcMain.removeHandler("workbench:command");ipcMain.removeHandler("workbench:snapshot");ipcMain.removeHandler("workbench:preferences-read");ipcMain.removeHandler("workbench:preferences-update");ipcMain.removeHandler("workbench:close-ready");
     await Promise.all([controller!.dispose(),preferences.settled()]);
-    if(windowSmoke||searchSmoke||themePhase||keyboardSmoke||editablePhase){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");}
+    if(repositoryPhase||windowSmoke||searchSmoke||themePhase||keyboardSmoke||editablePhase){const output=process.argv[process.argv.indexOf("--smoke-output")+1];if(output?.startsWith("/"))writeFileSync(join(output,"windows-close-results.json"),JSON.stringify({...previewAudit,activeWindows:previews.size,activeReads:readBudget.active(),repositoryReads:repositoryActiveReads(),coreActive:host.getView().processActive,coreState:host.getView().state})+"\n");}
     window.destroy();app.quit();
   })().catch(()=>{preparingClose=false;if(closing){console.error("Owned host shutdown failed");app.exit(1);return;}for(const pane of [window,...[...previews.values()].map(entry=>entry.window)])if(!pane.isDestroyed())pane.webContents.send("workbench:close-failed");});
 });
@@ -241,7 +255,7 @@ if (smokeIndex >= 0) {
   const externalHost=copySmoke?new StdioWorkbenchHost(launch,{requestTimeoutMs:5000}):null;
   const smokeTimeout = setTimeout(() => {console.error("Desktop smoke timed out");void Promise.allSettled([controller!.dispose(),externalHost?.dispose()]).finally(()=>app.exit(1));},30000);
   let smokeFailure:unknown=null;
-  try {if(externalHost)await externalHost.start();await (editablePhase ? runEditableSmoke(window,output,consoleErrors,editablePhase as "write"|"restart"|"failure"|"long"|"delivery"|"delivered",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"sessions.json")) : keyboardSmoke ? runKeyboardSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : themePhase ? runThemeSmoke(window,output,consoleErrors,themePhase as "write"|"restart"|"invalid"|"corrupt",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),simulateAppearance,join(stateRoot,"ui-preferences.json")) : searchSmoke ? runSearchSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : settingsSmoke&&persistencePhase ? runSettingsSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"ui-preferences.json")) : windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
+  try {if(externalHost)await externalHost.start();await (repositoryPhase ? runRepositorySmoke(window,output,consoleErrors,repositoryPhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),queueRepositoryPick,fixtureRoot!) : editablePhase ? runEditableSmoke(window,output,consoleErrors,editablePhase as "write"|"restart"|"failure"|"long"|"delivery"|"delivered",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"sessions.json")) : keyboardSmoke ? runKeyboardSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : themePhase ? runThemeSmoke(window,output,consoleErrors,themePhase as "write"|"restart"|"invalid"|"corrupt",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),simulateAppearance,join(stateRoot,"ui-preferences.json")) : searchSmoke ? runSearchSmoke(window,output,consoleErrors,()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : settingsSmoke&&persistencePhase ? runSettingsSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window),join(stateRoot,"ui-preferences.json")) : windowSmoke&&persistencePhase ? runWindowSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>[...previews.values()].map(row=>row.window)) : copySmoke&&persistencePhase&&externalHost ? runCopySmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames,()=>({...copyProbe}),externalHost.client()) : editingSmoke&&persistencePhase ? runEditingSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : managementSmoke&&persistencePhase ? runManagementSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : persistencePhase ? runPersistenceSmoke(window,output,consoleErrors,persistencePhase as "write"|"restart",()=>offlineFrames) : historySmoke ? runHistorySmoke(window, output, consoleErrors, () => offlineFrames) : chatMode ? runChatSmoke(window, output, consoleErrors) : official ? runCoreSmoke(window, output, consoleErrors, process.argv.includes("--expected-core-failure"), accountMode) : runDesktopSmoke(window, output, consoleErrors, applicationIcon.getSize()));console.log("Desktop smoke passed");}
   catch(error){smokeFailure=error;}
   finally{clearTimeout(smokeTimeout);try{await externalHost?.dispose();}catch(error){smokeFailure??=error;}}
   if(smokeFailure){console.error(smokeFailure);await controller.dispose();cleanupProfiles();app.exit(1);}else window.close();
